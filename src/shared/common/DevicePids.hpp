@@ -168,9 +168,12 @@ const std::vector<uint16_t> EGODevPids = {
 //   - src/device/DevicePids.hpp                 : this block (macro + EGO_SIM_* defines)
 //   - src/device/ego/EGODevice.cpp              : interface-index swap, OB_SENSOR_DEPTH/COLOR aliases,
 //                                                 and the initSensorStreamProfile() binding condition
-//   - src/device/ego/EGODeviceInfo.cpp          : claim Femto Mega PID + synthetic mic UAC port
+//   - src/device/ego/EGODeviceInfo.cpp          : claim Femto Mega PID + synthetic mic UAC port (Windows) +
+//                                                 real mic UAC port pairing (libusb / Linux)
 //   - src/device/femtomega/FemtoMegaDeviceInfo.cpp : drop Femto Mega PID + <algorithm> include
 //   - src/platform/usb/uac/WasapiUacDevicePort.cpp : friendly-name fallback match (NOT macro-gated)
+//   - src/shared/common/DeviceSeriesInfo.cpp    : whitelist external mic VID 0x1BCF for libusb enumeration
+//                                                 (NOT macro-gated; shared layer cannot include this header)
 #define EGO_SIMULATE_WITH_FEMTO_MEGA
 // PID of the USB Femto Mega used as the EGO stand-in (only the plain Femto Mega, not Femto Mega i).
 #define EGO_SIM_FEMTO_MEGA_PID 0x0669
