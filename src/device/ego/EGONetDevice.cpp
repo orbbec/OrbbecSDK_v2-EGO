@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 #include "EGONetDevice.hpp"
+#include "EGOAlgParamManager.hpp"
 #include "environment/EnvConfig.hpp"
 #include "stream/StreamProfileFactory.hpp"
 #include "sensor/video/VideoSensor.hpp"
@@ -54,12 +55,13 @@ void EGONetDevice::init() {
         initSensorList();
         fetchAllVideoStreamProfileList();
 
-        if(getFirmwareVersionInt() >= 10209) {
-            deviceTimeFreq_ = 1000000;
-        }
+        deviceTimeFreq_ = 1000000;
 
         auto globalTimestampFilter = std::make_shared<GlobalTimestampFitter>(this);
         registerComponent(OB_DEV_COMPONENT_GLOBAL_TIMESTAMP_FILTER, globalTimestampFilter);
+
+        auto algParamManager = std::make_shared<EGOAlgParamManager>(this);
+        registerComponent(OB_DEV_COMPONENT_ALG_PARAM_MANAGER, algParamManager);
 
         auto deviceClockSynchronizer = std::make_shared<DeviceClockSynchronizer>(this, deviceTimeFreq_, deviceTimeFreq_);
         registerComponent(OB_DEV_COMPONENT_DEVICE_CLOCK_SYNCHRONIZER, deviceClockSynchronizer);
@@ -354,6 +356,7 @@ void EGONetDevice::initProperties() {
     propertyServer->registerProperty(OB_PROP_ACCEL_SWITCH_BOOL, "", "rw", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_PROP_GYRO_SWITCH_BOOL, "", "rw", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_RAW_DATA_IMU_CALIB_PARAM, "", "rw", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_RAW_DATA_ALIGN_CALIB_PARAM, "", "r", vendorPropertyAccessor);
 
     // audio (microphone) controls
     propertyServer->registerProperty(OB_PROP_AUDIO_MUTE_BOOL, "rw", "rw", vendorPropertyAccessor);
@@ -413,6 +416,13 @@ void EGONetDevice::initSensorStreamProfile(std::shared_ptr<ISensor> sensor) {
     }
 
     auto profiles = sensor->getStreamProfileList();
+
+    // bind params: extrinsics, intrinsics, etc. (audio has no spatial calibration)
+    if(sensorType != OB_SENSOR_AUDIO) {
+        auto algParamManager = getComponentT<EGOAlgParamManager>(OB_DEV_COMPONENT_ALG_PARAM_MANAGER);
+        algParamManager->bindStreamProfileParams(profiles);
+    }
+
     LOG_DEBUG("Sensor {} created! Found {} stream profiles.", sensorType, profiles.size());
     for(auto &profile: profiles) {
         LOG_DEBUG(" - {}", profile);

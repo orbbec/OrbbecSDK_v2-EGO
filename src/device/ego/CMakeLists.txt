@@ -11,4 +11,6 @@ target_sources(
              ${CMAKE_CURRENT_LIST_DIR}/EGONetDevice.cpp
              ${CMAKE_CURRENT_LIST_DIR}/EGODeviceInfo.hpp
              ${CMAKE_CURRENT_LIST_DIR}/EGODeviceInfo.cpp
+             ${CMAKE_CURRENT_LIST_DIR}/EGOAlgParamManager.hpp
+             ${CMAKE_CURRENT_LIST_DIR}/EGOAlgParamManager.cpp
         )
