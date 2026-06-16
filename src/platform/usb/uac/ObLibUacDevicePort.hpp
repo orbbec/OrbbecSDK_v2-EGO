@@ -50,6 +50,9 @@ private:
     // Parse the configuration descriptor to locate the AudioStreaming interface, its iso IN endpoint,
     // the alt setting carrying audio, the Feature Unit ID and Clock Source ID.
     void parseUacTopology();
+    // Tell the device which sampling frequency to stream at (UAC1: endpoint control, UAC2: clock source).
+    // Without this the device leaves the iso IN endpoint idle and never delivers audio frames.
+    bool setSamplingFrequency(uint32_t sampleRate);
     bool controlSet(uint8_t selector, uint8_t channel, const uint8_t *data, uint16_t len);
     bool controlGet(uint8_t selector, uint8_t channel, uint8_t *data, uint16_t len);
 
@@ -73,6 +76,11 @@ private:
     uint8_t  acInterfaceNumber_ = 0;  // AudioControl interface number (for control transfers)
     uint16_t uacBcdVersion_     = 0x0100;
     bool     kernelDetached_    = false;
+
+    // Audio format parsed from the AS Type I FORMAT_TYPE descriptor (fallbacks keep the legacy 16 kHz mono).
+    uint32_t sampleRate_    = 16000;
+    uint8_t  channelCount_  = 1;
+    uint8_t  bitsPerSample_ = 16;
 
     std::shared_ptr<const AudioStreamProfile> activatedProfile_;
     MutableFrameCallback                      frameCallback_;

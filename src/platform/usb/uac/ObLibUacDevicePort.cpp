@@ -24,9 +24,15 @@ namespace libobsensor {
 // USB Audio interface subclasses
 #define UAC_SUBCLASS_AUDIOCONTROL 0x01
 #define UAC_SUBCLASS_AUDIOSTREAMING 0x02
+// Class-specific descriptor type
+#define UAC_CS_INTERFACE 0x24
 // AudioControl interface descriptor subtypes
+#define UAC_AC_HEADER 0x01
 #define UAC_AC_FEATURE_UNIT 0x06
 #define UAC_AC_CLOCK_SOURCE 0x0A  // UAC2
+// AudioStreaming interface descriptor subtype + Sampling Frequency control selector
+#define UAC_AS_FORMAT_TYPE 0x02
+#define UAC_SAMPLING_FREQ_CONTROL 0x01
 
 ObLibUacDevicePort::ObLibUacDevicePort(std::shared_ptr<IUsbDevice> usbDev, std::shared_ptr<const USBSourcePortInfo> portInfo)
     : usbDev_(usbDev), portInfo_(portInfo) {
@@ -57,8 +63,8 @@ ObLibUacDevicePort::ObLibUacDevicePort(std::shared_ptr<IUsbDevice> usbDev, std::
         THROW_IO_EXCEPTION("UAC: claim interface failed, error: " + std::string(libusb_strerror(res)));
     }
 
-    LOG_DEBUG("ObLibUacDevicePort created: AS iface={}, alt={}, ep=0x{:02x}, maxPkt={}", asInterfaceNumber_, asAltSetting_, isoEndpointAddr_,
-              isoMaxPacketSize_);
+    LOG_DEBUG("ObLibUacDevicePort created: AS iface={}, alt={}, ep=0x{:02x}, maxPkt={}, UAC v{:#06x}, format={}Hz/{}ch/{}bit", asInterfaceNumber_,
+              asAltSetting_, isoEndpointAddr_, isoMaxPacketSize_, uacBcdVersion_, sampleRate_, channelCount_, bitsPerSample_);
 }
 
 ObLibUacDevicePort::~ObLibUacDevicePort() noexcept {
@@ -103,9 +109,11 @@ void ObLibUacDevicePort::parseUacTopology() {
                     if(bLength == 0) {
                         break;
                     }
-                    // CS_INTERFACE = 0x24
-                    if(bDescType == 0x24) {
-                        if(bDescSubType == UAC_AC_FEATURE_UNIT && offset + 4 <= extraLen && featureUnitId_ == 0) {
+                    if(bDescType == UAC_CS_INTERFACE) {
+                        if(bDescSubType == UAC_AC_HEADER && offset + 5 <= extraLen) {
+                            uacBcdVersion_ = static_cast<uint16_t>(extra[offset + 3] | (extra[offset + 4] << 8));  // bcdADC
+                        }
+                        else if(bDescSubType == UAC_AC_FEATURE_UNIT && offset + 4 <= extraLen && featureUnitId_ == 0) {
                             featureUnitId_ = extra[offset + 3];  // bUnitID
                         }
                         else if(bDescSubType == UAC_AC_CLOCK_SOURCE && offset + 4 <= extraLen && clockSourceId_ == 0) {
@@ -127,6 +135,64 @@ void ObLibUacDevicePort::parseUacTopology() {
                         isoEndpointAddr_   = ep.bEndpointAddress;
                         isoMaxPacketSize_  = ep.wMaxPacketSize;
                         foundStreaming     = true;
+
+                        // Parse the class-specific AS Type I FORMAT_TYPE descriptor for the real audio format,
+                        // instead of assuming a fixed 16 kHz mono. Each sample frequency is 3-byte little-endian.
+                        // UAC1 only: the UAC2 FORMAT_TYPE has a different layout (rates live in the Clock Source),
+                        // so leave the defaults there. bcdADC was parsed from the AC interface enumerated earlier.
+                        const uint8_t *fx    = alt.extra;
+                        int            fxLen = (uacBcdVersion_ < 0x0200) ? alt.extra_length : 0;
+                        int            fxOff = 0;
+                        while(fxOff + 3 <= fxLen) {
+                            uint8_t bLength  = fx[fxOff];
+                            uint8_t bType    = fx[fxOff + 1];
+                            uint8_t bSubType = fx[fxOff + 2];
+                            if(bLength == 0) {
+                                break;
+                            }
+                            if(bType == UAC_CS_INTERFACE && bSubType == UAC_AS_FORMAT_TYPE && fxOff + 8 <= fxLen) {
+                                uint8_t bNrChannels    = fx[fxOff + 4];
+                                uint8_t bSubframeSize  = fx[fxOff + 5];  // bytes per sample
+                                uint8_t bBitResolution = fx[fxOff + 6];
+                                uint8_t bSamFreqType   = fx[fxOff + 7];
+                                if(bNrChannels > 0) {
+                                    channelCount_ = bNrChannels;
+                                }
+                                if(bBitResolution > 0) {
+                                    bitsPerSample_ = bBitResolution;
+                                }
+                                else if(bSubframeSize > 0) {
+                                    bitsPerSample_ = static_cast<uint8_t>(bSubframeSize * 8);
+                                }
+                                auto readFreq = [&](int p) -> uint32_t { return static_cast<uint32_t>(fx[p] | (fx[p + 1] << 8) | (fx[p + 2] << 16)); };
+                                if(bSamFreqType == 0 && fxOff + 14 <= fxLen) {
+                                    // Continuous range [lower, upper]; use the upper bound.
+                                    sampleRate_ = readFreq(fxOff + 11);
+                                }
+                                else if(bSamFreqType > 0) {
+                                    // Discrete list; prefer 48 kHz if offered, else the highest listed rate.
+                                    uint32_t best = 0;
+                                    for(int k = 0; k < bSamFreqType; ++k) {
+                                        int p = fxOff + 8 + k * 3;
+                                        if(p + 3 > fxLen) {
+                                            break;
+                                        }
+                                        uint32_t f = readFreq(p);
+                                        if(f == 48000) {
+                                            best = f;
+                                            break;
+                                        }
+                                        if(f > best) {
+                                            best = f;
+                                        }
+                                    }
+                                    if(best > 0) {
+                                        sampleRate_ = best;
+                                    }
+                                }
+                            }
+                            fxOff += bLength;
+                        }
                         break;
                     }
                 }
@@ -145,11 +211,30 @@ void ObLibUacDevicePort::parseUacTopology() {
 }
 
 StreamProfileList ObLibUacDevicePort::getStreamProfileList() {
-    // Backend does not expose a profile list; provide a default PCM16 profile (16 kHz mono, 20 ms chunk).
-    // Should be confirmed against firmware / parsed from the AS format descriptors.
+    // Format parsed from the AS Type I FORMAT_TYPE descriptor (see parseUacTopology); falls back to 16 kHz mono.
     StreamProfileList list;
-    list.push_back(StreamProfileFactory::createAudioStreamProfile(OB_FORMAT_PCM, 16000, 1, 16, 0, 320));
+    uint32_t          samplesPerFrame = sampleRate_ / 50;  // ~20 ms chunk hint for buffer sizing
+    list.push_back(StreamProfileFactory::createAudioStreamProfile(OB_FORMAT_PCM, sampleRate_, channelCount_, bitsPerSample_, 0, samplesPerFrame));
     return list;
+}
+
+bool ObLibUacDevicePort::setSamplingFrequency(uint32_t sampleRate) {
+    uint16_t wValue = static_cast<uint16_t>(UAC_SAMPLING_FREQ_CONTROL << 8);  // selector in high byte, channel 0
+    if(uacBcdVersion_ >= 0x0200) {
+        // UAC2: SET_CUR of the Clock Source's Sampling Frequency Control, 4-byte value, addressed to the AC interface.
+        uint8_t  data[4]       = { static_cast<uint8_t>(sampleRate), static_cast<uint8_t>(sampleRate >> 8), static_cast<uint8_t>(sampleRate >> 16),
+                                   static_cast<uint8_t>(sampleRate >> 24) };
+        uint8_t  bmRequestType = LIBUSB_ENDPOINT_OUT | LIBUSB_REQUEST_TYPE_CLASS | LIBUSB_RECIPIENT_INTERFACE;
+        uint16_t wIndex        = static_cast<uint16_t>((clockSourceId_ << 8) | acInterfaceNumber_);
+        auto     res           = libusb_control_transfer(devHandle_, bmRequestType, UAC_SET_CUR, wValue, wIndex, data, sizeof(data), 1000);
+        return res >= 0;
+    }
+    // UAC1: SET_CUR of the endpoint's Sampling Frequency Control, 3-byte value, addressed to the iso endpoint.
+    uint8_t  data[3]       = { static_cast<uint8_t>(sampleRate), static_cast<uint8_t>(sampleRate >> 8), static_cast<uint8_t>(sampleRate >> 16) };
+    uint8_t  bmRequestType = LIBUSB_ENDPOINT_OUT | LIBUSB_REQUEST_TYPE_CLASS | LIBUSB_RECIPIENT_ENDPOINT;
+    uint16_t wIndex        = isoEndpointAddr_;
+    auto     res           = libusb_control_transfer(devHandle_, bmRequestType, UAC_SET_CUR, wValue, wIndex, data, sizeof(data), 1000);
+    return res >= 0;
 }
 
 void ObLibUacDevicePort::startStream(std::shared_ptr<const StreamProfile> profile, MutableFrameCallback callback) {
@@ -165,6 +250,13 @@ void ObLibUacDevicePort::startStream(std::shared_ptr<const StreamProfile> profil
     auto res = libusb_set_interface_alt_setting(devHandle_, asInterfaceNumber_, asAltSetting_);
     if(res != LIBUSB_SUCCESS) {
         THROW_IO_EXCEPTION("UAC: set_interface_alt_setting failed: " + std::string(libusb_strerror(res)));
+    }
+
+    // Select the sampling frequency now that the streaming alt setting is active. A multi-rate device leaves
+    // the iso IN endpoint idle (no frames) until told which rate to use; the kernel snd-usb-audio driver does
+    // this implicitly, so skipping it is why direct libusb capture produced no audio frames.
+    if(!setSamplingFrequency(activatedProfile_->getSampleRate())) {
+        LOG_WARN("UAC: failed to set sampling frequency {} Hz; device may not deliver audio frames", activatedProfile_->getSampleRate());
     }
 
     streaming_ = true;
