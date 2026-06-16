@@ -433,7 +433,7 @@ const std::vector<UsbInterfaceInfo> &UsbEnumeratorLibusb::queryUsbInterfaces() {
         // libusb_open succeeded
         std::string serial = getStringDesc(handle, desc.iSerialNumber);
         if(serial.empty()) {
-            LOG_ERROR("Failed to query USB device serial number");
+            LOG_DEBUG("USB device has no serial number string descriptor");
         }
 
         auto infs = queryInterfaces(device, desc);

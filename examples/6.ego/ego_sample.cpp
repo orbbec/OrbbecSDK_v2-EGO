@@ -225,13 +225,24 @@ int main(void) try {
 
                 bool audioReady = audioPlayer.open(sampleRate, channelCount, bitsPerSample);
                 audioSensor->start(profile, [&audioPlayer, audioReady](std::shared_ptr<ob::Frame> frame) {
-                    if(audioReady && frame) {
+                    if(!frame) {
+                        return;
+                    }
+                    if(audioReady) {
                         audioPlayer.play(frame->getData(), frame->getDataSize());
                     }
 
-                    // Print the audio frame rate every 3 seconds.
+                    // Audio-stream health log (all platforms, independent of playback backend): confirm the first
+                    // frame as soon as it arrives, then report the frame rate every 3 seconds. If nothing is printed
+                    // here, no audio frames are being delivered (e.g. isochronous transfers dropped by USB passthrough).
                     static auto     lastLog    = std::chrono::steady_clock::now();
                     static uint64_t frameCount = 0;
+                    static bool     firstFrame = true;
+                    if(firstFrame) {
+                        firstFrame = false;
+                        lastLog    = std::chrono::steady_clock::now();
+                        std::cout << "Audio streaming started: first frame " << frame->getDataSize() << " bytes" << std::endl;
+                    }
                     ++frameCount;
                     auto elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - lastLog).count();
                     if(elapsedMs >= 3000) {
