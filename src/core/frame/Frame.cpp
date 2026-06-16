@@ -463,6 +463,40 @@ float GyroFrame ::temperature() const {
 LiDARPointsFrame::LiDARPointsFrame(uint8_t *data, size_t dataBufSize, FrameBufferReclaimFunc bufferReclaimFunc)
     : Frame(data, dataBufSize, OB_FRAME_LIDAR_POINTS, bufferReclaimFunc) {}
 
+AudioFrame::AudioFrame(uint8_t *data, size_t dataBufSize, FrameBufferReclaimFunc bufferReclaimFunc)
+    : Frame(data, dataBufSize, OB_FRAME_AUDIO, bufferReclaimFunc) {}
+
+uint32_t AudioFrame::getSampleRate() const {
+    if(streamProfile_ == nullptr) {
+        return 0;
+    }
+    return streamProfile_->as<AudioStreamProfile>()->getSampleRate();
+}
+
+uint32_t AudioFrame::getChannelCount() const {
+    if(streamProfile_ == nullptr) {
+        return 0;
+    }
+    return streamProfile_->as<AudioStreamProfile>()->getChannelCount();
+}
+
+uint32_t AudioFrame::getBitsPerSample() const {
+    if(streamProfile_ == nullptr) {
+        return 0;
+    }
+    return streamProfile_->as<AudioStreamProfile>()->getBitsPerSample();
+}
+
+uint32_t AudioFrame::getSampleCount() const {
+    uint32_t channelCount  = getChannelCount();
+    uint32_t bitsPerSample = getBitsPerSample();
+    uint32_t bytesPerFrame = channelCount * ((bitsPerSample + 7) / 8);
+    if(bytesPerFrame == 0) {
+        return 0;
+    }
+    return static_cast<uint32_t>(getDataSize() / bytesPerFrame);
+}
+
 FrameSet::FrameSet(uint8_t *data, size_t dataBufSize, FrameBufferReclaimFunc bufferReclaimFunc) : Frame(data, dataBufSize, OB_FRAME_SET, bufferReclaimFunc) {}
 
 FrameSet::~FrameSet() noexcept {

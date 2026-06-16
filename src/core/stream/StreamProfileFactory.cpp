@@ -23,6 +23,9 @@ std::shared_ptr<StreamProfile> createStreamProfile(OBStreamType streamType, OBFo
         return createGyroStreamProfile(OB_GYRO_FULL_SCALE_RANGE_ANY, OB_GYRO_SAMPLE_RATE_ANY);
     case OB_STREAM_LIDAR:
         return createLiDARStreamProfile(OB_LIDAR_SCAN_ANY, frameFormat);
+    case OB_STREAM_AUDIO:
+        // sampleRate/channelCount unknown here; produce a placeholder PCM profile with 0 fields.
+        return createAudioStreamProfile(frameFormat == OB_FORMAT_ANY ? OB_FORMAT_PCM : frameFormat, 0, 0, 16, 0, 0);
     case OB_STREAM_VIDEO:
     case OB_STREAM_DEPTH:
     case OB_STREAM_COLOR:
@@ -55,7 +58,7 @@ std::shared_ptr<VideoStreamProfile> createVideoStreamProfile(OBStreamType type, 
 
 std::shared_ptr<DisparityBasedStreamProfile> createDisparityBasedStreamProfile(std::shared_ptr<const VideoStreamProfile> videoProfile) {
     auto vsp           = std::make_shared<DisparityBasedStreamProfile>(videoProfile->getOwner(), videoProfile->getType(), videoProfile->getFormat(),
-                                                                       videoProfile->getWidth(), videoProfile->getHeight(), videoProfile->getFps());
+                                                             videoProfile->getWidth(), videoProfile->getHeight(), videoProfile->getFps());
     auto intrinsicsMgr = StreamIntrinsicsManager::getInstance();
     if(intrinsicsMgr->containsVideoStreamIntrinsics(videoProfile)) {
         auto intrinsics = intrinsicsMgr->getVideoStreamIntrinsics(videoProfile);
@@ -92,6 +95,16 @@ std::shared_ptr<GyroStreamProfile> createGyroStreamProfile(std::shared_ptr<LazyS
 
 std::shared_ptr<LiDARStreamProfile> createLiDARStreamProfile(OBLiDARScanRate scanRate, OBFormat format) {
     return createLiDARStreamProfile(std::shared_ptr<LazySensor>(), scanRate, format);
+}
+
+std::shared_ptr<AudioStreamProfile> createAudioStreamProfile(OBFormat format, uint32_t sampleRate, uint32_t channelCount, uint32_t bitsPerSample,
+                                                             uint32_t channelLayout, uint32_t samplesPerFrame) {
+    return createAudioStreamProfile(std::shared_ptr<LazySensor>(), format, sampleRate, channelCount, bitsPerSample, channelLayout, samplesPerFrame);
+}
+
+std::shared_ptr<AudioStreamProfile> createAudioStreamProfile(std::shared_ptr<LazySensor> owner, OBFormat format, uint32_t sampleRate, uint32_t channelCount,
+                                                             uint32_t bitsPerSample, uint32_t channelLayout, uint32_t samplesPerFrame) {
+    return std::make_shared<AudioStreamProfile>(owner, format, sampleRate, channelCount, bitsPerSample, channelLayout, samplesPerFrame);
 }
 
 std::shared_ptr<LiDARStreamProfile> createLiDARStreamProfile(std::shared_ptr<LazySensor> owner, OBLiDARScanRate scanRate, OBFormat format) {

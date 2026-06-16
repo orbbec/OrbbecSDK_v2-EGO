@@ -85,4 +85,36 @@ public:
     virtual void              stopAllStream()        = 0;
 };
 
+// for UAC microphone control (mute/gain/AGC). Implemented by the platform UAC ports; default no-op so the
+// property layer stays platform-agnostic. Returns false when the control is unsupported by the backend.
+class IAudioControlPort : virtual public ISourcePort {
+public:
+    ~IAudioControlPort() noexcept override = default;
+
+    virtual bool setMute(bool mute) {
+        (void)mute;
+        return false;
+    }
+    virtual bool getMute(bool &mute) {
+        (void)mute;
+        return false;
+    }
+    virtual bool setGain(int32_t gain) {
+        (void)gain;
+        return false;
+    }
+    virtual bool getGain(int32_t &gain) {
+        (void)gain;
+        return false;
+    }
+    virtual bool setAgc(bool enable) {
+        (void)enable;
+        return false;
+    }
+    virtual bool getAgc(bool &enable) {
+        (void)enable;
+        return false;
+    }
+};
+
 }  // namespace libobsensor

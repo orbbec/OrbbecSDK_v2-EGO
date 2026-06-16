@@ -684,6 +684,21 @@ typedef enum {
     OB_PROP_MJPEG_QUALITY_INT = 277,
 
     /**
+     * @brief Audio (microphone) mute switch (true: muted)
+     */
+    OB_PROP_AUDIO_MUTE_BOOL = 280,
+
+    /**
+     * @brief Audio (microphone) capture gain
+     */
+    OB_PROP_AUDIO_GAIN_INT = 281,
+
+    /**
+     * @brief Audio (microphone) automatic gain control switch (true: enabled)
+     */
+    OB_PROP_AUDIO_AGC_BOOL = 282,
+
+    /**
      * @brief Color AE/AWB status.
      * @param value
      *   - 0: Converging.

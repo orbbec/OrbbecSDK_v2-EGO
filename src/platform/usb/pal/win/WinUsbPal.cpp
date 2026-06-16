@@ -3,7 +3,7 @@
 
 #include "WinUsbPal.hpp"
 
-#if (_MSC_FULL_VER < 180031101)
+#if(_MSC_FULL_VER < 180031101)
 #error At least Visual Studio 2013 Update 4 is required to compile this backend
 #endif
 #ifndef WIN32_LEAN_AND_MEAN
@@ -27,6 +27,7 @@
 
 #include "usb/uvc/WmfUvcDevicePort.hpp"
 #include "usb/hid/HidDevicePort.hpp"
+#include "usb/uac/WasapiUacDevicePort.hpp"
 #include "usb/vendor/VendorUsbDevicePort.hpp"
 
 #include "logger/Logger.hpp"
@@ -211,6 +212,10 @@ std::shared_ptr<ISourcePort> WinUsbPal::getSourcePort(std::shared_ptr<const Sour
     }
     case SOURCE_PORT_USB_UVC:
         port = std::make_shared<WmfUvcDevicePort>(std::dynamic_pointer_cast<const USBSourcePortInfo>(portInfo));
+        break;
+    case SOURCE_PORT_USB_UAC:
+        // Windows captures the UAC microphone via WASAPI, paired to the device by USB VID/PID.
+        port = std::make_shared<WasapiUacDevicePort>(std::dynamic_pointer_cast<const USBSourcePortInfo>(portInfo));
         break;
     case SOURCE_PORT_USB_HID: {
         auto usbPortInfo = std::dynamic_pointer_cast<const USBSourcePortInfo>(portInfo);

@@ -280,6 +280,19 @@ public:
     LiDARPointsFrame(uint8_t *data, size_t dataBufSize, FrameBufferReclaimFunc bufferReclaimFunc = nullptr);
 };
 
+// Audio (microphone) frame. Buffer holds one delivery chunk of PCM samples (not width*height).
+// sampleRate/channelCount/bitsPerSample are read from the bound AudioStreamProfile.
+class AudioFrame : public Frame {
+public:
+    AudioFrame(uint8_t *data, size_t dataBufSize, FrameBufferReclaimFunc bufferReclaimFunc = nullptr);
+
+    uint32_t getSampleRate() const;
+    uint32_t getChannelCount() const;
+    uint32_t getBitsPerSample() const;
+    // Number of samples (per channel) carried in this frame, derived from data size.
+    uint32_t getSampleCount() const;
+};
+
 class FrameSet : public Frame {
     typedef std::function<bool(void *)> ForeachBack;
 

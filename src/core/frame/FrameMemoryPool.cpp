@@ -97,6 +97,10 @@ std::shared_ptr<IFrameBufferManager> FrameMemoryPool::createFrameBufferManager(O
         frameBufMgr = std::shared_ptr<FrameBufferManager<LiDARPointsFrame>>(new FrameBufferManager<LiDARPointsFrame>(frameBufferSize));
         LOG_DEBUG("LiDARPointsFrame bufferManager created!");
         break;
+    case OB_FRAME_AUDIO:
+        frameBufMgr = std::shared_ptr<FrameBufferManager<AudioFrame>>(new FrameBufferManager<AudioFrame>(frameBufferSize));
+        LOG_DEBUG("AudioFrame bufferManager created!");
+        break;
     case OB_FRAME_SET:
         frameBufMgr = std::shared_ptr<FrameBufferManager<FrameSet>>(new FrameBufferManager<FrameSet>(frameBufferSize));
         LOG_DEBUG("Frameset bufferManager created!");
@@ -134,6 +138,11 @@ std::shared_ptr<IFrameBufferManager> FrameMemoryPool::createFrameBufferManager(O
         auto sp   = streamProfile->as<LiDARStreamProfile>();
         auto info = sp->getInfo();
         return createFrameBufferManager(type, info.frameSize);
+    }
+    else if(streamProfile->is<AudioStreamProfile>()) {
+        // Audio frame buffer is sized per delivery chunk; getMaxFrameDataSize() falls back to a 1-second upper bound.
+        auto sp = streamProfile->as<AudioStreamProfile>();
+        return createFrameBufferManager(type, sp->getMaxFrameDataSize());
     }
     LOG_WARN("unsupported streamProfile type");
     return nullptr;

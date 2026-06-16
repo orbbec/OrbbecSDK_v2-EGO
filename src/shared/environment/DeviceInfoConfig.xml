@@ -184,6 +184,13 @@
             <Name>Gemini 435Le</Name>
             <Manufacturer>Orbbec</Manufacturer>
         </Gemini435Le>
+        <EGO>
+            <!-- PN2608_EGO head-mounted dual-RGB + IMU + audio device. -->
+            <VID>0x2BC5</VID>
+            <PID>0x1201</PID>
+            <Name>PN2608 EGO</Name>
+            <Manufacturer>Orbbec</Manufacturer>
+        </EGO>
         <!-- More devices can be added here -->
     </DevList>
 

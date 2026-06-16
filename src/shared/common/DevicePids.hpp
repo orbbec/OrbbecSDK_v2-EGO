@@ -151,6 +151,12 @@ const std::vector<uint16_t> G305DevPids = {
     0x0845   // Gemini 309g
 };
 
+// PN2608_EGO: head-mounted dual-RGB + IMU + audio device (USB-UVC/UAC and WiFi-RTSP paths)
+#define OB_DEVICE_EGO_PID 0x1201
+const std::vector<uint16_t> EGODevPids = {
+    0x1201,  // PN2608_EGO
+};
+
 #define LIDAR_PID_ME450_OLD 0x5555
 #define LIDAR_PID_ME450 0x1302
 #define LIDAR_PID_MS600 0x1300

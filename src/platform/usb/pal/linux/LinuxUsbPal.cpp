@@ -11,6 +11,7 @@
 #include "usb/hid/HidDevicePortGmsl.hpp"
 #include "usb/vendor/VendorUsbDevicePort.hpp"
 #include "usb/uvc/ObLibuvcDevicePort.hpp"
+#include "usb/uac/ObLibUacDevicePort.hpp"
 #include "usb/uvc/ObV4lUvcDevicePort.hpp"
 #include "usb/uvc/ObV4lGmslDevicePort.hpp"
 #include "usb/enumerator/UsbEnumeratorLibusb.hpp"
@@ -234,6 +235,15 @@ std::shared_ptr<ISourcePort> LinuxUsbPal::getSourcePort(std::shared_ptr<const So
             port = std::make_shared<HidDevicePort>(usbDev, std::dynamic_pointer_cast<const USBSourcePortInfo>(portInfo));
             LOG_DEBUG("HID device have been create with HID backend! dev: {}, inf: {}", usbPortInfo->url, usbPortInfo->infUrl);
         }
+        break;
+    }
+    case SOURCE_PORT_USB_UAC: {
+        auto usbDev = usbEnumerator_->openUsbDevice(std::dynamic_pointer_cast<const USBSourcePortInfo>(portInfo)->url);
+        if(usbDev == nullptr) {
+            THROW_DEVICE_UNAVAILABLE_EXCEPTION("usbEnumerator openUsbDevice failed!");
+        }
+        port = std::make_shared<ObLibUacDevicePort>(usbDev, std::dynamic_pointer_cast<const USBSourcePortInfo>(portInfo));
+        LOG_DEBUG("UAC device have been create with libusb backend!");
         break;
     }
 

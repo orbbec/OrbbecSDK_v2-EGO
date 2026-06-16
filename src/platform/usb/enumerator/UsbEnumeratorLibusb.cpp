@@ -206,6 +206,12 @@ std::vector<UsbInterfaceInfo> queryInterfaces(libusb_device *device, libusb_devi
                 continue;
             }
 
+            if(inf.altsetting->bInterfaceClass == LIBUSB_CLASS_AUDIO && inf.altsetting->bInterfaceSubClass != 2) {
+                // For UAC, only expose the AudioStreaming interface (subclass 2) as a capture port;
+                // the AudioControl interface (subclass 1) is located via the config descriptor when needed.
+                continue;
+            }
+
             if(inf.altsetting->bInterfaceClass == LIBUSB_CLASS_APPLICATION || inf.altsetting->bInterfaceClass == LIBUSB_CLASS_HUB) {
                 continue;
             }
@@ -215,7 +221,8 @@ std::vector<UsbInterfaceInfo> queryInterfaces(libusb_device *device, libusb_devi
             if(info.url.empty()) {
                 continue;
             }
-            info.cls = inf.altsetting->bInterfaceClass;
+            info.cls      = inf.altsetting->bInterfaceClass;
+            info.subclass = inf.altsetting->bInterfaceSubClass;
 
 #ifdef WIN32
             if(info.cls == LIBUSB_CLASS_HID) {

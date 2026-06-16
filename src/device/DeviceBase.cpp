@@ -36,6 +36,7 @@ const std::map<OBSensorType, DeviceComponentId> SensorTypeToComponentIdMap = {
     { OB_SENSOR_ACCEL, OB_DEV_COMPONENT_ACCEL_SENSOR },
     { OB_SENSOR_CONFIDENCE, OB_DEV_COMPONENT_CONFIDENCE_SENSOR },
     { OB_SENSOR_LIDAR, OB_DEV_COMPONENT_LIDAR_SENSOR },
+    { OB_SENSOR_AUDIO, OB_DEV_COMPONENT_AUDIO_SENSOR },
 };
 
 DeviceBase::DeviceBase() : ctx_(Context::getInstance()), isDeactivated_(false), isFirmwareUpdating_(false) {}

@@ -184,6 +184,40 @@ protected:
     OBLiDARScanRate scanRate_;
 };
 
+/**
+ * @brief Class representing an audio (microphone) stream profile.
+ *
+ * Audio is a first-class stream alongside video/IMU. The buffer of an AudioFrame is sized per
+ * delivery chunk (RTP packet / iso callback), not width*height. The first version targets PCM16LE.
+ */
+class AudioStreamProfile : public StreamProfile {
+public:
+    AudioStreamProfile(std::shared_ptr<LazySensor> owner, OBFormat format, uint32_t sampleRate, uint32_t channelCount, uint32_t bitsPerSample,
+                       uint32_t channelLayout, uint32_t samplesPerFrame);
+    ~AudioStreamProfile() noexcept override = default;
+
+    uint32_t getSampleRate() const;
+    uint32_t getChannelCount() const;
+    uint32_t getBitsPerSample() const;
+    uint32_t getChannelLayout() const;
+    uint32_t getSamplesPerFrame() const;
+
+    // Effective frame rate for pipeline/aggregation purposes (= sampleRate / samplesPerFrame).
+    uint32_t getFps() const;
+    // Upper bound for buffer sizing: bytes for one delivery chunk (samplesPerFrame * channelCount * bytesPerSample).
+    uint32_t getMaxFrameDataSize() const;
+
+    std::shared_ptr<StreamProfile> clone() const override;
+    std::ostream                  &operator<<(std::ostream &os) const override;
+
+protected:
+    uint32_t sampleRate_;
+    uint32_t channelCount_;
+    uint32_t bitsPerSample_;
+    uint32_t channelLayout_;
+    uint32_t samplesPerFrame_;
+};
+
 std::ostream &operator<<(std::ostream &os, const std::shared_ptr<const StreamProfile> &streamProfile);
 
 std::vector<std::shared_ptr<const VideoStreamProfile>> matchVideoStreamProfile(const StreamProfileList &profileList, uint32_t width, uint32_t height,
@@ -200,6 +234,9 @@ std::vector<std::shared_ptr<const GyroStreamProfile>> matchGyroStreamProfile(con
                                                                              OBGyroSampleRate sampleRate);
 
 std::vector<std::shared_ptr<const LiDARStreamProfile>> matchLiDARStreamProfile(const StreamProfileList &profileList, OBLiDARScanRate scanRate, OBFormat format);
+
+std::vector<std::shared_ptr<const AudioStreamProfile>> matchAudioStreamProfile(const StreamProfileList &profileList, OBFormat format, uint32_t sampleRate,
+                                                                               uint32_t channelCount);
 
 }  // namespace libobsensor
 
@@ -220,3 +257,6 @@ OB_LOG_FORMATTER(std::shared_ptr<const libobsensor::GyroStreamProfile>)
 
 OB_LOG_FORMATTER(std::shared_ptr<libobsensor::LiDARStreamProfile>)
 OB_LOG_FORMATTER(std::shared_ptr<const libobsensor::LiDARStreamProfile>)
+
+OB_LOG_FORMATTER(std::shared_ptr<libobsensor::AudioStreamProfile>)
+OB_LOG_FORMATTER(std::shared_ptr<const libobsensor::AudioStreamProfile>)

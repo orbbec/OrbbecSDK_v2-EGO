@@ -193,6 +193,7 @@ typedef enum {
     OB_SENSOR_LIDAR       = 10, /**< LiDAR */
     OB_SENSOR_COLOR_LEFT  = 11, /**< Left Color */
     OB_SENSOR_COLOR_RIGHT = 12, /**< Right Color */
+    OB_SENSOR_AUDIO       = 13, /**< Audio (microphone) */
     OB_SENSOR_TYPE_COUNT,       /**The total number of sensor types, is not a valid sensor type */
 } OBSensorType,
     ob_sensor_type;
@@ -215,6 +216,7 @@ typedef enum {
     OB_STREAM_LIDAR       = 10, /**< LiDAR Stream for LiDAR device*/
     OB_STREAM_COLOR_LEFT  = 11, /**< Left Color stream */
     OB_STREAM_COLOR_RIGHT = 12, /**< Right Color stream */
+    OB_STREAM_AUDIO       = 13, /**< Audio (microphone) stream */
     OB_STREAM_TYPE_COUNT,       /**< The total number of stream type,is not a valid stream type */
 } OBStreamType,
     ob_stream_type;
@@ -239,6 +241,7 @@ typedef enum {
     OB_FRAME_LIDAR_POINTS = 12, /**< LiDAR point3d cloud frame*/
     OB_FRAME_COLOR_LEFT   = 13, /**< Left Color frame */
     OB_FRAME_COLOR_RIGHT  = 14, /**< Right Color frame */
+    OB_FRAME_AUDIO        = 15, /**< Audio (microphone) frame */
     OB_FRAME_TYPE_COUNT,        /**< The total number of frame types, is not a valid frame type */
 } OBFrameType,
     ob_frame_type;
@@ -299,6 +302,7 @@ typedef enum {
     OB_FORMAT_LIDAR_SPHERE_POINT = 36, /**< Spherical coordinate point format with LiDAR information, @ref OBLiDARSpherePoint */
     OB_FORMAT_LIDAR_SCAN         = 37, /**< LiDAR single-line scan mode data format, @ref OBLiDARScanPoint */
     OB_FORMAT_LIDAR_CALIBRATION  = 38, /**< LiDAR calibration mode point format */
+    OB_FORMAT_PCM                = 39, /**< PCM audio format (first version fixed at 16-bit little-endian) */
 } OBFormat,
     ob_format;
 

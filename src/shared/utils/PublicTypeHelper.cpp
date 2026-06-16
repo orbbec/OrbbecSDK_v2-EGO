@@ -148,6 +148,8 @@ OBFrameType mapStreamTypeToFrameType(OBStreamType type) {
         return OB_FRAME_CONFIDENCE;
     case OB_STREAM_LIDAR:
         return OB_FRAME_LIDAR_POINTS;
+    case OB_STREAM_AUDIO:
+        return OB_FRAME_AUDIO;
     default:
         break;
     }
@@ -182,6 +184,8 @@ OBStreamType mapFrameTypeToStreamType(OBFrameType type) {
         return OB_STREAM_CONFIDENCE;
     case OB_FRAME_LIDAR_POINTS:
         return OB_STREAM_LIDAR;
+    case OB_FRAME_AUDIO:
+        return OB_STREAM_AUDIO;
     default:
         break;
     }
@@ -214,6 +218,8 @@ OBStreamType mapSensorTypeToStreamType(OBSensorType type) {
         return OB_STREAM_CONFIDENCE;
     case OB_SENSOR_LIDAR:
         return OB_STREAM_LIDAR;
+    case OB_SENSOR_AUDIO:
+        return OB_STREAM_AUDIO;
     default:
         break;
     }
@@ -246,6 +252,8 @@ OBSensorType mapStreamTypeToSensorType(OBStreamType type) {
         return OB_SENSOR_CONFIDENCE;
     case OB_STREAM_LIDAR:
         return OB_SENSOR_LIDAR;
+    case OB_STREAM_AUDIO:
+        return OB_SENSOR_AUDIO;
     default:
         break;
     }
@@ -278,6 +286,8 @@ OBSensorType mapFrameTypeToSensorType(OBFrameType type) {
         return OB_SENSOR_RAW_PHASE;
     case OB_FRAME_LIDAR_POINTS:
         return OB_SENSOR_LIDAR;
+    case OB_FRAME_AUDIO:
+        return OB_SENSOR_AUDIO;
     default:
         break;
     }
@@ -374,6 +384,7 @@ const std::map<OBSensorType, std::string> Sensor_Str_Map = {
     { OB_SENSOR_RAW_PHASE, "RawPhase" },
     { OB_SENSOR_CONFIDENCE, "Confidence" },
     { OB_SENSOR_LIDAR, "LiDAR" },
+    { OB_SENSOR_AUDIO, "Audio" },
     { OB_SENSOR_UNKNOWN, "Unknown" },
 };
 
@@ -392,7 +403,8 @@ const std::map<OBFrameType, std::string> Frame_Str_Map = { { OB_FRAME_UNKNOWN, "
                                                            { OB_FRAME_IR_RIGHT, "Right IR" },
                                                            { OB_FRAME_RAW_PHASE, "RawPhase" },
                                                            { OB_FRAME_CONFIDENCE, "Confidence" },
-                                                           { OB_FRAME_LIDAR_POINTS, "LiDAR Points" } };
+                                                           { OB_FRAME_LIDAR_POINTS, "LiDAR Points" },
+                                                           { OB_FRAME_AUDIO, "Audio" } };
 
 const std::map<OBStreamType, std::string> Stream_Str_Map = { { OB_STREAM_UNKNOWN, "Unknown" },
                                                              { OB_STREAM_VIDEO, "Video" },
@@ -407,7 +419,8 @@ const std::map<OBStreamType, std::string> Stream_Str_Map = { { OB_STREAM_UNKNOWN
                                                              { OB_STREAM_CONFIDENCE, "Confidence" },
                                                              { OB_STREAM_LIDAR, "LiDAR" },
                                                              { OB_STREAM_COLOR_LEFT, "Left Color" },
-                                                             { OB_STREAM_COLOR_RIGHT, "Right Color" } };
+                                                             { OB_STREAM_COLOR_RIGHT, "Right Color" },
+                                                             { OB_STREAM_AUDIO, "Audio" } };
 
 const std::map<OBAlignMode, std::string> AlignMode_Str_Map = {
     { ALIGN_DISABLE, "Disable" },
@@ -480,6 +493,7 @@ const std::map<OBFormat, std::string> Format_Str_Map = {
     { OB_FORMAT_LIDAR_SPHERE_POINT, "LIDAR_SPHERE_POINT" },
     { OB_FORMAT_LIDAR_SCAN, "LIDAR_SCAN" },
     { OB_FORMAT_LIDAR_CALIBRATION, "LIDAR_CALIBRATION" },
+    { OB_FORMAT_PCM, "PCM" },
     { OB_FORMAT_UNKNOWN, "UNKNOWN" },
 };
 
@@ -1020,7 +1034,8 @@ std::ostream &operator<<(std::ostream &os, const OBPlaybackStatus &status) {
 }
 
 std::ostream &operator<<(std::ostream &os, const OBMultiDeviceSyncConfig &config) {
-    os << "{" << "syncMode: ";
+    os << "{"
+       << "syncMode: ";
     switch(config.syncMode) {
     case OB_MULTI_DEVICE_SYNC_MODE_FREE_RUN:
         os << "free run";
@@ -1063,7 +1078,8 @@ std::ostream &operator<<(std::ostream &os, const OBMultiDeviceSyncConfig &config
 }
 
 std::ostream &operator<<(std::ostream &os, const OBDeviceSyncConfig &config) {
-    os << "{" << "syncMode: ";
+    os << "{"
+       << "syncMode: ";
     switch(config.syncMode) {
     case OB_SYNC_MODE_CLOSE:
         os << "free run";

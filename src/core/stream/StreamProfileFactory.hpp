@@ -28,6 +28,11 @@ std::shared_ptr<GyroStreamProfile> createGyroStreamProfile(std::shared_ptr<LazyS
 std::shared_ptr<LiDARStreamProfile> createLiDARStreamProfile(OBLiDARScanRate scanRate, OBFormat format);
 std::shared_ptr<LiDARStreamProfile> createLiDARStreamProfile(std::shared_ptr<LazySensor> owner, OBLiDARScanRate scanRate, OBFormat format);
 
+std::shared_ptr<AudioStreamProfile> createAudioStreamProfile(OBFormat format, uint32_t sampleRate, uint32_t channelCount, uint32_t bitsPerSample,
+                                                             uint32_t channelLayout, uint32_t samplesPerFrame);
+std::shared_ptr<AudioStreamProfile> createAudioStreamProfile(std::shared_ptr<LazySensor> owner, OBFormat format, uint32_t sampleRate, uint32_t channelCount,
+                                                             uint32_t bitsPerSample, uint32_t channelLayout, uint32_t samplesPerFrame);
+
 std::shared_ptr<const StreamProfile> getStreamProfileFromEnvConfig(const std::string &nodeName, OBSensorType sensorType);
 std::shared_ptr<const StreamProfile> getDefaultStreamProfileFromEnvConfig(const std::string &deviceName, OBSensorType sensorType, const std::string &tag = "");
 

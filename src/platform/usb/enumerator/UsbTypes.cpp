@@ -27,6 +27,10 @@ SourcePortType cvtUsbClassToPortType(uint8_t cls) {
         return SOURCE_PORT_USB_HID;
     case LIBUSB_CLASS_VIDEO:
         return SOURCE_PORT_USB_UVC;
+    case LIBUSB_CLASS_AUDIO:
+        // UAC audio interface (microphone). Both AudioControl and AudioStreaming sub-interfaces report
+        // LIBUSB_CLASS_AUDIO; the AudioStreaming (capture) interface is selected at port init time.
+        return SOURCE_PORT_USB_UAC;
     case LIBUSB_CLASS_VENDOR_SPEC:
         return SOURCE_PORT_USB_VENDOR;
     default:
@@ -36,4 +40,3 @@ SourcePortType cvtUsbClassToPortType(uint8_t cls) {
 }
 
 }  // namespace libobsensor
-

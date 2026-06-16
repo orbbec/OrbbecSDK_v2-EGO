@@ -97,7 +97,8 @@ OBExtrinsic StreamProfile::getExtrinsicTo(std::shared_ptr<const StreamProfile> t
 }
 
 std::ostream &StreamProfile::operator<<(std::ostream &os) const {
-    os << "{" << "type: " << type_ << ", format: " << format_ << "}";
+    os << "{"
+       << "type: " << type_ << ", format: " << format_ << "}";
     return os;
 }
 
@@ -219,7 +220,8 @@ bool VideoStreamProfile::operator==(const VideoStreamProfile &other) const {
 }
 
 std::ostream &VideoStreamProfile::operator<<(std::ostream &os) const {
-    os << "{" << "type: " << type_ << ", format: " << format_ << ", width: " << width_ << ", height: " << height_ << ", fps: " << fps_ << "}";
+    os << "{"
+       << "type: " << type_ << ", format: " << format_ << ", width: " << width_ << ", height: " << height_ << ", fps: " << fps_ << "}";
     return os;
 }
 
@@ -251,7 +253,8 @@ std::shared_ptr<StreamProfile> AccelStreamProfile::clone() const {
 }
 
 std::ostream &AccelStreamProfile::operator<<(std::ostream &os) const {
-    os << "{" << "type: " << type_ << ", format: " << format_ << ", fullScaleRange: " << fullScaleRange_ << ", sampleRate: " << sampleRate_ << "}";
+    os << "{"
+       << "type: " << type_ << ", format: " << format_ << ", fullScaleRange: " << fullScaleRange_ << ", sampleRate: " << sampleRate_ << "}";
     return os;
 }
 
@@ -288,7 +291,8 @@ std::shared_ptr<StreamProfile> GyroStreamProfile::clone() const {
 }
 
 std::ostream &GyroStreamProfile::operator<<(std::ostream &os) const {
-    os << "{" << "type: " << type_ << ", format: " << format_ << ", fullScaleRange: " << fullScaleRange_ << ", sampleRate: " << sampleRate_ << "}";
+    os << "{"
+       << "type: " << type_ << ", format: " << format_ << ", fullScaleRange: " << fullScaleRange_ << ", sampleRate: " << sampleRate_ << "}";
     return os;
 }
 
@@ -531,6 +535,77 @@ std::vector<std::shared_ptr<const LiDARStreamProfile>> matchLiDARStreamProfile(c
                 continue;
             }
             matchProfileList.push_back(lidarProfile);
+        }
+    }
+    return matchProfileList;
+}
+
+AudioStreamProfile::AudioStreamProfile(std::shared_ptr<LazySensor> owner, OBFormat format, uint32_t sampleRate, uint32_t channelCount, uint32_t bitsPerSample,
+                                       uint32_t channelLayout, uint32_t samplesPerFrame)
+    : StreamProfile{ owner, OB_STREAM_AUDIO, format },
+      sampleRate_(sampleRate),
+      channelCount_(channelCount),
+      bitsPerSample_(bitsPerSample),
+      channelLayout_(channelLayout),
+      samplesPerFrame_(samplesPerFrame) {}
+
+uint32_t AudioStreamProfile::getSampleRate() const {
+    return sampleRate_;
+}
+
+uint32_t AudioStreamProfile::getChannelCount() const {
+    return channelCount_;
+}
+
+uint32_t AudioStreamProfile::getBitsPerSample() const {
+    return bitsPerSample_;
+}
+
+uint32_t AudioStreamProfile::getChannelLayout() const {
+    return channelLayout_;
+}
+
+uint32_t AudioStreamProfile::getSamplesPerFrame() const {
+    return samplesPerFrame_;
+}
+
+uint32_t AudioStreamProfile::getFps() const {
+    if(samplesPerFrame_ == 0) {
+        return 0;
+    }
+    return sampleRate_ / samplesPerFrame_;
+}
+
+uint32_t AudioStreamProfile::getMaxFrameDataSize() const {
+    uint32_t bytesPerSample = (bitsPerSample_ + 7) / 8;
+    uint32_t samples        = samplesPerFrame_ != 0 ? samplesPerFrame_ : sampleRate_;  // fall back to a 1-second upper bound
+    return samples * channelCount_ * bytesPerSample;
+}
+
+std::shared_ptr<StreamProfile> AudioStreamProfile::clone() const {
+    auto sp = std::make_shared<AudioStreamProfile>(owner_.lock(), format_, sampleRate_, channelCount_, bitsPerSample_, channelLayout_, samplesPerFrame_);
+    return sp;
+}
+
+std::ostream &AudioStreamProfile::operator<<(std::ostream &os) const {
+    os << "{"
+       << "type: " << type_ << ", format: " << format_ << ", sampleRate: " << sampleRate_ << ", channelCount: " << channelCount_
+       << ", bitsPerSample: " << bitsPerSample_ << ", samplesPerFrame: " << samplesPerFrame_ << "}";
+    return os;
+}
+
+std::vector<std::shared_ptr<const AudioStreamProfile>> matchAudioStreamProfile(const StreamProfileList &profileList, OBFormat format, uint32_t sampleRate,
+                                                                               uint32_t channelCount) {
+    std::vector<std::shared_ptr<const AudioStreamProfile>> matchProfileList;
+    for(auto profile: profileList) {
+        if(profile->is<AudioStreamProfile>()) {
+            auto audioProfile = profile->as<AudioStreamProfile>();
+
+            // Get the profile that matches the user's items of interest
+            if((format == OB_FORMAT_ANY || audioProfile->getFormat() == format) && (sampleRate == 0 || audioProfile->getSampleRate() == sampleRate)
+               && (channelCount == 0 || audioProfile->getChannelCount() == channelCount)) {
+                matchProfileList.push_back(audioProfile);
+            }
         }
     }
     return matchProfileList;

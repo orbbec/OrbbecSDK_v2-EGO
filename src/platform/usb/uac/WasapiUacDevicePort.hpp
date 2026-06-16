@@ -1,0 +1,65 @@
+// Copyright (c) Orbbec Inc. All Rights Reserved.
+// Licensed under the MIT License.
+
+#pragma once
+#include "libobsensor/h/ObTypes.h"
+
+#include "ISourcePort.hpp"
+#include "stream/StreamProfile.hpp"
+
+#include <atomic>
+#include <memory>
+#include <mutex>
+#include <thread>
+
+struct IMMDevice;
+struct IAudioClient;
+struct IAudioCaptureClient;
+
+namespace libobsensor {
+
+// WASAPI-based USB Audio Class capture port for Windows. The system usbaudio.sys driver already exposes
+// the UAC microphone as a standard capture endpoint, so libusb is not used here. The endpoint is paired
+// to the EGO device by matching the USB VID/PID carried in PKEY_Device_InstanceId.
+// WASAPI capture does not yet implement UAC Feature Unit controls (would use Device Topology / IKsControl);
+// IAudioControlPort's default no-op (returns false) applies until that is added.
+class WasapiUacDevicePort : public IVideoStreamPort, public IAudioControlPort {
+public:
+    explicit WasapiUacDevicePort(std::shared_ptr<const USBSourcePortInfo> portInfo);
+    ~WasapiUacDevicePort() noexcept override;
+
+    StreamProfileList getStreamProfileList() override;
+    void              startStream(std::shared_ptr<const StreamProfile> profile, MutableFrameCallback callback) override;
+    void              stopStream(std::shared_ptr<const StreamProfile> profile) override;
+    void              stopAllStream() override;
+
+    std::shared_ptr<const SourcePortInfo> getSourcePortInfo() const override;
+
+private:
+    void captureLoop();
+
+private:
+    std::shared_ptr<const USBSourcePortInfo> portInfo_;
+
+    // Captured device format (read from the endpoint mix format at construction).
+    uint32_t sampleRate_    = 16000;
+    uint32_t channelCount_  = 1;
+    uint32_t bitsPerSample_ = 16;
+
+    std::shared_ptr<const AudioStreamProfile> activatedProfile_;
+    MutableFrameCallback                      frameCallback_;
+
+    std::atomic<bool> streaming_{ false };
+    std::thread       captureThread_;
+    std::mutex        streamMutex_;
+
+    // Opaque WASAPI handles (defined in the .cpp to keep COM headers out of this header).
+    IMMDevice           *mmDevice_      = nullptr;
+    IAudioClient        *audioClient_   = nullptr;
+    IAudioCaptureClient *captureClient_ = nullptr;
+
+    uint64_t anchorQpcUs_ = 0;
+    uint64_t totalFrames_ = 0;
+};
+
+}  // namespace libobsensor

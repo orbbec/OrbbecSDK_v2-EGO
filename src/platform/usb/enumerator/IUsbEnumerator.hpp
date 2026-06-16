@@ -25,8 +25,9 @@ struct UsbInterfaceInfo {
     uint8_t     infNameDescIndex = 0;  // iInterface (index of string description of interface)
     std::string infName;
     std::string infUrl;  // to distinguish between different pins of the same device
-    uint8_t     cls     = 0;
-    uint64_t    infFlag = 0;  // flag for usb interface. See UsbInterfaceFlag for detail
+    uint8_t     cls      = 0;
+    uint8_t     subclass = 0;  // bInterfaceSubClass; used to distinguish e.g. UAC AudioControl(1) vs AudioStreaming(2)
+    uint64_t    infFlag  = 0;  // flag for usb interface. See UsbInterfaceFlag for detail
 
     operator std::string() {
         std::stringstream s;

@@ -44,7 +44,7 @@ struct MJPGMetadataHeader {
 #pragma pack()
 
 const std::vector<std::string> OBVendorCodecs = {
-    "OB_FMT_Y16", "OB_FMT_Y8", "OB_FMT_Y10", "OB_FMT_RVL", "OB_FMT_MJPEG", "YUYV", "I420", "Y12C4"
+    "OB_FMT_Y16", "OB_FMT_Y8", "OB_FMT_Y10", "OB_FMT_RVL", "OB_FMT_MJPEG", "YUYV", "I420", "Y12C4", "OB_FMT_PCM"
 };
 
 bool isOBVendorCodec(const std::string &codec) {
@@ -52,9 +52,10 @@ bool isOBVendorCodec(const std::string &codec) {
 }
 
 const std::map<std::string, OBFormat> CodecToFormatMap = {
-    { "H264", OB_FORMAT_H264 },    { "H265", OB_FORMAT_H265 },      { "JPEG", OB_FORMAT_MJPG },      { "OB_FMT_Y16", OB_FORMAT_Y16 },
-    { "OB_FMT_Y8", OB_FORMAT_Y8 }, { "OB_FMT_Y10", OB_FORMAT_Y10 }, { "OB_FMT_RVL", OB_FORMAT_RVL }, { "OB_FMT_MJPEG", OB_FORMAT_MJPG },
-    { "YUYV", OB_FORMAT_YUYV }, { "OB_FMT_YUYV", OB_FORMAT_YUYV }, {"I420", OB_FORMAT_I420 }, { "Y12C4", OB_FORMAT_Y12C4 },
+    { "H264", OB_FORMAT_H264 },      { "H265", OB_FORMAT_H265 },        { "JPEG", OB_FORMAT_MJPG },      { "OB_FMT_Y16", OB_FORMAT_Y16 },
+    { "OB_FMT_Y8", OB_FORMAT_Y8 },   { "OB_FMT_Y10", OB_FORMAT_Y10 },   { "OB_FMT_RVL", OB_FORMAT_RVL }, { "OB_FMT_MJPEG", OB_FORMAT_MJPG },
+    { "YUYV", OB_FORMAT_YUYV },      { "OB_FMT_YUYV", OB_FORMAT_YUYV }, { "I420", OB_FORMAT_I420 },      { "Y12C4", OB_FORMAT_Y12C4 },
+    { "OB_FMT_PCM", OB_FORMAT_PCM },
 };
 
 OBFormat codecToOBFormat(const std::string &codec) {
@@ -336,7 +337,7 @@ void ObRTPSink::mjpgUpdateMetadata(std::shared_ptr<Frame> frame) {
 
     // Calculate COM segment end position
     // COM structure: 0xFF 0xFE [2-byte length (big-endian, includes itself)] [data...]
-    int comLength     = (orgFrameData[comSequenceIndex + 2] << 8) | orgFrameData[comSequenceIndex + 3];
+    int comLength      = (orgFrameData[comSequenceIndex + 2] << 8) | orgFrameData[comSequenceIndex + 3];
     int comEndPosition = comSequenceIndex + 2 + comLength;
 
     if(comEndPosition >= orgFrameSize) {

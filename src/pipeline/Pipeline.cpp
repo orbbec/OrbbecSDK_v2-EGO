@@ -204,6 +204,14 @@ std::shared_ptr<Config> Pipeline::checkAndSetConfig(std::shared_ptr<const Config
             }
             config->enableStream(matchedProfileList.front());
         }
+        else if(sensorType == OB_SENSOR_AUDIO) {
+            auto profile            = sp->as<AudioStreamProfile>();
+            auto matchedProfileList = matchAudioStreamProfile(sensorSpList, profile->getFormat(), profile->getSampleRate(), profile->getChannelCount());
+            if(matchedProfileList.empty()) {
+                THROW_INVALID_PARAM_EXCEPTION(utils::string::to_string() << "No matched profile found for:" << sp);
+            }
+            config->enableStream(matchedProfileList.front());
+        }
         else {
             auto profile            = sp->as<VideoStreamProfile>();
             auto matchedProfileList = matchVideoStreamProfile(sensorSpList, profile->getWidth(), profile->getHeight(), profile->getFps(), profile->getFormat(),
