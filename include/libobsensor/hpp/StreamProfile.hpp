@@ -413,6 +413,46 @@ public:
     }
 };
 
+/**
+ * @brief Class representing an audio stream profile.
+ */
+class AudioStreamProfile : public StreamProfile {
+public:
+    explicit AudioStreamProfile(const ob_stream_profile_t *impl) : StreamProfile(impl) {}
+
+    ~AudioStreamProfile() noexcept override = default;
+
+    /**
+     * @brief Return the sample rate in Hz.
+     */
+    uint32_t getSampleRate() const {
+        ob_error *error      = nullptr;
+        auto      sampleRate = ob_audio_stream_profile_get_sample_rate(impl_, &error);
+        Error::handle(&error);
+        return sampleRate;
+    }
+
+    /**
+     * @brief Return the number of audio channels.
+     */
+    uint32_t getChannelCount() const {
+        ob_error *error    = nullptr;
+        auto      channels = ob_audio_stream_profile_get_channel_count(impl_, &error);
+        Error::handle(&error);
+        return channels;
+    }
+
+    /**
+     * @brief Return the number of bits per sample.
+     */
+    uint32_t getBitsPerSample() const {
+        ob_error *error = nullptr;
+        auto      bits  = ob_audio_stream_profile_get_bits_per_sample(impl_, &error);
+        Error::handle(&error);
+        return bits;
+    }
+};
+
 template <typename T> bool StreamProfile::is() const {
     switch(this->getType()) {
     case OB_STREAM_VIDEO:
@@ -432,6 +472,8 @@ template <typename T> bool StreamProfile::is() const {
         return typeid(T) == typeid(GyroStreamProfile);
     case OB_STREAM_LIDAR:
         return typeid(T) == typeid(LiDARStreamProfile);
+    case OB_STREAM_AUDIO:
+        return typeid(T) == typeid(AudioStreamProfile);
     default:
         break;
     }
@@ -461,6 +503,8 @@ public:
             return std::make_shared<GyroStreamProfile>(impl);
         case OB_STREAM_LIDAR:
             return std::make_shared<LiDARStreamProfile>(impl);
+        case OB_STREAM_AUDIO:
+            return std::make_shared<AudioStreamProfile>(impl);
         default: {
             ob_error *err = ob_create_error(OB_STATUS_ERROR, "Unsupported stream type.", "StreamProfileFactory::create", "", OB_EXCEPTION_TYPE_INVALID_VALUE);
             Error::handle(&err);

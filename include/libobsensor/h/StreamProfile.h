@@ -373,6 +373,33 @@ OB_EXPORT void ob_gyro_stream_set_intrinsic(ob_stream_profile *profile, ob_gyro_
 OB_EXPORT ob_lidar_scan_rate ob_lidar_stream_profile_get_scan_rate(const ob_stream_profile *profile, ob_error **error);
 
 /**
+ * @brief Get the sample rate (samples per second, Hz) of an audio stream.
+ *
+ * @param[in] profile Stream profile object. If the profile is not for an audio stream, an error will be returned.
+ * @param[out] error Pointer to an error object that will be set if an error occurs.
+ * @return The sample rate of the audio stream in Hz.
+ */
+OB_EXPORT uint32_t ob_audio_stream_profile_get_sample_rate(const ob_stream_profile *profile, ob_error **error);
+
+/**
+ * @brief Get the channel count of an audio stream.
+ *
+ * @param[in] profile Stream profile object. If the profile is not for an audio stream, an error will be returned.
+ * @param[out] error Pointer to an error object that will be set if an error occurs.
+ * @return The number of audio channels.
+ */
+OB_EXPORT uint32_t ob_audio_stream_profile_get_channel_count(const ob_stream_profile *profile, ob_error **error);
+
+/**
+ * @brief Get the bits per sample of an audio stream.
+ *
+ * @param[in] profile Stream profile object. If the profile is not for an audio stream, an error will be returned.
+ * @param[out] error Pointer to an error object that will be set if an error occurs.
+ * @return The number of bits per sample.
+ */
+OB_EXPORT uint32_t ob_audio_stream_profile_get_bits_per_sample(const ob_stream_profile *profile, ob_error **error);
+
+/**
  * @brief Get the number of StreamProfile lists.
  *
  * @param[in] profile_list StreamProfile list.

@@ -92,9 +92,14 @@ std::shared_ptr<IDevice> EGODeviceInfo::createDevice(OBDeviceAccessMode accessMo
 #if defined(BUILD_USB_PAL)
 std::vector<std::shared_ptr<IDeviceEnumInfo>> EGODeviceInfo::pickDevices(const SourcePortInfoList infoList) {
     std::vector<std::shared_ptr<IDeviceEnumInfo>> egoDeviceInfos;
-    auto                                          remainder = FilterUSBPortInfoByVidPid(infoList, ORBBEC_DEVICE_VID, EGODevPids);
-    auto                                          groups    = utils::groupVector<std::shared_ptr<const SourcePortInfo>>(remainder, GroupUSBSourcePortByUrl);
-    auto                                          iter      = groups.begin();
+    std::vector<uint16_t>                         egoPids = EGODevPids;
+#ifdef EGO_SIMULATE_WITH_FEMTO_MEGA  // [EGO-SIM] delete block + revert egoPids to EGODevPids directly
+    // Also claim the USB Femto Mega stand-in so it is created as an EGODevice (see DevicePids.hpp).
+    egoPids.push_back(EGO_SIM_FEMTO_MEGA_PID);
+#endif
+    auto remainder = FilterUSBPortInfoByVidPid(infoList, ORBBEC_DEVICE_VID, egoPids);
+    auto groups    = utils::groupVector<std::shared_ptr<const SourcePortInfo>>(remainder, GroupUSBSourcePortByUrl);
+    auto iter      = groups.begin();
     while(iter != groups.end()) {
         // EGO USB exposes 2 UVC color interfaces + 1 HID IMU interface (+ UAC audio).
         if(iter->size() >= 2) {
@@ -106,11 +111,20 @@ std::vector<std::shared_ptr<IDeviceEnumInfo>> EGODeviceInfo::pickDevices(const S
                 bool hasUac =
                     std::any_of(iter->begin(), iter->end(), [](const std::shared_ptr<const SourcePortInfo> &p) { return p->portType == SOURCE_PORT_USB_UAC; });
                 if(!hasUac) {
-                    auto uacPort      = std::make_shared<USBSourcePortInfo>(SOURCE_PORT_USB_UAC);
-                    uacPort->url      = firstUsb->url;
-                    uacPort->uid      = firstUsb->uid;
-                    uacPort->vid      = firstUsb->vid;
-                    uacPort->pid      = firstUsb->pid;
+                    auto uacPort = std::make_shared<USBSourcePortInfo>(SOURCE_PORT_USB_UAC);
+                    uacPort->url = firstUsb->url;
+                    uacPort->uid = firstUsb->uid;
+#ifdef EGO_SIMULATE_WITH_FEMTO_MEGA  // [EGO-SIM] keep only the #else branch when removing simulation
+                    // The Femto Mega stand-in has no microphone; pair an external USB microphone instead. WASAPI
+                    // matches the capture endpoint by VID/PID, falling back to the endpoint friendly-name hint
+                    // carried in infName (Windows audio endpoints often hide the USB VID/PID). See DevicePids.hpp.
+                    uacPort->vid     = EGO_SIM_MIC_VID;
+                    uacPort->pid     = EGO_SIM_MIC_PID;
+                    uacPort->infName = EGO_SIM_MIC_NAME;
+#else
+                    uacPort->vid = firstUsb->vid;
+                    uacPort->pid = firstUsb->pid;
+#endif
                     uacPort->serial   = firstUsb->serial;
                     uacPort->connSpec = firstUsb->connSpec;
                     iter->emplace_back(uacPort);

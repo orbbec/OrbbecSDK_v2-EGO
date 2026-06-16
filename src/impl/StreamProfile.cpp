@@ -341,6 +341,36 @@ ob_lidar_scan_rate ob_lidar_stream_profile_get_scan_rate(const ob_stream_profile
 }
 HANDLE_EXCEPTIONS_AND_RETURN(OB_LIDAR_SCAN_UNKNOWN, profile)
 
+uint32_t ob_audio_stream_profile_get_sample_rate(const ob_stream_profile *profile, ob_error **error) BEGIN_API_CALL {
+    VALIDATE_NOT_NULL(profile);
+    if(!profile->profile->is<libobsensor::AudioStreamProfile>()) {
+        THROW_UNSUPPORTED_OPERATION_EXCEPTION("It's not an audio stream profile!");
+    }
+    auto audioProfile = profile->profile->as<libobsensor::AudioStreamProfile>();
+    return audioProfile->getSampleRate();
+}
+HANDLE_EXCEPTIONS_AND_RETURN(0, profile)
+
+uint32_t ob_audio_stream_profile_get_channel_count(const ob_stream_profile *profile, ob_error **error) BEGIN_API_CALL {
+    VALIDATE_NOT_NULL(profile);
+    if(!profile->profile->is<libobsensor::AudioStreamProfile>()) {
+        THROW_UNSUPPORTED_OPERATION_EXCEPTION("It's not an audio stream profile!");
+    }
+    auto audioProfile = profile->profile->as<libobsensor::AudioStreamProfile>();
+    return audioProfile->getChannelCount();
+}
+HANDLE_EXCEPTIONS_AND_RETURN(0, profile)
+
+uint32_t ob_audio_stream_profile_get_bits_per_sample(const ob_stream_profile *profile, ob_error **error) BEGIN_API_CALL {
+    VALIDATE_NOT_NULL(profile);
+    if(!profile->profile->is<libobsensor::AudioStreamProfile>()) {
+        THROW_UNSUPPORTED_OPERATION_EXCEPTION("It's not an audio stream profile!");
+    }
+    auto audioProfile = profile->profile->as<libobsensor::AudioStreamProfile>();
+    return audioProfile->getBitsPerSample();
+}
+HANDLE_EXCEPTIONS_AND_RETURN(0, profile)
+
 ob_stream_profile *ob_stream_profile_list_get_video_stream_profile(const ob_stream_profile_list *profile_list, int width, int height, ob_format format, int fps,
                                                                    ob_error **error) BEGIN_API_CALL {
     VALIDATE_NOT_NULL(profile_list);

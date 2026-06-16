@@ -51,6 +51,15 @@ WasapiUacDevicePort::WasapiUacDevicePort(std::shared_ptr<const USBSourcePortInfo
         UINT count = 0;
         collection->GetCount(&count);
         auto token = makeVidPidToken(portInfo_->vid, portInfo_->pid);
+
+        // [EGO-SIM] TEMPORARY (remove with EGO_SIMULATE_WITH_FEMTO_MEGA): friendly-name fallback match.
+        // Only the simulated EGO injects an infName hint (external mic stands in for the missing Femto Mega
+        // microphone). Windows audio endpoints often expose a SWD\MMDEVAPI instance id that does not carry
+        // the USB VID/PID, so also allow matching by endpoint friendly-name substring (carried in infName).
+        // Real EGO hardware reports a proper UAC VID/PID, so the VID/PID match above suffices then.
+        std::wstring nameHint(portInfo_->infName.begin(), portInfo_->infName.end());
+        std::transform(nameHint.begin(), nameHint.end(), nameHint.begin(), ::towupper);
+
         for(UINT i = 0; i < count && mmDevice_ == nullptr; ++i) {
             IMMDevice *dev = nullptr;
             if(FAILED(collection->Item(i, &dev)) || !dev) {
@@ -58,17 +67,32 @@ WasapiUacDevicePort::WasapiUacDevicePort(std::shared_ptr<const USBSourcePortInfo
             }
             IPropertyStore *props = nullptr;
             if(SUCCEEDED(dev->OpenPropertyStore(STGM_READ, &props)) && props) {
-                PROPVARIANT var;
-                PropVariantInit(&var);
-                if(SUCCEEDED(props->GetValue(PKEY_Device_InstanceId, &var)) && var.vt == VT_LPWSTR && var.pwszVal) {
-                    std::wstring instanceId(var.pwszVal);
+                bool matched = false;
+
+                PROPVARIANT idVar;
+                PropVariantInit(&idVar);
+                if(SUCCEEDED(props->GetValue(PKEY_Device_InstanceId, &idVar)) && idVar.vt == VT_LPWSTR && idVar.pwszVal) {
+                    std::wstring instanceId(idVar.pwszVal);
                     std::transform(instanceId.begin(), instanceId.end(), instanceId.begin(), ::towupper);
-                    if(instanceId.find(token) != std::wstring::npos) {
-                        mmDevice_ = dev;
-                        dev       = nullptr;  // ownership moved
-                    }
+                    matched = instanceId.find(token) != std::wstring::npos;
                 }
-                PropVariantClear(&var);
+                PropVariantClear(&idVar);
+
+                if(!matched && !nameHint.empty()) {  // [EGO-SIM] friendly-name fallback; remove with simulation
+                    PROPVARIANT nameVar;
+                    PropVariantInit(&nameVar);
+                    if(SUCCEEDED(props->GetValue(PKEY_Device_FriendlyName, &nameVar)) && nameVar.vt == VT_LPWSTR && nameVar.pwszVal) {
+                        std::wstring friendly(nameVar.pwszVal);
+                        std::transform(friendly.begin(), friendly.end(), friendly.begin(), ::towupper);
+                        matched = friendly.find(nameHint) != std::wstring::npos;
+                    }
+                    PropVariantClear(&nameVar);
+                }
+
+                if(matched) {
+                    mmDevice_ = dev;
+                    dev       = nullptr;  // ownership moved
+                }
                 props->Release();
             }
             if(dev) {
