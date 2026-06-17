@@ -43,6 +43,7 @@ if(NOT IOS)
   set(OB_CURRENT_OS "macOS")
 else()
   add_definitions(-DOS_IOS)
+  add_definitions(-D__NEON__)
   set(OB_CURRENT_OS "ios")
 endif()
 

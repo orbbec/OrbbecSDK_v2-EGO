@@ -42,6 +42,7 @@ build_macos_x64/
 build_macOS_arm64/
 build_macOS_x64/
 build_macOS/
+build_iOS_OS64/
 !**/*build*.sh
 cmake_build
 install/
