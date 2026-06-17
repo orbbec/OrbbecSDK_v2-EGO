@@ -131,17 +131,26 @@ std::vector<std::shared_ptr<IDeviceEnumInfo>> EGODeviceInfo::pickDevices(const S
                 }
             }
 #elif defined(EGO_SIMULATE_WITH_FEMTO_MEGA)  // [EGO-SIM] delete block when removing simulation
-            // On libusb platforms (e.g. Linux) the external USB microphone standing in for the EGO audio is
+            // On libusb platforms (Linux / Android) the external USB microphone standing in for the EGO audio is
             // enumerated as its own USB device and was filtered out by VID/PID above. Locate its real UAC port
             // in the full infoList and pair it onto the simulated EGO device, so ObLibUacDevicePort can open the
             // real interface directly (it detaches the kernel snd-usb-audio driver, see ObLibUacDevicePort).
+            // Android: match any UAC port (OTG mic may differ in VID/PID from the XWF-1080P stand-in).
+            // Linux/Mac: match by specific VID/PID of the XWF-1080P stand-in.
             bool hasUac =
                 std::any_of(iter->begin(), iter->end(), [](const std::shared_ptr<const SourcePortInfo> &p) { return p->portType == SOURCE_PORT_USB_UAC; });
             if(!hasUac) {
+#if defined(__ANDROID__)
+                auto micIter = std::find_if(infoList.begin(), infoList.end(), [](const std::shared_ptr<const SourcePortInfo> &p) {
+                    auto usb = std::dynamic_pointer_cast<const USBSourcePortInfo>(p);
+                    return usb && usb->portType == SOURCE_PORT_USB_UAC;
+                });
+#else
                 auto micIter = std::find_if(infoList.begin(), infoList.end(), [](const std::shared_ptr<const SourcePortInfo> &p) {
                     auto usb = std::dynamic_pointer_cast<const USBSourcePortInfo>(p);
                     return usb && usb->portType == SOURCE_PORT_USB_UAC && usb->vid == EGO_SIM_MIC_VID && usb->pid == EGO_SIM_MIC_PID;
                 });
+#endif
                 if(micIter != infoList.end()) {
                     iter->emplace_back(*micIter);
                 }
