@@ -34,6 +34,7 @@ private:
 private:
     uint64_t deviceTimeFreq_     = 1000;
     uint64_t colorFrameTimeFreq_ = 90000;
+    uint64_t depthFrameTimeFreq_ = 1000000;  // [EGO-SIM] depth alias timebase for the Femto Mega net stand-in
 
     StreamProfileList allVideoStreamProfileList_;  // fetched from device via vendor-specific protocol
     bool              inRecoveryMode_ = false;

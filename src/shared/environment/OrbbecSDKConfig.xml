@@ -464,6 +464,23 @@
             </IR>
         </FemtoMega>
 
+        <!-- [EGO-SIM] EGO emulated by a network Femto Mega. The device's own default color stream is H265 (4K),
+             which OpenCV/CVWindow cannot decode, so force an MJPG color profile here. The node name is the device
+             name "EGO series device" with spaces removed (see getStreamProfileFromEnvConfig). Remove this block
+             together with EGO_SIMULATE_WITH_FEMTO_MEGA (see DevicePids.hpp). -->
+        <EGOseriesdevice>
+            <Color>
+                <!-- The width of the default resolution, int type -->
+                <Width>1920</Width>
+                <!-- The height of the default resolution, int type -->
+                <Height>1080</Height>
+                <!-- Default frame rate, int type -->
+                <FPS>30</FPS>
+                <!-- Default frame format -->
+                <Format>MJPG</Format>
+            </Color>
+        </EGOseriesdevice>
+
         <FemtoMegai>
             <Misc>
                 <GlobalTimestampFitterEnable>false</GlobalTimestampFitterEnable>

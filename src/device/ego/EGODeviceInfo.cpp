@@ -160,13 +160,28 @@ std::vector<std::shared_ptr<IDeviceEnumInfo>> EGODeviceInfo::pickDevices(const S
 #if defined(BUILD_NET_PAL)
 std::vector<std::shared_ptr<IDeviceEnumInfo>> EGODeviceInfo::pickNetDevices(const SourcePortInfoList infoList) {
     std::vector<std::shared_ptr<IDeviceEnumInfo>> egoDeviceInfos;
-    auto                                          remainder = FilterNetPortInfoByVidPid(infoList, ORBBEC_DEVICE_VID, EGODevPids);
-    auto                                          groups    = utils::groupVector<std::shared_ptr<const SourcePortInfo>>(remainder, GroupNetSourcePortByMac);
-    auto                                          iter      = groups.begin();
+    std::vector<uint16_t>                         egoPids = EGODevPids;
+#ifdef EGO_SIMULATE_WITH_FEMTO_MEGA  // [EGO-SIM] delete block + revert egoPids to EGODevPids directly
+    // Also claim the network Femto Mega stand-in so it is created as an EGONetDevice (see DevicePids.hpp).
+    egoPids.push_back(EGO_SIM_FEMTO_MEGA_PID);
+#endif
+    auto remainder = FilterNetPortInfoByVidPid(infoList, ORBBEC_DEVICE_VID, egoPids);
+    auto groups    = utils::groupVector<std::shared_ptr<const SourcePortInfo>>(remainder, GroupNetSourcePortByMac);
+    auto iter      = groups.begin();
     while(iter != groups.end()) {
         if(iter->size() >= 1) {
             auto portInfo = std::dynamic_pointer_cast<const NetSourcePortInfo>(iter->front());
 
+#ifdef EGO_SIMULATE_WITH_FEMTO_MEGA  // [EGO-SIM] keep only the #else branch when removing simulation
+            // The Femto Mega WiFi stand-in serves the real Femto Mega RTSP layout, not the (placeholder) EGO one,
+            // so route its actual streams through the EGO net path: RTSP color on 8888 + depth on 8554 + private
+            // TCP IMU on 8900 (matches FemtoMegaDeviceInfo::pickNetDevices). EGONetDevice aliases these to
+            // OB_SENSOR_COLOR / OB_SENSOR_DEPTH so generic depth+color samples (ego_sample) stream unchanged. IR is
+            // omitted (ego_sample does not use it); audio is dropped because Femto Mega serves no microphone stream.
+            iter->emplace_back(std::make_shared<RTSPStreamPortInfo>(*portInfo, static_cast<uint16_t>(8888), portInfo->port, OB_STREAM_COLOR));
+            iter->emplace_back(std::make_shared<RTSPStreamPortInfo>(*portInfo, static_cast<uint16_t>(8554), portInfo->port, OB_STREAM_DEPTH));
+            iter->emplace_back(std::make_shared<NetDataStreamPortInfo>(*portInfo, EGO_IMU_TCP_PORT, portInfo->port));
+#else
             // Two independent color streams: each gets its own RTSPStreamPortInfo / URL path / ObRTSPClient,
             // but shares the same RTSP service port (distinguished by URL path, see plan §4.2 scheme A).
             iter->emplace_back(std::make_shared<RTSPStreamPortInfo>(*portInfo, EGO_RTSP_SERVICE_PORT, portInfo->port, OB_STREAM_COLOR_LEFT));
@@ -178,6 +193,7 @@ std::vector<std::shared_ptr<IDeviceEnumInfo>> EGODeviceInfo::pickNetDevices(cons
 
             // IMU over an independent private TCP data stream (not RTSP), modeled on FemtoMega.
             iter->emplace_back(std::make_shared<NetDataStreamPortInfo>(*portInfo, EGO_IMU_TCP_PORT, portInfo->port));
+#endif
 
             auto deviceEnumInfo = std::make_shared<EGODeviceInfo>(*iter);
             egoDeviceInfos.push_back(deviceEnumInfo);

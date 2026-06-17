@@ -112,9 +112,15 @@ std::vector<std::shared_ptr<IDeviceEnumInfo>> FemtoMegaDeviceInfo::pickDevices(c
 #if defined(BUILD_NET_PAL)
 std::vector<std::shared_ptr<IDeviceEnumInfo>> FemtoMegaDeviceInfo::pickNetDevices(const SourcePortInfoList infoList) {
     std::vector<std::shared_ptr<IDeviceEnumInfo>> femtoMegaDeviceInfos;
-    auto                                          remainder = FilterNetPortInfoByVidPid(infoList, ORBBEC_DEVICE_VID, FemtoMegaDevPids);
-    auto                                          groups    = utils::groupVector<std::shared_ptr<const SourcePortInfo>>(remainder, GroupNetSourcePortByMac);
-    auto                                          iter      = groups.begin();
+    std::vector<uint16_t>                         megaPids = FemtoMegaDevPids;
+#ifdef EGO_SIMULATE_WITH_FEMTO_MEGA  // [EGO-SIM] delete block + revert megaPids to FemtoMegaDevPids directly
+    // The plain Femto Mega is claimed by EGODeviceInfo as the EGO net stand-in; drop it here to avoid a
+    // duplicate device (mirrors the USB path, see DevicePids.hpp).
+    megaPids.erase(std::remove(megaPids.begin(), megaPids.end(), static_cast<uint16_t>(EGO_SIM_FEMTO_MEGA_PID)), megaPids.end());
+#endif
+    auto remainder = FilterNetPortInfoByVidPid(infoList, ORBBEC_DEVICE_VID, megaPids);
+    auto groups    = utils::groupVector<std::shared_ptr<const SourcePortInfo>>(remainder, GroupNetSourcePortByMac);
+    auto iter      = groups.begin();
     while(iter != groups.end()) {
         if(iter->size() >= 1) {
 
