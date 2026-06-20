@@ -178,7 +178,10 @@ const std::vector<uint16_t> EGODevPids = {
 //   - src/platform/usb/uac/WasapiUacDevicePort.cpp : friendly-name fallback match (NOT macro-gated)
 //   - src/shared/common/DeviceSeriesInfo.cpp    : whitelist external mic VID 0x1BCF for libusb enumeration
 //                                                 (NOT macro-gated; shared layer cannot include this header)
-#define EGO_SIMULATE_WITH_FEMTO_MEGA
+// [EGO-SIM] DISABLED: real EGO hardware (VID 0x2BC5 / PID 0x1201) is now in use, so the Femto Mega
+// simulation is turned off. With this commented out, every "#ifdef EGO_SIMULATE_WITH_FEMTO_MEGA"
+// block falls through to its real-EGO "#else" branch. Uncomment to re-enable the Femto Mega stand-in.
+// #define EGO_SIMULATE_WITH_FEMTO_MEGA
 // PID of the USB Femto Mega used as the EGO stand-in (only the plain Femto Mega, not Femto Mega i).
 #define EGO_SIM_FEMTO_MEGA_PID 0x0669
 // The Femto Mega has no microphone, so an external USB microphone (XWF-1080P) stands in for the EGO
