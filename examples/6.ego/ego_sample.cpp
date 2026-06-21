@@ -1,7 +1,7 @@
 // Copyright (c) Orbbec Inc. All Rights Reserved.
 // Licensed under the MIT License.
 
-// EGO sample: render depth + color and play back the device microphone audio.
+// EGO sample: render the dual RGB (left + right) streams and play back the device microphone audio.
 // Audio playback is cross-platform:
 //   - Windows: WinMM waveOut
 //   - Linux / arm64: ALSA (when libasound is available; define OB_EGO_HAVE_ALSA)
@@ -193,11 +193,11 @@ int main(void) try {
     // Create a pipeline with default device.
     ob::Pipeline pipe;
 
-    // Configure which streams to enable. The EGO device (and the Mega stand-in) exposes depth + color
-    // and audio (microphone).
+    // Configure which streams to enable. The EGO device exposes two RGB cameras (left + right) plus
+    // audio (microphone).
     std::shared_ptr<ob::Config> config = std::make_shared<ob::Config>();
-    config->enableVideoStream(OB_STREAM_DEPTH);
-    config->enableVideoStream(OB_STREAM_COLOR);
+    config->enableVideoStream(OB_STREAM_COLOR_LEFT);
+    config->enableVideoStream(OB_STREAM_COLOR_RIGHT);
 
     // Start the pipeline with config.
     pipe.start(config);
@@ -234,7 +234,7 @@ int main(void) try {
 
                     // Audio-stream health log (all platforms, independent of playback backend): confirm the first
                     // frame as soon as it arrives, then report the frame rate every 3 seconds. If nothing is printed
-                    // here, no audio frames are being delivered (e.g. isochronous transfers dropped by USB passthrough).
+                    // here, no audio frames are being delivered.
                     static auto     lastLog    = std::chrono::steady_clock::now();
                     static uint64_t frameCount = 0;
                     static bool     firstFrame = true;
@@ -261,7 +261,7 @@ int main(void) try {
     }
 
     // Create a window for rendering and set the resolution of the window.
-    ob_smpl::CVWindow win("EGO: Color + Depth (+ Audio)");
+    ob_smpl::CVWindow win("EGO: Dual Color (+ Audio)");
 
     while(win.run()) {
         // Wait for up to 100ms for a frameset in blocking mode.
@@ -270,7 +270,7 @@ int main(void) try {
             continue;
         }
 
-        // Render every frame in the set (depth + color).
+        // Render every frame in the set (left + right color).
         win.pushFramesToView(frameSet);
     }
 

@@ -92,14 +92,10 @@ std::shared_ptr<IDevice> EGODeviceInfo::createDevice(OBDeviceAccessMode accessMo
 #if defined(BUILD_USB_PAL)
 std::vector<std::shared_ptr<IDeviceEnumInfo>> EGODeviceInfo::pickDevices(const SourcePortInfoList infoList) {
     std::vector<std::shared_ptr<IDeviceEnumInfo>> egoDeviceInfos;
-    std::vector<uint16_t>                         egoPids = EGODevPids;
-#ifdef EGO_SIMULATE_WITH_FEMTO_MEGA  // [EGO-SIM] delete block + revert egoPids to EGODevPids directly
-    // Also claim the USB Femto Mega stand-in so it is created as an EGODevice (see DevicePids.hpp).
-    egoPids.push_back(EGO_SIM_FEMTO_MEGA_PID);
-#endif
-    auto remainder = FilterUSBPortInfoByVidPid(infoList, ORBBEC_DEVICE_VID, egoPids);
-    auto groups    = utils::groupVector<std::shared_ptr<const SourcePortInfo>>(remainder, GroupUSBSourcePortByUrl);
-    auto iter      = groups.begin();
+    std::vector<uint16_t>                         egoPids   = EGODevPids;
+    auto                                          remainder = FilterUSBPortInfoByVidPid(infoList, ORBBEC_DEVICE_VID, egoPids);
+    auto                                          groups    = utils::groupVector<std::shared_ptr<const SourcePortInfo>>(remainder, GroupUSBSourcePortByUrl);
+    auto                                          iter      = groups.begin();
     while(iter != groups.end()) {
         // EGO USB exposes 2 UVC color interfaces + 1 HID IMU interface (+ UAC audio).
         if(iter->size() >= 2) {
@@ -111,48 +107,14 @@ std::vector<std::shared_ptr<IDeviceEnumInfo>> EGODeviceInfo::pickDevices(const S
                 bool hasUac =
                     std::any_of(iter->begin(), iter->end(), [](const std::shared_ptr<const SourcePortInfo> &p) { return p->portType == SOURCE_PORT_USB_UAC; });
                 if(!hasUac) {
-                    auto uacPort = std::make_shared<USBSourcePortInfo>(SOURCE_PORT_USB_UAC);
-                    uacPort->url = firstUsb->url;
-                    uacPort->uid = firstUsb->uid;
-#ifdef EGO_SIMULATE_WITH_FEMTO_MEGA  // [EGO-SIM] keep only the #else branch when removing simulation
-                    // The Femto Mega stand-in has no microphone; pair an external USB microphone instead. WASAPI
-                    // matches the capture endpoint by VID/PID, falling back to the endpoint friendly-name hint
-                    // carried in infName (Windows audio endpoints often hide the USB VID/PID). See DevicePids.hpp.
-                    uacPort->vid     = EGO_SIM_MIC_VID;
-                    uacPort->pid     = EGO_SIM_MIC_PID;
-                    uacPort->infName = EGO_SIM_MIC_NAME;
-#else
-                    uacPort->vid = firstUsb->vid;
-                    uacPort->pid = firstUsb->pid;
-#endif
+                    auto uacPort      = std::make_shared<USBSourcePortInfo>(SOURCE_PORT_USB_UAC);
+                    uacPort->url      = firstUsb->url;
+                    uacPort->uid      = firstUsb->uid;
+                    uacPort->vid      = firstUsb->vid;
+                    uacPort->pid      = firstUsb->pid;
                     uacPort->serial   = firstUsb->serial;
                     uacPort->connSpec = firstUsb->connSpec;
                     iter->emplace_back(uacPort);
-                }
-            }
-#elif defined(EGO_SIMULATE_WITH_FEMTO_MEGA)  // [EGO-SIM] delete block when removing simulation
-            // On libusb platforms (Linux / Android) the external USB microphone standing in for the EGO audio is
-            // enumerated as its own USB device and was filtered out by VID/PID above. Locate its real UAC port
-            // in the full infoList and pair it onto the simulated EGO device, so ObLibUacDevicePort can open the
-            // real interface directly (it detaches the kernel snd-usb-audio driver, see ObLibUacDevicePort).
-            // Android: match any UAC port (OTG mic may differ in VID/PID from the XWF-1080P stand-in).
-            // Linux/Mac: match by specific VID/PID of the XWF-1080P stand-in.
-            bool hasUac =
-                std::any_of(iter->begin(), iter->end(), [](const std::shared_ptr<const SourcePortInfo> &p) { return p->portType == SOURCE_PORT_USB_UAC; });
-            if(!hasUac) {
-#if defined(__ANDROID__)
-                auto micIter = std::find_if(infoList.begin(), infoList.end(), [](const std::shared_ptr<const SourcePortInfo> &p) {
-                    auto usb = std::dynamic_pointer_cast<const USBSourcePortInfo>(p);
-                    return usb && usb->portType == SOURCE_PORT_USB_UAC;
-                });
-#else
-                auto micIter = std::find_if(infoList.begin(), infoList.end(), [](const std::shared_ptr<const SourcePortInfo> &p) {
-                    auto usb = std::dynamic_pointer_cast<const USBSourcePortInfo>(p);
-                    return usb && usb->portType == SOURCE_PORT_USB_UAC && usb->vid == EGO_SIM_MIC_VID && usb->pid == EGO_SIM_MIC_PID;
-                });
-#endif
-                if(micIter != infoList.end()) {
-                    iter->emplace_back(*micIter);
                 }
             }
 #endif
@@ -169,28 +131,14 @@ std::vector<std::shared_ptr<IDeviceEnumInfo>> EGODeviceInfo::pickDevices(const S
 #if defined(BUILD_NET_PAL)
 std::vector<std::shared_ptr<IDeviceEnumInfo>> EGODeviceInfo::pickNetDevices(const SourcePortInfoList infoList) {
     std::vector<std::shared_ptr<IDeviceEnumInfo>> egoDeviceInfos;
-    std::vector<uint16_t>                         egoPids = EGODevPids;
-#ifdef EGO_SIMULATE_WITH_FEMTO_MEGA  // [EGO-SIM] delete block + revert egoPids to EGODevPids directly
-    // Also claim the network Femto Mega stand-in so it is created as an EGONetDevice (see DevicePids.hpp).
-    egoPids.push_back(EGO_SIM_FEMTO_MEGA_PID);
-#endif
-    auto remainder = FilterNetPortInfoByVidPid(infoList, ORBBEC_DEVICE_VID, egoPids);
-    auto groups    = utils::groupVector<std::shared_ptr<const SourcePortInfo>>(remainder, GroupNetSourcePortByMac);
-    auto iter      = groups.begin();
+    std::vector<uint16_t>                         egoPids   = EGODevPids;
+    auto                                          remainder = FilterNetPortInfoByVidPid(infoList, ORBBEC_DEVICE_VID, egoPids);
+    auto                                          groups    = utils::groupVector<std::shared_ptr<const SourcePortInfo>>(remainder, GroupNetSourcePortByMac);
+    auto                                          iter      = groups.begin();
     while(iter != groups.end()) {
         if(iter->size() >= 1) {
             auto portInfo = std::dynamic_pointer_cast<const NetSourcePortInfo>(iter->front());
 
-#ifdef EGO_SIMULATE_WITH_FEMTO_MEGA  // [EGO-SIM] keep only the #else branch when removing simulation
-            // The Femto Mega WiFi stand-in serves the real Femto Mega RTSP layout, not the (placeholder) EGO one,
-            // so route its actual streams through the EGO net path: RTSP color on 8888 + depth on 8554 + private
-            // TCP IMU on 8900 (matches FemtoMegaDeviceInfo::pickNetDevices). EGONetDevice aliases these to
-            // OB_SENSOR_COLOR / OB_SENSOR_DEPTH so generic depth+color samples (ego_sample) stream unchanged. IR is
-            // omitted (ego_sample does not use it); audio is dropped because Femto Mega serves no microphone stream.
-            iter->emplace_back(std::make_shared<RTSPStreamPortInfo>(*portInfo, static_cast<uint16_t>(8888), portInfo->port, OB_STREAM_COLOR));
-            iter->emplace_back(std::make_shared<RTSPStreamPortInfo>(*portInfo, static_cast<uint16_t>(8554), portInfo->port, OB_STREAM_DEPTH));
-            iter->emplace_back(std::make_shared<NetDataStreamPortInfo>(*portInfo, EGO_IMU_TCP_PORT, portInfo->port));
-#else
             // Two independent color streams: each gets its own RTSPStreamPortInfo / URL path / ObRTSPClient,
             // but shares the same RTSP service port (distinguished by URL path, see plan §4.2 scheme A).
             iter->emplace_back(std::make_shared<RTSPStreamPortInfo>(*portInfo, EGO_RTSP_SERVICE_PORT, portInfo->port, OB_STREAM_COLOR_LEFT));
@@ -202,7 +150,6 @@ std::vector<std::shared_ptr<IDeviceEnumInfo>> EGODeviceInfo::pickNetDevices(cons
 
             // IMU over an independent private TCP data stream (not RTSP), modeled on FemtoMega.
             iter->emplace_back(std::make_shared<NetDataStreamPortInfo>(*portInfo, EGO_IMU_TCP_PORT, portInfo->port));
-#endif
 
             auto deviceEnumInfo = std::make_shared<EGODeviceInfo>(*iter);
             egoDeviceInfos.push_back(deviceEnumInfo);

@@ -15,6 +15,7 @@
 #include <windows.h>
 #include <mmdeviceapi.h>
 #include <audioclient.h>
+#include <devicetopology.h>
 #include <functiondiscoverykeys_devpkey.h>
 
 #include <algorithm>
@@ -24,11 +25,64 @@
 namespace libobsensor {
 
 namespace {
-// Build the "VID_xxxx&PID_yyyy" token (uppercase hex) used inside PKEY_Device_InstanceId.
+// Build the "VID_xxxx&PID_yyyy" token (uppercase hex) used inside the USB device id.
 std::wstring makeVidPidToken(uint16_t vid, uint16_t pid) {
     wchar_t buf[32];
     swprintf(buf, 32, L"VID_%04X&PID_%04X", vid, pid);
     return std::wstring(buf);
+}
+
+std::wstring toUpper(std::wstring s) {
+    std::transform(s.begin(), s.end(), s.begin(), ::towupper);
+    return s;
+}
+
+// Convert a wide string to UTF-8 for logging.
+std::string narrow(const std::wstring &s) {
+    if(s.empty()) {
+        return std::string();
+    }
+    int size = WideCharToMultiByte(CP_UTF8, 0, s.c_str(), static_cast<int>(s.size()), nullptr, 0, nullptr, nullptr);
+    if(size <= 0) {
+        return std::string();
+    }
+    std::string out(size, '\0');
+    WideCharToMultiByte(CP_UTF8, 0, s.c_str(), static_cast<int>(s.size()), &out[0], size, nullptr, nullptr);
+    return out;
+}
+
+// Resolve an audio endpoint to the underlying hardware device id by following the device-topology
+// connector to the adapter (KS) device. For USB audio this id carries the USB VID/PID
+// (e.g. "\\?\USB#VID_2BC5&PID_1201&MI_04#..."), which the endpoint's own PKEY_Device_InstanceId
+// (an "SWD\MMDEVAPI\..." software id) does not. Returns an empty string on failure.
+std::wstring getEndpointHardwareDeviceId(IMMDevice *endpoint) {
+    std::wstring     result;
+    IDeviceTopology *topology = nullptr;
+    if(SUCCEEDED(endpoint->Activate(__uuidof(IDeviceTopology), CLSCTX_ALL, nullptr, reinterpret_cast<void **>(&topology))) && topology) {
+        IConnector *connector = nullptr;
+        if(SUCCEEDED(topology->GetConnector(0, &connector)) && connector) {
+            IConnector *connectedTo = nullptr;
+            if(SUCCEEDED(connector->GetConnectedTo(&connectedTo)) && connectedTo) {
+                IPart *part = nullptr;
+                if(SUCCEEDED(connectedTo->QueryInterface(__uuidof(IPart), reinterpret_cast<void **>(&part))) && part) {
+                    IDeviceTopology *adapterTopology = nullptr;
+                    if(SUCCEEDED(part->GetTopologyObject(&adapterTopology)) && adapterTopology) {
+                        LPWSTR devId = nullptr;
+                        if(SUCCEEDED(adapterTopology->GetDeviceId(&devId)) && devId) {
+                            result = devId;
+                            CoTaskMemFree(devId);
+                        }
+                        adapterTopology->Release();
+                    }
+                    part->Release();
+                }
+                connectedTo->Release();
+            }
+            connector->Release();
+        }
+        topology->Release();
+    }
+    return result;
 }
 }  // namespace
 
@@ -51,49 +105,41 @@ WasapiUacDevicePort::WasapiUacDevicePort(std::shared_ptr<const USBSourcePortInfo
         UINT count = 0;
         collection->GetCount(&count);
         auto token = makeVidPidToken(portInfo_->vid, portInfo_->pid);
-
-        // [EGO-SIM] TEMPORARY (remove with EGO_SIMULATE_WITH_FEMTO_MEGA): friendly-name fallback match.
-        // Only the simulated EGO injects an infName hint (external mic stands in for the missing Femto Mega
-        // microphone). Windows audio endpoints often expose a SWD\MMDEVAPI instance id that does not carry
-        // the USB VID/PID, so also allow matching by endpoint friendly-name substring (carried in infName).
-        // Real EGO hardware reports a proper UAC VID/PID, so the VID/PID match above suffices then.
-        std::wstring nameHint(portInfo_->infName.begin(), portInfo_->infName.end());
-        std::transform(nameHint.begin(), nameHint.end(), nameHint.begin(), ::towupper);
+        LOG_DEBUG("WASAPI: looking for capture endpoint matching {}, {} active endpoint(s) found", narrow(token), count);
 
         for(UINT i = 0; i < count && mmDevice_ == nullptr; ++i) {
             IMMDevice *dev = nullptr;
             if(FAILED(collection->Item(i, &dev)) || !dev) {
                 continue;
             }
+
+            std::wstring    instanceId;
+            std::wstring    friendlyName;
             IPropertyStore *props = nullptr;
             if(SUCCEEDED(dev->OpenPropertyStore(STGM_READ, &props)) && props) {
-                bool matched = false;
-
-                PROPVARIANT idVar;
-                PropVariantInit(&idVar);
-                if(SUCCEEDED(props->GetValue(PKEY_Device_InstanceId, &idVar)) && idVar.vt == VT_LPWSTR && idVar.pwszVal) {
-                    std::wstring instanceId(idVar.pwszVal);
-                    std::transform(instanceId.begin(), instanceId.end(), instanceId.begin(), ::towupper);
-                    matched = instanceId.find(token) != std::wstring::npos;
+                PROPVARIANT var;
+                PropVariantInit(&var);
+                if(SUCCEEDED(props->GetValue(PKEY_Device_InstanceId, &var)) && var.vt == VT_LPWSTR && var.pwszVal) {
+                    instanceId = var.pwszVal;
                 }
-                PropVariantClear(&idVar);
-
-                if(!matched && !nameHint.empty()) {  // [EGO-SIM] friendly-name fallback; remove with simulation
-                    PROPVARIANT nameVar;
-                    PropVariantInit(&nameVar);
-                    if(SUCCEEDED(props->GetValue(PKEY_Device_FriendlyName, &nameVar)) && nameVar.vt == VT_LPWSTR && nameVar.pwszVal) {
-                        std::wstring friendly(nameVar.pwszVal);
-                        std::transform(friendly.begin(), friendly.end(), friendly.begin(), ::towupper);
-                        matched = friendly.find(nameHint) != std::wstring::npos;
-                    }
-                    PropVariantClear(&nameVar);
+                PropVariantClear(&var);
+                if(SUCCEEDED(props->GetValue(PKEY_Device_FriendlyName, &var)) && var.vt == VT_LPWSTR && var.pwszVal) {
+                    friendlyName = var.pwszVal;
                 }
-
-                if(matched) {
-                    mmDevice_ = dev;
-                    dev       = nullptr;  // ownership moved
-                }
+                PropVariantClear(&var);
                 props->Release();
+            }
+
+            // The endpoint's MMDEVAPI instance id ("SWD\MMDEVAPI\...") rarely carries the USB VID/PID, so also
+            // resolve the underlying USB/KS device id via the device topology, which does.
+            std::wstring hwId = getEndpointHardwareDeviceId(dev);
+
+            LOG_DEBUG("WASAPI: endpoint[{}] name='{}' instanceId='{}' hwId='{}'", i, narrow(friendlyName), narrow(instanceId), narrow(hwId));
+
+            bool matched = toUpper(instanceId).find(token) != std::wstring::npos || toUpper(hwId).find(token) != std::wstring::npos;
+            if(matched) {
+                mmDevice_ = dev;
+                dev       = nullptr;  // ownership moved
             }
             if(dev) {
                 dev->Release();

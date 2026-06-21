@@ -122,16 +122,8 @@ private:
 // EGO USB exposes two independent RGB cameras as two UVC VideoStreaming interfaces.
 // UVC interfaces are typically grouped (control + streaming) so the streaming interface
 // indices come in pairs. These values are placeholders pending firmware descriptor confirmation.
-#ifdef EGO_SIMULATE_WITH_FEMTO_MEGA  // [EGO-SIM] keep only the #else branch when removing simulation
-// Femto Mega stand-in: depth (UVC inf 2) -> left color, color (UVC inf 0) -> right color.
-// Mapping left=depth also lands the vendor XU/property channel on the depth port, where Femto Mega
-// exposes the calibration raw-data used by EGOAlgParamManager.
-static const uint8_t EGO_USB_INTERFACE_COLOR_LEFT  = 2;
-static const uint8_t EGO_USB_INTERFACE_COLOR_RIGHT = 0;
-#else
 static const uint8_t EGO_USB_INTERFACE_COLOR_LEFT  = 0;
 static const uint8_t EGO_USB_INTERFACE_COLOR_RIGHT = 2;
-#endif
 
 EGODevice::EGODevice(const std::shared_ptr<const IDeviceEnumInfo> &info) : DeviceBase(info) {
     init();
@@ -146,7 +138,7 @@ void EGODevice::init() {
     initSensorList();
     initProperties();
 
-   // fetchDeviceInfo();
+    fetchDeviceInfo();
     fetchExtensionInfo();
 
     deviceTimeFreq_ = 1000000;
@@ -179,9 +171,7 @@ void EGODevice::initSensorStreamProfile(std::shared_ptr<ISensor> sensor) {
     auto profiles = sensor->getStreamProfileList();
 
     // bind params: extrinsics, intrinsics, etc. Only the calibrated EGO streams (dual color + IMU) are
-    // bound; audio and the simulation-only COLOR/DEPTH aliases have no EGO spatial calibration.
-    // [EGO-SIM] this whitelist stays valid for real EGO; once simulation is removed, drop the
-    // "simulation-only COLOR/DEPTH aliases" note from the comment above.
+    // bound; audio has no EGO spatial calibration.
     if(sensorType == OB_SENSOR_COLOR_LEFT || sensorType == OB_SENSOR_COLOR_RIGHT || sensorType == OB_SENSOR_ACCEL || sensorType == OB_SENSOR_GYRO) {
         auto algParamManager = getComponentT<EGOAlgParamManager>(OB_DEV_COMPONENT_ALG_PARAM_MANAGER);
         algParamManager->bindStreamProfileParams(profiles);
@@ -253,39 +243,6 @@ void EGODevice::initSensorList() {
             return frameProcessor;
         });
 
-#ifdef EGO_SIMULATE_WITH_FEMTO_MEGA  // [EGO-SIM] delete entire #ifdef block when removing simulation
-        // Simulation-only alias: expose the Femto Mega depth UVC port (= left color port) as a plain
-        // OB_SENSOR_DEPTH so generic depth/color samples can stream. Not part of the real EGO model.
-        registerComponent(
-            OB_DEV_COMPONENT_DEPTH_SENSOR,
-            [this, leftColorPortInfo]() {
-                auto port   = getSourcePort(leftColorPortInfo);
-                auto sensor = std::make_shared<VideoSensor>(this, OB_SENSOR_DEPTH, port);
-
-                auto videoFrameTimestampCalculator = std::make_shared<FrameTimestampCalculatorOverUvcSCR>(this, frameTimeFreq_);
-                sensor->setFrameTimestampCalculator(videoFrameTimestampCalculator);
-
-                auto globalFrameTimestampCalculator = std::make_shared<GlobalTimestampCalculator>(this, deviceTimeFreq_, frameTimeFreq_);
-                sensor->setGlobalTimestampCalculator(globalFrameTimestampCalculator);
-
-                auto frameProcessor = getComponentT<FrameProcessor>(OB_DEV_COMPONENT_DEPTH_FRAME_PROCESSOR, false);
-                if(frameProcessor) {
-                    sensor->setFrameProcessor(frameProcessor.get());
-                }
-
-                initSensorStreamProfile(sensor);
-                return sensor;
-            },
-            true);
-        registerSensorPortInfo(OB_SENSOR_DEPTH, leftColorPortInfo);
-
-        registerComponent(OB_DEV_COMPONENT_DEPTH_FRAME_PROCESSOR, [this]() {
-            auto factory        = getComponentT<FrameProcessorFactory>(OB_DEV_COMPONENT_FRAME_PROCESSOR_FACTORY);
-            auto frameProcessor = factory->createFrameProcessor(OB_SENSOR_DEPTH);
-            return frameProcessor;
-        });
-#endif
-
         // EGO has no depth interface; the vendor XU/property channel rides on the left color UVC port.
         registerComponent(OB_DEV_COMPONENT_MAIN_PROPERTY_ACCESSOR, [this, leftColorPortInfo]() {
             auto port     = getSourcePort(leftColorPortInfo);
@@ -348,50 +305,6 @@ void EGODevice::initSensorList() {
             auto frameProcessor = factory->createFrameProcessor(OB_SENSOR_COLOR_RIGHT);
             return frameProcessor;
         });
-
-#ifdef EGO_SIMULATE_WITH_FEMTO_MEGA  // [EGO-SIM] delete entire #ifdef block when removing simulation
-        // Simulation-only alias: expose the Femto Mega color UVC port (= right color port) as a plain
-        // OB_SENSOR_COLOR so generic depth/color samples can stream. Not part of the real EGO model.
-        registerComponent(
-            OB_DEV_COMPONENT_COLOR_SENSOR,
-            [this, rightColorPortInfo]() {
-                auto port   = getSourcePort(rightColorPortInfo);
-                auto sensor = std::make_shared<VideoSensor>(this, OB_SENSOR_COLOR, port);
-
-                std::vector<FormatFilterConfig> formatFilterConfigs = {
-                    { FormatFilterPolicy::REMOVE, OB_FORMAT_NV12, OB_FORMAT_ANY, nullptr },
-                };
-                auto formatConverter = getSensorFrameFilter("FormatConverter", OB_SENSOR_COLOR, false);
-                // if(formatConverter) {
-                //     formatFilterConfigs.push_back({ FormatFilterPolicy::ADD, OB_FORMAT_MJPG, OB_FORMAT_RGB, formatConverter });
-                //     formatFilterConfigs.push_back({ FormatFilterPolicy::ADD, OB_FORMAT_MJPG, OB_FORMAT_BGR, formatConverter });
-                //     formatFilterConfigs.push_back({ FormatFilterPolicy::ADD, OB_FORMAT_MJPG, OB_FORMAT_BGRA, formatConverter });
-                // }
-                sensor->updateFormatFilterConfig(formatFilterConfigs);
-
-                auto videoFrameTimestampCalculator = std::make_shared<FrameTimestampCalculatorOverUvcSCR>(this, frameTimeFreq_);
-                sensor->setFrameTimestampCalculator(videoFrameTimestampCalculator);
-
-                auto globalFrameTimestampCalculator = std::make_shared<GlobalTimestampCalculator>(this, deviceTimeFreq_, frameTimeFreq_);
-                sensor->setGlobalTimestampCalculator(globalFrameTimestampCalculator);
-
-                auto frameProcessor = getComponentT<FrameProcessor>(OB_DEV_COMPONENT_COLOR_FRAME_PROCESSOR, false);
-                if(frameProcessor) {
-                    sensor->setFrameProcessor(frameProcessor.get());
-                }
-
-                initSensorStreamProfile(sensor);
-                return sensor;
-            },
-            true);
-        registerSensorPortInfo(OB_SENSOR_COLOR, rightColorPortInfo);
-
-        registerComponent(OB_DEV_COMPONENT_COLOR_FRAME_PROCESSOR, [this]() {
-            auto factory        = getComponentT<FrameProcessorFactory>(OB_DEV_COMPONENT_FRAME_PROCESSOR_FACTORY);
-            auto frameProcessor = factory->createFrameProcessor(OB_SENSOR_COLOR);
-            return frameProcessor;
-        });
-#endif
     }
 
     // ---- Audio (USB UAC microphone) ----

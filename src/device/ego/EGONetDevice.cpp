@@ -3,7 +3,6 @@
 
 #include "EGONetDevice.hpp"
 #include "EGOAlgParamManager.hpp"
-#include "DevicePids.hpp"  // [EGO-SIM] defines EGO_SIMULATE_WITH_FEMTO_MEGA gating initSensorList()'s sim sensor set
 #include "environment/EnvConfig.hpp"
 #include "stream/StreamProfileFactory.hpp"
 #include "sensor/video/VideoSensor.hpp"
@@ -119,93 +118,6 @@ void EGONetDevice::initSensorList() {
 
     const auto &sourcePortInfoList = enumInfo_->getSourcePortInfoList();
 
-#ifdef EGO_SIMULATE_WITH_FEMTO_MEGA  // [EGO-SIM] keep only the #else branch (real EGO sensors) when removing simulation
-    // The Femto Mega stand-in exposes a single MJPG color stream (OB_STREAM_COLOR @ rtsp .../color), so register one
-    // OB_SENSOR_COLOR here. Its profiles come from the device stream-profile list (color) and the RTSP URL is derived
-    // from the profile stream type, so this actually pulls frames from the Femto Mega; the IMU block below is shared.
-    auto colorPortInfoIter = std::find_if(sourcePortInfoList.begin(), sourcePortInfoList.end(), [](const std::shared_ptr<const SourcePortInfo> &portInfo) {
-        return portInfo->portType == SOURCE_PORT_NET_RTSP && std::dynamic_pointer_cast<const RTSPStreamPortInfo>(portInfo)->streamType == OB_STREAM_COLOR;
-    });
-
-    if(colorPortInfoIter != sourcePortInfoList.end()) {
-        auto colorPortInfo = *colorPortInfoIter;
-        registerComponent(
-            OB_DEV_COMPONENT_COLOR_SENSOR,
-            [this, colorPortInfo]() {
-                auto port   = getSourcePort(colorPortInfo);
-                auto sensor = std::make_shared<VideoSensor>(this, OB_SENSOR_COLOR, port);
-
-                std::vector<FormatFilterConfig> formatFilterConfigs = {
-                    { FormatFilterPolicy::REMOVE, OB_FORMAT_NV12, OB_FORMAT_ANY, nullptr },
-                };
-                auto formatConverter = getSensorFrameFilter("FormatConverter", OB_SENSOR_COLOR, false);
-                if(formatConverter) {
-                    formatFilterConfigs.push_back({ FormatFilterPolicy::ADD, OB_FORMAT_MJPG, OB_FORMAT_RGB, formatConverter });
-                    formatFilterConfigs.push_back({ FormatFilterPolicy::ADD, OB_FORMAT_MJPG, OB_FORMAT_BGR, formatConverter });
-                    formatFilterConfigs.push_back({ FormatFilterPolicy::ADD, OB_FORMAT_MJPG, OB_FORMAT_BGRA, formatConverter });
-                }
-                sensor->updateFormatFilterConfig(formatFilterConfigs);
-
-                auto videoFrameTimestampCalculator = std::make_shared<FrameTimestampCalculatorBaseDeviceTime>(this, deviceTimeFreq_, colorFrameTimeFreq_);
-                sensor->setFrameTimestampCalculator(videoFrameTimestampCalculator);
-
-                auto globalFrameTimestampCalculator = std::make_shared<GlobalTimestampCalculator>(this, deviceTimeFreq_, colorFrameTimeFreq_);
-                sensor->setGlobalTimestampCalculator(globalFrameTimestampCalculator);
-
-                auto frameProcessor = getComponentT<FrameProcessor>(OB_DEV_COMPONENT_COLOR_FRAME_PROCESSOR, false);
-                if(frameProcessor) {
-                    sensor->setFrameProcessor(frameProcessor.get());
-                }
-
-                initSensorStreamProfile(sensor);
-                return sensor;
-            },
-            true);
-        registerSensorPortInfo(OB_SENSOR_COLOR, colorPortInfo);
-        registerComponent(OB_DEV_COMPONENT_COLOR_FRAME_PROCESSOR, [this]() {
-            auto factory        = getComponentT<FrameProcessorFactory>(OB_DEV_COMPONENT_FRAME_PROCESSOR_FACTORY);
-            auto frameProcessor = factory->createFrameProcessor(OB_SENSOR_COLOR);
-            return frameProcessor;
-        });
-    }
-
-    // [EGO-SIM] Alias the Femto Mega depth stream (OB_STREAM_DEPTH @ rtsp .../depth, 8554) as OB_SENSOR_DEPTH so
-    // generic depth+color samples (ego_sample enables OB_STREAM_DEPTH) stream unchanged. Not part of the real EGO model.
-    auto depthPortInfoIter = std::find_if(sourcePortInfoList.begin(), sourcePortInfoList.end(), [](const std::shared_ptr<const SourcePortInfo> &portInfo) {
-        return portInfo->portType == SOURCE_PORT_NET_RTSP && std::dynamic_pointer_cast<const RTSPStreamPortInfo>(portInfo)->streamType == OB_STREAM_DEPTH;
-    });
-
-    if(depthPortInfoIter != sourcePortInfoList.end()) {
-        auto depthPortInfo = *depthPortInfoIter;
-        registerComponent(
-            OB_DEV_COMPONENT_DEPTH_SENSOR,
-            [this, depthPortInfo]() {
-                auto port   = getSourcePort(depthPortInfo);
-                auto sensor = std::make_shared<VideoSensor>(this, OB_SENSOR_DEPTH, port);
-
-                auto videoFrameTimestampCalculator = std::make_shared<FrameTimestampCalculatorBaseDeviceTime>(this, deviceTimeFreq_, depthFrameTimeFreq_);
-                sensor->setFrameTimestampCalculator(videoFrameTimestampCalculator);
-
-                auto globalFrameTimestampCalculator = std::make_shared<GlobalTimestampCalculator>(this, deviceTimeFreq_, depthFrameTimeFreq_);
-                sensor->setGlobalTimestampCalculator(globalFrameTimestampCalculator);
-
-                auto frameProcessor = getComponentT<FrameProcessor>(OB_DEV_COMPONENT_DEPTH_FRAME_PROCESSOR, false);
-                if(frameProcessor) {
-                    sensor->setFrameProcessor(frameProcessor.get());
-                }
-
-                initSensorStreamProfile(sensor);
-                return sensor;
-            },
-            true);
-        registerSensorPortInfo(OB_SENSOR_DEPTH, depthPortInfo);
-        registerComponent(OB_DEV_COMPONENT_DEPTH_FRAME_PROCESSOR, [this]() {
-            auto factory        = getComponentT<FrameProcessorFactory>(OB_DEV_COMPONENT_FRAME_PROCESSOR_FACTORY);
-            auto frameProcessor = factory->createFrameProcessor(OB_SENSOR_DEPTH);
-            return frameProcessor;
-        });
-    }
-#else
     // ---- Left color (RTSP) ----
     auto leftColorPortInfoIter = std::find_if(sourcePortInfoList.begin(), sourcePortInfoList.end(), [](const std::shared_ptr<const SourcePortInfo> &portInfo) {
         return portInfo->portType == SOURCE_PORT_NET_RTSP && std::dynamic_pointer_cast<const RTSPStreamPortInfo>(portInfo)->streamType == OB_STREAM_COLOR_LEFT;
@@ -332,7 +244,6 @@ void EGONetDevice::initSensorList() {
             true);
         registerSensorPortInfo(OB_SENSOR_AUDIO, audioPortInfo);
     }
-#endif  // EGO_SIMULATE_WITH_FEMTO_MEGA
 
     // ---- IMU (private TCP data stream, modeled on FemtoMega) ----
     auto imuPortInfoIter = std::find_if(sourcePortInfoList.begin(), sourcePortInfoList.end(), [](const std::shared_ptr<const SourcePortInfo> &portInfo) {
@@ -508,15 +419,8 @@ void EGONetDevice::initSensorStreamProfile(std::shared_ptr<ISensor> sensor) {
 
     // bind params: extrinsics, intrinsics, etc. (audio has no spatial calibration)
     if(sensorType != OB_SENSOR_AUDIO) {
-#ifdef EGO_SIMULATE_WITH_FEMTO_MEGA  // [EGO-SIM] keep only the #else branch when removing simulation
-        // The dual-RGB EGOAlgParamManager only registers basic profiles for COLOR_LEFT/RIGHT, so binding the Femto
-        // Mega stand-in's DEPTH/COLOR streams throws "no basic stream profile". Calibration is irrelevant to a
-        // streaming smoke test, so skip the binding here.
-        (void)profiles;
-#else
         auto algParamManager = getComponentT<EGOAlgParamManager>(OB_DEV_COMPONENT_ALG_PARAM_MANAGER);
         algParamManager->bindStreamProfileParams(profiles);
-#endif
     }
 
     LOG_DEBUG("Sensor {} created! Found {} stream profiles.", sensorType, profiles.size());

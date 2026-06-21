@@ -157,42 +157,6 @@ const std::vector<uint16_t> EGODevPids = {
     0x1201,  // PN2608_EGO
 };
 
-// ===================== [EGO-SIM] TEMPORARY: remove once real EGO hardware is available =====================
-// Simulate an EGO device using a USB Femto Mega so the EGODevice / EGOAlgParamManager path can be
-// exercised without EGO hardware. When enabled, a USB Femto Mega (0x0669) is routed through EGODevice:
-//   depth (UVC inf 2) -> COLOR_LEFT, color (UVC inf 0) -> COLOR_RIGHT, IMU (HID) -> accel/gyro, audio not paired.
-// To restore normal behavior, comment out this define.
-//
-// REMOVAL CHECKLIST -- grep the tag "[EGO-SIM]" across the repo. All simulation code is either gated by
-// the EGO_SIMULATE_WITH_FEMTO_MEGA macro below or tagged "[EGO-SIM]". Locations:
-//   - src/device/DevicePids.hpp                 : this block (macro + EGO_SIM_* defines)
-//   - src/device/ego/EGODevice.cpp              : interface-index swap, OB_SENSOR_DEPTH/COLOR aliases,
-//                                                 and the initSensorStreamProfile() binding condition
-//   - src/device/ego/EGODeviceInfo.cpp          : claim Femto Mega PID (USB + net) + synthetic mic UAC port
-//                                                 (Windows) + real mic UAC port pairing (libusb / Linux) +
-//                                                 Femto Mega net layout (color@8888 + IMU@8900)
-//   - src/device/ego/EGONetDevice.cpp           : #include "DevicePids.hpp" + OB_SENSOR_COLOR/DEPTH sim branch in
-//                                                 initSensorList() + skipped alg-param binding in
-//                                                 initSensorStreamProfile() + depthFrameTimeFreq_ (EGONetDevice.hpp)
-//   - src/device/femtomega/FemtoMegaDeviceInfo.cpp : drop Femto Mega PID (USB + net) + <algorithm> include
-//   - src/platform/usb/uac/WasapiUacDevicePort.cpp : friendly-name fallback match (NOT macro-gated)
-//   - src/shared/common/DeviceSeriesInfo.cpp    : whitelist external mic VID 0x1BCF for libusb enumeration
-//                                                 (NOT macro-gated; shared layer cannot include this header)
-// [EGO-SIM] DISABLED: real EGO hardware (VID 0x2BC5 / PID 0x1201) is now in use, so the Femto Mega
-// simulation is turned off. With this commented out, every "#ifdef EGO_SIMULATE_WITH_FEMTO_MEGA"
-// block falls through to its real-EGO "#else" branch. Uncomment to re-enable the Femto Mega stand-in.
-// #define EGO_SIMULATE_WITH_FEMTO_MEGA
-// PID of the USB Femto Mega used as the EGO stand-in (only the plain Femto Mega, not Femto Mega i).
-#define EGO_SIM_FEMTO_MEGA_PID 0x0669
-// The Femto Mega has no microphone, so an external USB microphone (XWF-1080P) stands in for the EGO
-// audio. On Windows the WASAPI backend matches the capture endpoint by VID/PID, so a synthetic UAC port
-// carrying these IDs is paired onto the simulated EGO device.
-#define EGO_SIM_MIC_VID 0x1BCF
-#define EGO_SIM_MIC_PID 0x2281
-// Windows audio endpoints often expose a SWD\MMDEVAPI instance id with no USB VID/PID, so the WASAPI
-// backend also matches by endpoint friendly-name substring. This is the external microphone's name.
-#define EGO_SIM_MIC_NAME "XWF-1080P"
-
 #define LIDAR_PID_ME450_OLD 0x5555
 #define LIDAR_PID_ME450 0x1302
 #define LIDAR_PID_MS600 0x1300

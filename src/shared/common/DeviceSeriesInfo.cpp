@@ -207,11 +207,6 @@ void DeviceSeriesInfoManager::loadXmlConfig(const std::string &configFileName, b
         // If the value already exists, insertion is ignored
         supportedUsbVids.insert(vid);
     }
-    // [EGO-SIM] TEMPORARY: whitelist the external USB microphone (XWF-1080P, VID 0x1BCF) that stands in for
-    // the EGO audio so libusb enumerates it on non-Windows platforms; the EGO grouping then pairs its UAC
-    // port onto the simulated device. Remove together with EGO_SIMULATE_WITH_FEMTO_MEGA (see DevicePids.hpp).
-    // Not macro-gated: the simulation macro lives in the device layer, which this shared layer cannot include.
-    supportedUsbVids.insert(0x1BCF);
     // GVCP config: Insert key-value pair into the map.
     for(const auto &kv: gvcpConfigList) {
         // If the value already exists, insertion is ignored
