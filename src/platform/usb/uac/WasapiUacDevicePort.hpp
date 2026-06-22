@@ -21,9 +21,7 @@ namespace libobsensor {
 // WASAPI-based USB Audio Class capture port for Windows. The system usbaudio.sys driver already exposes
 // the UAC microphone as a standard capture endpoint, so libusb is not used here. The endpoint is paired
 // to the EGO device by matching the USB VID/PID carried in PKEY_Device_InstanceId.
-// WASAPI capture does not yet implement UAC Feature Unit controls (would use Device Topology / IKsControl);
-// IAudioControlPort's default no-op (returns false) applies until that is added.
-class WasapiUacDevicePort : public IVideoStreamPort, public IAudioControlPort {
+class WasapiUacDevicePort : public IVideoStreamPort {
 public:
     explicit WasapiUacDevicePort(std::shared_ptr<const USBSourcePortInfo> portInfo);
     ~WasapiUacDevicePort() noexcept override;

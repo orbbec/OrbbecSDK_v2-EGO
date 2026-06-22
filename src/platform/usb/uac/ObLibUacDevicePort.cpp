@@ -15,12 +15,6 @@ namespace libobsensor {
 
 // UAC class-specific request codes
 #define UAC_SET_CUR 0x01
-#define UAC_GET_CUR_V1 0x81
-#define UAC_GET_CUR_V2 0x01
-// Feature Unit control selectors (high byte of wValue)
-#define UAC_FU_MUTE_CONTROL 0x01
-#define UAC_FU_VOLUME_CONTROL 0x02
-#define UAC_FU_AGC_CONTROL 0x07
 // USB Audio interface subclasses
 #define UAC_SUBCLASS_AUDIOCONTROL 0x01
 #define UAC_SUBCLASS_AUDIOSTREAMING 0x02
@@ -222,18 +216,20 @@ bool ObLibUacDevicePort::setSamplingFrequency(uint32_t sampleRate) {
     uint16_t wValue = static_cast<uint16_t>(UAC_SAMPLING_FREQ_CONTROL << 8);  // selector in high byte, channel 0
     if(uacBcdVersion_ >= 0x0200) {
         // UAC2: SET_CUR of the Clock Source's Sampling Frequency Control, 4-byte value, addressed to the AC interface.
-        uint8_t  data[4]       = { static_cast<uint8_t>(sampleRate), static_cast<uint8_t>(sampleRate >> 8), static_cast<uint8_t>(sampleRate >> 16),
-                                   static_cast<uint8_t>(sampleRate >> 24) };
-        uint8_t  bmRequestType = static_cast<uint8_t>(LIBUSB_ENDPOINT_OUT) | static_cast<uint8_t>(LIBUSB_REQUEST_TYPE_CLASS) | static_cast<uint8_t>(LIBUSB_RECIPIENT_INTERFACE);
-        uint16_t wIndex        = static_cast<uint16_t>((clockSourceId_ << 8) | acInterfaceNumber_);
-        auto     res           = libusb_control_transfer(devHandle_, bmRequestType, UAC_SET_CUR, wValue, wIndex, data, sizeof(data), 1000);
+        uint8_t data[4] = { static_cast<uint8_t>(sampleRate), static_cast<uint8_t>(sampleRate >> 8), static_cast<uint8_t>(sampleRate >> 16),
+                            static_cast<uint8_t>(sampleRate >> 24) };
+        uint8_t bmRequestType =
+            static_cast<uint8_t>(LIBUSB_ENDPOINT_OUT) | static_cast<uint8_t>(LIBUSB_REQUEST_TYPE_CLASS) | static_cast<uint8_t>(LIBUSB_RECIPIENT_INTERFACE);
+        uint16_t wIndex = static_cast<uint16_t>((clockSourceId_ << 8) | acInterfaceNumber_);
+        auto     res    = libusb_control_transfer(devHandle_, bmRequestType, UAC_SET_CUR, wValue, wIndex, data, sizeof(data), 1000);
         return res >= 0;
     }
     // UAC1: SET_CUR of the endpoint's Sampling Frequency Control, 3-byte value, addressed to the iso endpoint.
-    uint8_t  data[3]       = { static_cast<uint8_t>(sampleRate), static_cast<uint8_t>(sampleRate >> 8), static_cast<uint8_t>(sampleRate >> 16) };
-    uint8_t  bmRequestType = static_cast<uint8_t>(LIBUSB_ENDPOINT_OUT) | static_cast<uint8_t>(LIBUSB_REQUEST_TYPE_CLASS) | static_cast<uint8_t>(LIBUSB_RECIPIENT_ENDPOINT);
-    uint16_t wIndex        = isoEndpointAddr_;
-    auto     res           = libusb_control_transfer(devHandle_, bmRequestType, UAC_SET_CUR, wValue, wIndex, data, sizeof(data), 1000);
+    uint8_t data[3] = { static_cast<uint8_t>(sampleRate), static_cast<uint8_t>(sampleRate >> 8), static_cast<uint8_t>(sampleRate >> 16) };
+    uint8_t bmRequestType =
+        static_cast<uint8_t>(LIBUSB_ENDPOINT_OUT) | static_cast<uint8_t>(LIBUSB_REQUEST_TYPE_CLASS) | static_cast<uint8_t>(LIBUSB_RECIPIENT_ENDPOINT);
+    uint16_t wIndex = isoEndpointAddr_;
+    auto     res    = libusb_control_transfer(devHandle_, bmRequestType, UAC_SET_CUR, wValue, wIndex, data, sizeof(data), 1000);
     return res >= 0;
 }
 
@@ -392,65 +388,6 @@ void ObLibUacDevicePort::stopAllStream() {
     frameCallback_    = nullptr;
     activatedProfile_ = nullptr;
     LOG_DEBUG("ObLibUacDevicePort streaming stopped");
-}
-
-bool ObLibUacDevicePort::controlSet(uint8_t selector, uint8_t channel, const uint8_t *data, uint16_t len) {
-    uint8_t  bmRequestType = static_cast<uint8_t>(LIBUSB_ENDPOINT_OUT) | static_cast<uint8_t>(LIBUSB_REQUEST_TYPE_CLASS) | static_cast<uint8_t>(LIBUSB_RECIPIENT_INTERFACE);
-    uint16_t wValue        = static_cast<uint16_t>((selector << 8) | channel);
-    uint16_t wIndex        = static_cast<uint16_t>((featureUnitId_ << 8) | acInterfaceNumber_);
-    auto     res           = libusb_control_transfer(devHandle_, bmRequestType, UAC_SET_CUR, wValue, wIndex, const_cast<uint8_t *>(data), len, 1000);
-    return res >= 0;
-}
-
-bool ObLibUacDevicePort::controlGet(uint8_t selector, uint8_t channel, uint8_t *data, uint16_t len) {
-    uint8_t  bmRequestType = static_cast<uint8_t>(LIBUSB_ENDPOINT_IN) | static_cast<uint8_t>(LIBUSB_REQUEST_TYPE_CLASS) | static_cast<uint8_t>(LIBUSB_RECIPIENT_INTERFACE);
-    uint8_t  bRequest      = uacBcdVersion_ >= 0x0200 ? UAC_GET_CUR_V2 : UAC_GET_CUR_V1;
-    uint16_t wValue        = static_cast<uint16_t>((selector << 8) | channel);
-    uint16_t wIndex        = static_cast<uint16_t>((featureUnitId_ << 8) | acInterfaceNumber_);
-    auto     res           = libusb_control_transfer(devHandle_, bmRequestType, bRequest, wValue, wIndex, data, len, 1000);
-    return res >= 0;
-}
-
-bool ObLibUacDevicePort::setMute(bool mute) {
-    uint8_t v = mute ? 1 : 0;
-    return controlSet(UAC_FU_MUTE_CONTROL, 0, &v, 1);
-}
-
-bool ObLibUacDevicePort::getMute(bool &mute) {
-    uint8_t v = 0;
-    if(!controlGet(UAC_FU_MUTE_CONTROL, 0, &v, 1)) {
-        return false;
-    }
-    mute = v != 0;
-    return true;
-}
-
-bool ObLibUacDevicePort::setGain(int32_t gain) {
-    int16_t v = static_cast<int16_t>(gain);
-    return controlSet(UAC_FU_VOLUME_CONTROL, 0, reinterpret_cast<uint8_t *>(&v), sizeof(v));
-}
-
-bool ObLibUacDevicePort::getGain(int32_t &gain) {
-    int16_t v = 0;
-    if(!controlGet(UAC_FU_VOLUME_CONTROL, 0, reinterpret_cast<uint8_t *>(&v), sizeof(v))) {
-        return false;
-    }
-    gain = v;
-    return true;
-}
-
-bool ObLibUacDevicePort::setAgc(bool enable) {
-    uint8_t v = enable ? 1 : 0;
-    return controlSet(UAC_FU_AGC_CONTROL, 0, &v, 1);
-}
-
-bool ObLibUacDevicePort::getAgc(bool &enable) {
-    uint8_t v = 0;
-    if(!controlGet(UAC_FU_AGC_CONTROL, 0, &v, 1)) {
-        return false;
-    }
-    enable = v != 0;
-    return true;
 }
 
 uint32_t ObLibUacDevicePort::sendAndReceive(const uint8_t *sendData, uint32_t sendLen, uint8_t *recvData, uint32_t exceptedRecvLen,

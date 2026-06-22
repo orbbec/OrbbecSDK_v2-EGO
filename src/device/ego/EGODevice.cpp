@@ -38,87 +38,6 @@
 
 namespace libobsensor {
 
-namespace {
-// Maps OB_PROP_AUDIO_* to the UAC port's control transfers (libusb path). On backends without control
-// support (e.g. current WASAPI path) the calls return false and a unsupported-operation exception is thrown.
-class EGOAudioPropertyAccessor : public IBasicPropertyAccessor {
-public:
-    explicit EGOAudioPropertyAccessor(std::shared_ptr<IAudioControlPort> port) : port_(std::move(port)) {}
-
-    void setPropertyValue(uint32_t propertyId, const OBPropertyValue &value) override {
-        bool ok = false;
-        if(port_) {
-            switch(propertyId) {
-            case OB_PROP_AUDIO_MUTE_BOOL:
-                ok = port_->setMute(value.intValue != 0);
-                break;
-            case OB_PROP_AUDIO_GAIN_INT:
-                ok = port_->setGain(value.intValue);
-                break;
-            case OB_PROP_AUDIO_AGC_BOOL:
-                ok = port_->setAgc(value.intValue != 0);
-                break;
-            default:
-                break;
-            }
-        }
-        if(!ok) {
-            THROW_UNSUPPORTED_OPERATION_EXCEPTION("audio property set failed or unsupported by backend");
-        }
-    }
-
-    void getPropertyValue(uint32_t propertyId, OBPropertyValue *value) override {
-        bool ok         = false;
-        value->intValue = 0;
-        if(port_) {
-            switch(propertyId) {
-            case OB_PROP_AUDIO_MUTE_BOOL: {
-                bool m          = false;
-                ok              = port_->getMute(m);
-                value->intValue = m ? 1 : 0;
-            } break;
-            case OB_PROP_AUDIO_GAIN_INT: {
-                int32_t g       = 0;
-                ok              = port_->getGain(g);
-                value->intValue = g;
-            } break;
-            case OB_PROP_AUDIO_AGC_BOOL: {
-                bool a          = false;
-                ok              = port_->getAgc(a);
-                value->intValue = a ? 1 : 0;
-            } break;
-            default:
-                break;
-            }
-        }
-        if(!ok) {
-            THROW_UNSUPPORTED_OPERATION_EXCEPTION("audio property get failed or unsupported by backend");
-        }
-    }
-
-    void getPropertyRange(uint32_t propertyId, OBPropertyRange *range) override {
-        OBPropertyValue cur;
-        getPropertyValue(propertyId, &cur);
-        range->cur = cur;
-        if(propertyId == OB_PROP_AUDIO_GAIN_INT) {
-            range->min.intValue  = 0;
-            range->max.intValue  = 100;
-            range->step.intValue = 1;
-            range->def.intValue  = 50;
-        }
-        else {  // boolean controls
-            range->min.intValue  = 0;
-            range->max.intValue  = 1;
-            range->step.intValue = 1;
-            range->def.intValue  = 0;
-        }
-    }
-
-private:
-    std::shared_ptr<IAudioControlPort> port_;
-};
-}  // namespace
-
 // EGO USB exposes two independent RGB cameras as two UVC VideoStreaming interfaces.
 // UVC interfaces are typically grouped (control + streaming) so the streaming interface
 // indices come in pairs. These values are placeholders pending firmware descriptor confirmation.
@@ -354,6 +273,10 @@ void EGODevice::initSensorList() {
                 auto imuStreamerSharedPtr = imuStreamer.get();
                 auto sensor               = std::make_shared<AccelSensor>(this, port, imuStreamerSharedPtr);
 
+                // [EGO-WIP] EGO firmware does not yet provide a reliable per-frame IMU device timestamp, which
+                // trips the anomaly detector and drops every frame. Disable it until the timestamp is fixed.
+                sensor->enableTimestampAnomalyDetection(false);
+
                 auto globalFrameTimestampCalculator = std::make_shared<GlobalTimestampCalculator>(this, deviceTimeFreq_, frameTimeFreq_);
                 sensor->setGlobalTimestampCalculator(globalFrameTimestampCalculator);
 
@@ -370,6 +293,10 @@ void EGODevice::initSensorList() {
                 auto imuStreamer          = getComponentT<ImuStreamer>(OB_DEV_COMPONENT_IMU_STREAMER);
                 auto imuStreamerSharedPtr = imuStreamer.get();
                 auto sensor               = std::make_shared<GyroSensor>(this, port, imuStreamerSharedPtr);
+
+                // [EGO-WIP] EGO firmware does not yet provide a reliable per-frame IMU device timestamp, which
+                // trips the anomaly detector and drops every frame. Disable it until the timestamp is fixed.
+                sensor->enableTimestampAnomalyDetection(false);
 
                 auto globalFrameTimestampCalculator = std::make_shared<GlobalTimestampCalculator>(this, deviceTimeFreq_, frameTimeFreq_);
                 sensor->setGlobalTimestampCalculator(globalFrameTimestampCalculator);
@@ -454,20 +381,6 @@ void EGODevice::initProperties() {
 
         auto heartbeatPropertyAccessor = std::make_shared<HeartbeatPropertyAccessor>(this);
         propertyServer->registerProperty(OB_PROP_HEARTBEAT_BOOL, "rw", "rw", heartbeatPropertyAccessor);
-    }
-
-    // Audio (microphone) controls mapped to UAC Feature Unit via the UAC port's control transfers.
-    bool hasAudio = std::find(sensors.begin(), sensors.end(), OB_SENSOR_AUDIO) != sensors.end();
-    if(hasAudio) {
-        auto audioPropertyAccessor = std::make_shared<LazyPropertyAccessor>([this]() -> std::shared_ptr<IBasicPropertyAccessor> {
-            auto &portInfo = getSensorPortInfo(OB_SENSOR_AUDIO);
-            auto  port     = getSourcePort(portInfo);
-            auto  ctrlPort = std::dynamic_pointer_cast<IAudioControlPort>(port);
-            return std::make_shared<EGOAudioPropertyAccessor>(ctrlPort);
-        });
-        propertyServer->registerProperty(OB_PROP_AUDIO_MUTE_BOOL, "rw", "rw", audioPropertyAccessor);
-        propertyServer->registerProperty(OB_PROP_AUDIO_GAIN_INT, "rw", "rw", audioPropertyAccessor);
-        propertyServer->registerProperty(OB_PROP_AUDIO_AGC_BOOL, "rw", "rw", audioPropertyAccessor);
     }
 
     registerComponent(OB_DEV_COMPONENT_PROPERTY_SERVER, propertyServer, false);

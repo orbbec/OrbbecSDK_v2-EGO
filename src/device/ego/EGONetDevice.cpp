@@ -270,6 +270,10 @@ void EGONetDevice::initSensorList() {
                 auto imuStreamerSharedPtr = imuStreamer.get();
                 auto sensor               = std::make_shared<AccelSensor>(this, port, imuStreamerSharedPtr);
 
+                // [EGO-WIP] EGO firmware does not yet provide a reliable per-frame IMU device timestamp, which
+                // trips the anomaly detector and drops every frame. Disable it until the timestamp is fixed.
+                sensor->enableTimestampAnomalyDetection(false);
+
                 auto globalFrameTimestampCalculator = std::make_shared<GlobalTimestampCalculator>(this, deviceTimeFreq_, deviceTimeFreq_);
                 sensor->setGlobalTimestampCalculator(globalFrameTimestampCalculator);
 
@@ -286,6 +290,10 @@ void EGONetDevice::initSensorList() {
                 auto imuStreamer          = getComponentT<ImuStreamer>(OB_DEV_COMPONENT_IMU_STREAMER);
                 auto imuStreamerSharedPtr = imuStreamer.get();
                 auto sensor               = std::make_shared<GyroSensor>(this, port, imuStreamerSharedPtr);
+
+                // [EGO-WIP] EGO firmware does not yet provide a reliable per-frame IMU device timestamp, which
+                // trips the anomaly detector and drops every frame. Disable it until the timestamp is fixed.
+                sensor->enableTimestampAnomalyDetection(false);
 
                 auto globalFrameTimestampCalculator = std::make_shared<GlobalTimestampCalculator>(this, deviceTimeFreq_, deviceTimeFreq_);
                 sensor->setGlobalTimestampCalculator(globalFrameTimestampCalculator);
@@ -357,11 +365,6 @@ void EGONetDevice::initProperties() {
     propertyServer->registerProperty(OB_PROP_GYRO_SWITCH_BOOL, "", "rw", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_RAW_DATA_IMU_CALIB_PARAM, "", "rw", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_RAW_DATA_ALIGN_CALIB_PARAM, "", "r", vendorPropertyAccessor);
-
-    // audio (microphone) controls
-    propertyServer->registerProperty(OB_PROP_AUDIO_MUTE_BOOL, "rw", "rw", vendorPropertyAccessor);
-    propertyServer->registerProperty(OB_PROP_AUDIO_GAIN_INT, "rw", "rw", vendorPropertyAccessor);
-    propertyServer->registerProperty(OB_PROP_AUDIO_AGC_BOOL, "rw", "rw", vendorPropertyAccessor);
 
     propertyServer->registerProperty(OB_RAW_DATA_STREAM_PROFILE_LIST, "r", "r", vendorPropertyAccessor);
 

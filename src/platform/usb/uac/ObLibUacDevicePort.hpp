@@ -23,7 +23,7 @@ namespace libobsensor {
 //
 // NOTE: iso capture (especially on Android usbfs) and detaching snd-usb-audio are high-risk items that
 // must be validated by the §8 PoC before relying on this in production.
-class ObLibUacDevicePort : public IVideoStreamPort, public IVendorDataPort, public IAudioControlPort {
+class ObLibUacDevicePort : public IVideoStreamPort, public IVendorDataPort {
 public:
     ObLibUacDevicePort(std::shared_ptr<IUsbDevice> usbDev, std::shared_ptr<const USBSourcePortInfo> portInfo);
     ~ObLibUacDevicePort() noexcept override;
@@ -32,14 +32,6 @@ public:
     void              startStream(std::shared_ptr<const StreamProfile> profile, MutableFrameCallback callback) override;
     void              stopStream(std::shared_ptr<const StreamProfile> profile) override;
     void              stopAllStream() override;
-
-    // UAC class control transfers (mute/gain/AGC). Returns false if the request fails.
-    bool setMute(bool mute) override;
-    bool getMute(bool &mute) override;
-    bool setGain(int32_t gain) override;
-    bool getGain(int32_t &gain) override;
-    bool setAgc(bool enable) override;
-    bool getAgc(bool &enable) override;
 
     // IVendorDataPort: not used by UAC, returns 0.
     uint32_t sendAndReceive(const uint8_t *sendData, uint32_t sendLen, uint8_t *recvData, uint32_t exceptedRecvLen, utils::TransferTiming *timing) override;
@@ -53,8 +45,6 @@ private:
     // Tell the device which sampling frequency to stream at (UAC1: endpoint control, UAC2: clock source).
     // Without this the device leaves the iso IN endpoint idle and never delivers audio frames.
     bool setSamplingFrequency(uint32_t sampleRate);
-    bool controlSet(uint8_t selector, uint8_t channel, const uint8_t *data, uint16_t len);
-    bool controlGet(uint8_t selector, uint8_t channel, uint8_t *data, uint16_t len);
 
     static void LIBUSB_CALL onIsoTransfer(struct libusb_transfer *transfer);
     void                    eventLoop();

@@ -673,7 +673,7 @@ typedef enum {
     OB_PROP_CURRENT_DISP_SEARCH_OFFSET_INT = 272,
 
     /**
-<<<<<<< HEAD
+
      * @brief Enable FPS boost in trigger mode
      *        Not effective for devices connected via USB 2.x or lower
      */
@@ -686,9 +686,6 @@ typedef enum {
 
     /**
      * @brief Audio (microphone) mute switch (true: muted)
-=======
-     * @brief Audio (microphone) mute switch (true: muted)  
->>>>>>> 0daf5225e (Add IMU parameter command)
      */
     OB_PROP_AUDIO_MUTE_BOOL = 280,//TODO
 
