@@ -14,6 +14,7 @@
 
 #include <chrono>
 #include <cstring>
+#include <fstream>
 #include <mutex>
 #include <vector>
 
@@ -188,23 +189,116 @@ public:
 #endif
 // ======================================================================================
 
+// ============================ WAV file writer (cross-platform) ========================
+// Writes captured audio to a .wav file. The RIFF/data sizes are unknown while recording,
+// so a placeholder header is written first and patched with the real sizes on close.
+class WavWriter {
+public:
+    ~WavWriter() {
+        close();
+    }
+
+    bool open(const std::string &path, uint32_t sampleRate, uint32_t channels, uint32_t bitsPerSample) {
+        if(sampleRate == 0 || channels == 0 || bitsPerSample == 0) {
+            return false;
+        }
+        file_.open(path, std::ios::binary | std::ios::trunc);
+        if(!file_.is_open()) {
+            return false;
+        }
+        sampleRate_    = sampleRate;
+        channels_      = channels;
+        bitsPerSample_ = bitsPerSample;
+        dataBytes_     = 0;
+        // 32-bit samples are IEEE float (matches the playback path); otherwise integer PCM.
+        formatTag_ = (bitsPerSample == 32) ? 3 /*WAVE_FORMAT_IEEE_FLOAT*/ : 1 /*WAVE_FORMAT_PCM*/;
+        writeHeader();  // placeholder; patched on close()
+        opened_ = true;
+        return true;
+    }
+
+    void write(const uint8_t *data, size_t size) {
+        if(!opened_ || data == nullptr || size == 0) {
+            return;
+        }
+        std::lock_guard<std::mutex> lk(mutex_);
+        file_.write(reinterpret_cast<const char *>(data), static_cast<std::streamsize>(size));
+        dataBytes_ += static_cast<uint32_t>(size);
+    }
+
+    void close() {
+        std::lock_guard<std::mutex> lk(mutex_);
+        if(!opened_) {
+            return;
+        }
+        file_.seekp(0, std::ios::beg);
+        writeHeader();  // rewrite with the final sizes
+        file_.close();
+        opened_ = false;
+    }
+
+private:
+    void writeLE32(uint32_t v) {
+        uint8_t b[4] = { static_cast<uint8_t>(v), static_cast<uint8_t>(v >> 8), static_cast<uint8_t>(v >> 16), static_cast<uint8_t>(v >> 24) };
+        file_.write(reinterpret_cast<const char *>(b), 4);
+    }
+
+    void writeLE16(uint16_t v) {
+        uint8_t b[2] = { static_cast<uint8_t>(v), static_cast<uint8_t>(v >> 8) };
+        file_.write(reinterpret_cast<const char *>(b), 2);
+    }
+
+    void writeHeader() {
+        uint16_t blockAlign = static_cast<uint16_t>(channels_ * bitsPerSample_ / 8);
+        uint32_t byteRate   = sampleRate_ * blockAlign;
+
+        file_.write("RIFF", 4);
+        writeLE32(36 + dataBytes_);  // RIFF chunk size
+        file_.write("WAVE", 4);
+
+        file_.write("fmt ", 4);
+        writeLE32(16);  // fmt chunk size (PCM)
+        writeLE16(static_cast<uint16_t>(formatTag_));
+        writeLE16(static_cast<uint16_t>(channels_));
+        writeLE32(sampleRate_);
+        writeLE32(byteRate);
+        writeLE16(blockAlign);
+        writeLE16(static_cast<uint16_t>(bitsPerSample_));
+
+        file_.write("data", 4);
+        writeLE32(dataBytes_);  // data chunk size
+    }
+
+    std::ofstream file_;
+    bool          opened_        = false;
+    uint32_t      sampleRate_    = 0;
+    uint32_t      channels_      = 0;
+    uint32_t      bitsPerSample_ = 0;
+    uint32_t      formatTag_     = 1;
+    uint32_t      dataBytes_     = 0;
+    std::mutex    mutex_;
+};
+// ======================================================================================
+
 int main(void) try {
 
     // Create a pipeline with default device.
     ob::Pipeline pipe;
 
     // Configure which streams to enable. The EGO device exposes two RGB cameras (left + right) plus
-    // audio (microphone).
+    // audio (microphone). Both color streams are opened in MJPG format.
     std::shared_ptr<ob::Config> config = std::make_shared<ob::Config>();
-    config->enableVideoStream(OB_STREAM_COLOR_LEFT);
-    config->enableVideoStream(OB_STREAM_COLOR_RIGHT);
+    config->enableVideoStream(OB_STREAM_COLOR_LEFT, OB_WIDTH_ANY, OB_HEIGHT_ANY, OB_FPS_ANY, OB_FORMAT_MJPG);
+    config->enableVideoStream(OB_STREAM_COLOR_RIGHT, OB_WIDTH_ANY, OB_HEIGHT_ANY, OB_FPS_ANY, OB_FORMAT_MJPG);
 
     // Start the pipeline with config.
     pipe.start(config);
 
-    // ---- Audio: start the audio sensor directly and play it back ----
+    // ---- Audio: start the audio sensor directly, play it back and save it to a .wav file ----
     std::shared_ptr<ob::Sensor> audioSensor;
     AudioPlayer                 audioPlayer;
+    // WavWriter                   wavWriter;
+    // const std::string           wavPath = "ego_audio.wav";
     try {
         auto device = pipe.getDevice();
         audioSensor = device->getSensor(OB_SENSOR_AUDIO);
@@ -224,6 +318,13 @@ int main(void) try {
                 }
 
                 bool audioReady = audioPlayer.open(sampleRate, channelCount, bitsPerSample);
+                // bool wavReady   = wavWriter.open(wavPath, sampleRate, channelCount, bitsPerSample);
+                // if(wavReady) {
+                //     std::cout << "Audio recording to: " << wavPath << std::endl;
+                // }
+                // else {
+                //     std::cerr << "Failed to open WAV file for recording: " << wavPath << std::endl;
+                // }
                 audioSensor->start(profile, [&audioPlayer, audioReady](std::shared_ptr<ob::Frame> frame) {
                     if(!frame) {
                         return;
@@ -231,6 +332,9 @@ int main(void) try {
                     if(audioReady) {
                         audioPlayer.play(frame->getData(), frame->getDataSize());
                     }
+                    // if(wavReady) {
+                    //     wavWriter.write(frame->getData(), frame->getDataSize());
+                    // }
 
                     // Audio-stream health log (all platforms, independent of playback backend): confirm the first
                     // frame as soon as it arrives, then report the frame rate every 3 seconds. If nothing is printed
@@ -260,8 +364,9 @@ int main(void) try {
         audioSensor = nullptr;
     }
 
-    // Create a window for rendering and set the resolution of the window.
-    ob_smpl::CVWindow win("EGO: Dual Color (+ Audio)");
+    // Create a window for rendering and set the resolution of the window. Use ARRANGE_ONE_ROW so that
+    // both color streams (left + right) are rendered side by side instead of only the first one.
+    ob_smpl::CVWindow win("EGO: Dual Color (+ Audio)", 1280, 720, ob_smpl::ARRANGE_ONE_ROW);
 
     while(win.run()) {
         // Wait for up to 100ms for a frameset in blocking mode.
@@ -283,6 +388,7 @@ int main(void) try {
         }
     }
     audioPlayer.close();
+    // wavWriter.close();  // finalize the .wav header with the recorded sizes
 
     // Stop the Pipeline, no frame data will be generated
     pipe.stop();
