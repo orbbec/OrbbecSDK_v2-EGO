@@ -32,9 +32,26 @@ std::wstring makeVidPidToken(uint16_t vid, uint16_t pid) {
     return std::wstring(buf);
 }
 
+// Some Windows audio stacks (for example IntelAudio USB topology endpoints) flatten the USB
+// identifiers into a contiguous hex fingerprint such as "...2BC512010400..." instead of the
+// canonical "VID_2BC5&PID_1201" string.
+std::wstring makeCompactVidPidToken(uint16_t vid, uint16_t pid) {
+    wchar_t buf[16];
+    swprintf(buf, 16, L"%04X%04X", vid, pid);
+    return std::wstring(buf);
+}
+
 std::wstring toUpper(std::wstring s) {
     std::transform(s.begin(), s.end(), s.begin(), ::towupper);
     return s;
+}
+
+std::wstring guidToString(REFGUID guid) {
+    wchar_t buf[64] = {};
+    if(StringFromGUID2(guid, buf, static_cast<int>(sizeof(buf) / sizeof(buf[0]))) <= 0) {
+        return std::wstring();
+    }
+    return std::wstring(buf);
 }
 
 // Convert a wide string to UTF-8 for logging.
@@ -104,8 +121,9 @@ WasapiUacDevicePort::WasapiUacDevicePort(std::shared_ptr<const USBSourcePortInfo
     if(SUCCEEDED(hr) && collection) {
         UINT count = 0;
         collection->GetCount(&count);
-        auto token = makeVidPidToken(portInfo_->vid, portInfo_->pid);
-        LOG_DEBUG("WASAPI: looking for capture endpoint matching {}, {} active endpoint(s) found", narrow(token), count);
+        auto token        = makeVidPidToken(portInfo_->vid, portInfo_->pid);
+        auto compactToken = makeCompactVidPidToken(portInfo_->vid, portInfo_->pid);
+        LOG_DEBUG("WASAPI: looking for capture endpoint matching {} / {}, {} active endpoint(s) found", narrow(token), narrow(compactToken), count);
 
         for(UINT i = 0; i < count && mmDevice_ == nullptr; ++i) {
             IMMDevice *dev = nullptr;
@@ -115,6 +133,8 @@ WasapiUacDevicePort::WasapiUacDevicePort(std::shared_ptr<const USBSourcePortInfo
 
             std::wstring    instanceId;
             std::wstring    friendlyName;
+            std::wstring    parentId;
+            std::wstring    containerId;
             IPropertyStore *props = nullptr;
             if(SUCCEEDED(dev->OpenPropertyStore(STGM_READ, &props)) && props) {
                 PROPVARIANT var;
@@ -127,16 +147,35 @@ WasapiUacDevicePort::WasapiUacDevicePort(std::shared_ptr<const USBSourcePortInfo
                     friendlyName = var.pwszVal;
                 }
                 PropVariantClear(&var);
+                if(SUCCEEDED(props->GetValue(PKEY_Device_Parent, &var)) && var.vt == VT_LPWSTR && var.pwszVal) {
+                    parentId = var.pwszVal;
+                }
+                PropVariantClear(&var);
+                if(SUCCEEDED(props->GetValue(PKEY_Device_ContainerId, &var))) {
+                    if(var.vt == VT_CLSID && var.puuid) {
+                        containerId = guidToString(*var.puuid);
+                    }
+                    else if(var.vt == VT_LPWSTR && var.pwszVal) {
+                        containerId = var.pwszVal;
+                    }
+                }
+                PropVariantClear(&var);
                 props->Release();
             }
 
             // The endpoint's MMDEVAPI instance id ("SWD\MMDEVAPI\...") rarely carries the USB VID/PID, so also
-            // resolve the underlying USB/KS device id via the device topology, which does.
+            // resolve the underlying USB/KS device id via the device topology, which does. Some Windows builds
+            // expose the underlying USB interface more reliably via DEVPKEY_Device_Parent, so consider that too.
             std::wstring hwId = getEndpointHardwareDeviceId(dev);
 
-            LOG_DEBUG("WASAPI: endpoint[{}] name='{}' instanceId='{}' hwId='{}'", i, narrow(friendlyName), narrow(instanceId), narrow(hwId));
+            LOG_DEBUG("WASAPI: endpoint[{}] name='{}' instanceId='{}' parentId='{}' containerId='{}' hwId='{}'", i, narrow(friendlyName), narrow(instanceId),
+                      narrow(parentId), narrow(containerId), narrow(hwId));
 
-            bool matched = toUpper(instanceId).find(token) != std::wstring::npos || toUpper(hwId).find(token) != std::wstring::npos;
+            auto upperInstanceId = toUpper(instanceId);
+            auto upperParentId   = toUpper(parentId);
+            auto upperHwId       = toUpper(hwId);
+            bool matched         = upperInstanceId.find(token) != std::wstring::npos || upperParentId.find(token) != std::wstring::npos
+                           || upperHwId.find(token) != std::wstring::npos || upperHwId.find(compactToken) != std::wstring::npos;
             if(matched) {
                 mmDevice_ = dev;
                 dev       = nullptr;  // ownership moved
