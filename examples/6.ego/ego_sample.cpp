@@ -280,7 +280,20 @@ private:
 };
 // ======================================================================================
 
+static void printImuValue(OBFloat3D val, uint64_t index, uint64_t tsUs, float temp, OBFrameType type, const char *unit) {
+    auto typeStr = ob::TypeHelper::convertOBFrameTypeToString(type);
+    std::cout << typeStr << " #" << index << " tsp=" << tsUs << "us temp=" << temp << "C"
+              << " x=" << val.x << unit << " y=" << val.y << unit << " z=" << val.z << unit << std::endl;
+}
+
 int main(void) try {
+
+    // On Linux, select the UVC backend before opening any device.
+    // OB_UVC_BACKEND_TYPE_LIBUVC  - libusb-based libuvc (default on Linux for EGO)
+#if defined(__linux__) || defined(__ANDROID__)
+    ob::Context ctx;
+    ctx.setUvcBackendType(OB_UVC_BACKEND_TYPE_LIBUVC);
+#endif
 
     // Create a pipeline with default device.
     ob::Pipeline pipe;
@@ -364,6 +377,47 @@ int main(void) try {
         audioSensor = nullptr;
     }
 
+    // ---- IMU: dedicated pipeline (separate from video pipeline) with frameset callback ----
+    std::shared_ptr<ob::Pipeline> imuPipe;
+    try {
+        auto device    = pipe.getDevice();
+        imuPipe        = std::make_shared<ob::Pipeline>(device);
+        auto imuConfig = std::make_shared<ob::Config>();
+        imuConfig->enableAccelStream();
+        imuConfig->enableGyroStream();
+        imuPipe->start(imuConfig, [](std::shared_ptr<ob::FrameSet> frameSet) {
+            if(!frameSet) {
+                return;
+            }
+            auto accelFrameRaw = frameSet->getFrame(OB_FRAME_ACCEL);
+            if(accelFrameRaw) {
+                auto            accelFrame = accelFrameRaw->as<ob::AccelFrame>();
+                static uint64_t accelCount = 0;
+                if(accelCount % 50 == 0) {
+                    printImuValue(accelFrame->getValue(), accelFrame->getIndex(), accelFrame->getTimeStampUs(), accelFrame->getTemperature(),
+                                  accelFrame->getType(), "m/s^2");
+                }
+                ++accelCount;
+            }
+            auto gyroFrameRaw = frameSet->getFrame(OB_FRAME_GYRO);
+            if(gyroFrameRaw) {
+                auto            gyroFrame = gyroFrameRaw->as<ob::GyroFrame>();
+                static uint64_t gyroCount = 0;
+                if(gyroCount % 50 == 0) {
+                    printImuValue(gyroFrame->getValue(), gyroFrame->getIndex(), gyroFrame->getTimeStampUs(), gyroFrame->getTemperature(), gyroFrame->getType(),
+                                  "rad/s");
+                }
+                ++gyroCount;
+            }
+        });
+        std::cout << "IMU pipeline started." << std::endl;
+    }
+    catch(ob::Error &e) {
+        // IMU is optional; keep streaming video even if IMU is unavailable.
+        std::cerr << "IMU unavailable: " << e.what() << std::endl;
+        imuPipe = nullptr;
+    }
+
     // Create a window for rendering and set the resolution of the window. Use ARRANGE_ONE_ROW so that
     // both color streams (left + right) are rendered side by side instead of only the first one.
     ob_smpl::CVWindow win("EGO: Dual Color (+ Audio)", 1280, 720, ob_smpl::ARRANGE_ONE_ROW);
@@ -388,6 +442,15 @@ int main(void) try {
         }
     }
     audioPlayer.close();
+
+    // Stop IMU pipeline before stopping the video pipeline.
+    if(imuPipe) {
+        try {
+            imuPipe->stop();
+        }
+        catch(ob::Error &) {
+        }
+    }
     // wavWriter.close();  // finalize the .wav header with the recorded sizes
 
     // Stop the Pipeline, no frame data will be generated
