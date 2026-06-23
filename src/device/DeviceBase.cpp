@@ -72,11 +72,23 @@ void DeviceBase::fetchDeviceInfo() {
     deviceInfo_->supportedSdkVersion_ = version.sdkVersion;
 
 #ifdef __ANDROID__
-    // Android need to query usb connect type from port
-    auto depthPortInfo           = getSensorPortInfo(OB_SENSOR_DEPTH);
-    auto sourcePort              = getSourcePort(depthPortInfo);
-    auto uvcDevicePort           = std::dynamic_pointer_cast<UvcDevicePort>(sourcePort);
-    deviceInfo_->connectionType_ = uvcDevicePort->getUsbConnectType();
+    // Android need to query usb connect type from port.
+    // Some devices (e.g. EGO) have no depth sensor, so try candidates in priority order.
+    {
+        const OBSensorType kConnTypeCandidates[] = { OB_SENSOR_DEPTH, OB_SENSOR_COLOR, OB_SENSOR_COLOR_LEFT, OB_SENSOR_COLOR_RIGHT, OB_SENSOR_IR };
+        for(auto candidateType: kConnTypeCandidates) {
+            if(!isSensorExists(candidateType)) {
+                continue;
+            }
+            auto portInfo    = getSensorPortInfo(candidateType);
+            auto sourcePort  = getSourcePort(portInfo);
+            auto uvcDevPort  = std::dynamic_pointer_cast<UvcDevicePort>(sourcePort);
+            if(uvcDevPort) {
+                deviceInfo_->connectionType_ = uvcDevPort->getUsbConnectType();
+                break;
+            }
+        }
+    }
 #endif
 
     // remove the prefix "Orbbec " from the device name if contained
