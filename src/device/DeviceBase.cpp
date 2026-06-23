@@ -85,7 +85,7 @@ void DeviceBase::fetchDeviceInfo() {
     }
     deviceInfo_->fullName_ = "Orbbec " + deviceInfo_->name_;
 
-#ifdef __linux__
+#if defined(__linux__) || defined(__ANDROID__)
     // todo: net device does not have backend type
     // Try each candidate in priority order; some devices (e.g. EGO) have no depth sensor.
     const OBSensorType kBackendCandidates[] = { OB_SENSOR_DEPTH, OB_SENSOR_COLOR, OB_SENSOR_COLOR_LEFT, OB_SENSOR_COLOR_RIGHT, OB_SENSOR_IR };
