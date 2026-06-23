@@ -165,13 +165,21 @@ void EGODevice::initSensorList() {
 
         // EGO has no depth interface; the vendor XU/property channel rides on the left color UVC port.
         registerComponent(OB_DEV_COMPONENT_MAIN_PROPERTY_ACCESSOR, [this, leftColorPortInfo]() {
-            auto port     = getSourcePort(leftColorPortInfo);
+            auto port    = getSourcePort(leftColorPortInfo);
+            auto uvcPort = std::dynamic_pointer_cast<UvcDevicePort>(port);
+            if(uvcPort) {
+                uvcPort->updateXuUnit(OB_EGO_XU_UNIT);
+            }
             auto accessor = std::make_shared<VendorPropertyAccessor>(this, port);
             return accessor;
         });
 
         registerComponent(OB_DEV_COMPONENT_DEVICE_MONITOR, [this, leftColorPortInfo]() {
-            auto port       = getSourcePort(leftColorPortInfo);
+            auto port    = getSourcePort(leftColorPortInfo);
+            auto uvcPort = std::dynamic_pointer_cast<UvcDevicePort>(port);
+            if(uvcPort) {
+                uvcPort->updateXuUnit(OB_EGO_XU_UNIT);
+            }
             auto devMonitor = std::make_shared<DeviceMonitor>(this, port);
             return devMonitor;
         });

@@ -87,11 +87,19 @@ void DeviceBase::fetchDeviceInfo() {
 
 #ifdef __linux__
     // todo: net device does not have backend type
-    auto sensorPortInfo = getSensorPortInfo(OB_SENSOR_DEPTH);
-    if(sensorPortInfo->portType == SOURCE_PORT_USB_UVC) {
-        auto port                 = getSourcePort(sensorPortInfo);
-        auto uvcPort              = std::dynamic_pointer_cast<UvcDevicePort>(port);
-        deviceInfo_->backendType_ = uvcPort->getBackendType();
+    // Try each candidate in priority order; some devices (e.g. EGO) have no depth sensor.
+    const OBSensorType kBackendCandidates[] = { OB_SENSOR_DEPTH, OB_SENSOR_COLOR, OB_SENSOR_COLOR_LEFT, OB_SENSOR_COLOR_RIGHT, OB_SENSOR_IR };
+    for(auto candidateType: kBackendCandidates) {
+        if(!isSensorExists(candidateType)) {
+            continue;
+        }
+        auto sensorPortInfo = getSensorPortInfo(candidateType);
+        if(sensorPortInfo->portType == SOURCE_PORT_USB_UVC) {
+            auto port                 = getSourcePort(sensorPortInfo);
+            auto uvcPort              = std::dynamic_pointer_cast<UvcDevicePort>(port);
+            deviceInfo_->backendType_ = uvcPort->getBackendType();
+            break;
+        }
     }
 #else
     deviceInfo_->backendType_ = OB_UVC_BACKEND_TYPE_MSMF;
