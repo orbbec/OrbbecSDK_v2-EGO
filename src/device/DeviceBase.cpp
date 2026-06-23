@@ -80,9 +80,9 @@ void DeviceBase::fetchDeviceInfo() {
             if(!isSensorExists(candidateType)) {
                 continue;
             }
-            auto portInfo    = getSensorPortInfo(candidateType);
-            auto sourcePort  = getSourcePort(portInfo);
-            auto uvcDevPort  = std::dynamic_pointer_cast<UvcDevicePort>(sourcePort);
+            auto portInfo   = getSensorPortInfo(candidateType);
+            auto sourcePort = getSourcePort(portInfo);
+            auto uvcDevPort = std::dynamic_pointer_cast<UvcDevicePort>(sourcePort);
             if(uvcDevPort) {
                 deviceInfo_->connectionType_ = uvcDevPort->getUsbConnectType();
                 break;
@@ -97,7 +97,7 @@ void DeviceBase::fetchDeviceInfo() {
     }
     deviceInfo_->fullName_ = "Orbbec " + deviceInfo_->name_;
 
-#if defined(__linux__) || defined(__ANDROID__)
+#ifdef __linux__
     // todo: net device does not have backend type
     // Try each candidate in priority order; some devices (e.g. EGO) have no depth sensor.
     const OBSensorType kBackendCandidates[] = { OB_SENSOR_DEPTH, OB_SENSOR_COLOR, OB_SENSOR_COLOR_LEFT, OB_SENSOR_COLOR_RIGHT, OB_SENSOR_IR };
