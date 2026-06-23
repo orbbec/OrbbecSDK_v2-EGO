@@ -60,8 +60,9 @@ void EGODevice::init() {
     fetchDeviceInfo();
     fetchExtensionInfo();
 
-    deviceTimeFreq_ = 1000000;
-    frameTimeFreq_  = 1000000;
+    deviceTimeFreq_ = 1000000;     // OB_STRUCT_DEVICE_TIME is reported in microseconds (1MHz).
+    frameTimeFreq_  = 1000000000;  // Per-frame timestamp (video SCR / IMU) counts at 1GHz (nanoseconds);
+                                   // the calculators divide by this freq to output microseconds.
 
     auto globalTimestampFilter = std::make_shared<GlobalTimestampFitter>(this);
     registerComponent(OB_DEV_COMPONENT_GLOBAL_TIMESTAMP_FILTER, globalTimestampFilter);
@@ -277,6 +278,10 @@ void EGODevice::initSensorList() {
                 // trips the anomaly detector and drops every frame. Disable it until the timestamp is fixed.
                 sensor->enableTimestampAnomalyDetection(false);
 
+                // Firmware fills the IMU timestamp with a 1GHz (nanosecond) counter; convert it to microseconds.
+                auto imuFrameTimestampCalculator = std::make_shared<FrameTimestampCalculatorDirectly>(this, frameTimeFreq_);
+                sensor->setFrameTimestampCalculator(imuFrameTimestampCalculator);
+
                 auto globalFrameTimestampCalculator = std::make_shared<GlobalTimestampCalculator>(this, deviceTimeFreq_, frameTimeFreq_);
                 sensor->setGlobalTimestampCalculator(globalFrameTimestampCalculator);
 
@@ -297,6 +302,10 @@ void EGODevice::initSensorList() {
                 // [EGO-WIP] EGO firmware does not yet provide a reliable per-frame IMU device timestamp, which
                 // trips the anomaly detector and drops every frame. Disable it until the timestamp is fixed.
                 sensor->enableTimestampAnomalyDetection(false);
+
+                // Firmware fills the IMU timestamp with a 1GHz (nanosecond) counter; convert it to microseconds.
+                auto imuFrameTimestampCalculator = std::make_shared<FrameTimestampCalculatorDirectly>(this, frameTimeFreq_);
+                sensor->setFrameTimestampCalculator(imuFrameTimestampCalculator);
 
                 auto globalFrameTimestampCalculator = std::make_shared<GlobalTimestampCalculator>(this, deviceTimeFreq_, frameTimeFreq_);
                 sensor->setGlobalTimestampCalculator(globalFrameTimestampCalculator);
@@ -355,7 +364,13 @@ void EGODevice::initProperties() {
         auto vendorPropertyAccessor = std::make_shared<LazySuperPropertyAccessor>([this]() {
             auto &portInfo = getSensorPortInfo(OB_SENSOR_COLOR_LEFT);
             auto  port     = getSourcePort(portInfo);
-            auto  accessor = std::make_shared<VendorPropertyAccessor>(this, port);
+            // EGO firmware assigns bUnitID=2 to the Orbbec vendor XU; update before creating the accessor
+            // so that Linux/libuvc (which routes by unit number) targets the correct unit.
+            auto uvcPort = std::dynamic_pointer_cast<UvcDevicePort>(port);
+            if(uvcPort) {
+                uvcPort->updateXuUnit(OB_EGO_XU_UNIT);
+            }
+            auto accessor = std::make_shared<VendorPropertyAccessor>(this, port);
             return accessor;
         });
 
@@ -385,8 +400,9 @@ void EGODevice::initProperties() {
 
     registerComponent(OB_DEV_COMPONENT_PROPERTY_SERVER, propertyServer, false);
 
-    BEGIN_TRY_EXECUTE({ propertyServer->setPropertyValueT(OB_PROP_DEVICE_COMMUNICATION_TYPE_INT, OB_COMM_USB); })
-    CATCH_EXCEPTION_AND_EXECUTE({ LOG_DEBUG("Set device communication type to usb mode skipped!"); })
+    if(propertyServer->isPropertySupported(OB_PROP_DEVICE_COMMUNICATION_TYPE_INT, PROP_OP_WRITE, PROP_ACCESS_INTERNAL)) {
+        propertyServer->setPropertyValueT(OB_PROP_DEVICE_COMMUNICATION_TYPE_INT, OB_COMM_USB);
+    }
 }
 
 std::vector<std::shared_ptr<IFilter>> EGODevice::createRecommendedPostProcessingFilters(OBSensorType type) {
