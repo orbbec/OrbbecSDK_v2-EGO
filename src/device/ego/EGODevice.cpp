@@ -405,8 +405,8 @@ void EGODevice::initProperties() {
         // Transparent YAML passthrough interfaces for production calibration.
         // The firmware writes YAML files to flash during calibration; these properties read them back as
         // raw bytes. The SDK does not parse the data — the application layer saves it directly to a file.
-        propertyServer->registerProperty(OB_RAW_DATA_ALIGN_CALIB_YAML, "", "r", vendorPropertyAccessor);
-        propertyServer->registerProperty(OB_RAW_DATA_IMU_CALIB_YAML, "", "r", vendorPropertyAccessor);
+        propertyServer->registerProperty(OB_RAW_DATA_ALIGN_CALIB_YAML, "r", "r", vendorPropertyAccessor);
+        propertyServer->registerProperty(OB_RAW_DATA_IMU_CALIB_YAML, "r", "r", vendorPropertyAccessor);
 
         auto heartbeatPropertyAccessor = std::make_shared<HeartbeatPropertyAccessor>(this);
         propertyServer->registerProperty(OB_PROP_HEARTBEAT_BOOL, "rw", "rw", heartbeatPropertyAccessor);
