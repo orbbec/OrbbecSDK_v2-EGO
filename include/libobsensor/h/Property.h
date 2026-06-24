@@ -1102,6 +1102,20 @@ typedef enum {
     OB_RAW_DATA_CAMERA_CALIB_JSON_FILE = 4029,
 
     /**
+     * @brief EGO camera calibration YAML file stored in device flash (read only).
+     * The returned bytes are the raw YAML content; the application layer should save them directly to a file.
+     * This is a transparent passthrough — the SDK does not parse the data.
+     */
+    OB_RAW_DATA_ALIGN_CALIB_YAML = 4064,
+
+    /**
+     * @brief EGO IMU calibration YAML file stored in device flash (read only).
+     * The returned bytes are the raw YAML content; the application layer should save them directly to a file.
+     * This is a transparent passthrough — the SDK does not parse the data.
+     */
+    OB_RAW_DATA_IMU_CALIB_YAML = 4065,
+
+    /**
      * @brief Confidence degree
      */
     OB_PROP_DEBUG_ESGM_CONFIDENCE_FLOAT = 5013,
