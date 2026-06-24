@@ -4,6 +4,7 @@
 #pragma once
 #include "libobsensor/h/ObTypes.h"
 
+#include "AudioTimestampFitter.hpp"
 #include "ISourcePort.hpp"
 #include "stream/StreamProfile.hpp"
 
@@ -56,8 +57,8 @@ private:
     IAudioClient        *audioClient_   = nullptr;
     IAudioCaptureClient *captureClient_ = nullptr;
 
-    uint64_t anchorQpcUs_ = 0;
-    uint64_t totalFrames_ = 0;
+    AudioTimestampFitter fitter_;
+    uint64_t             totalFrames_ = 0;
 };
 
 }  // namespace libobsensor

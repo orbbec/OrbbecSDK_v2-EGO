@@ -4,6 +4,7 @@
 #pragma once
 #include "libobsensor/h/ObTypes.h"
 
+#include "AudioTimestampFitter.hpp"
 #include "ISourcePort.hpp"
 #include "stream/StreamProfile.hpp"
 #include "usb/enumerator/IUsbEnumerator.hpp"
@@ -85,8 +86,7 @@ private:
     std::thread       eventThread_;
     std::mutex        streamMutex_;
 
-    // Timestamp anchoring: first-sample steady anchor + accumulated sample count (plan §5.4).
-    uint64_t              anchorSteadyUs_ = 0;
+    AudioTimestampFitter  fitter_;
     std::atomic<uint64_t> totalSamples_{ 0 };
 };
 

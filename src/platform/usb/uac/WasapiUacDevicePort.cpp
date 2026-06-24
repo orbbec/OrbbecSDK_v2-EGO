@@ -236,8 +236,8 @@ void WasapiUacDevicePort::startStream(std::shared_ptr<const StreamProfile> profi
     }
     activatedProfile_ = profile->as<AudioStreamProfile>();
     frameCallback_    = callback;
-    anchorQpcUs_      = 0;
-    totalFrames_      = 0;
+    fitter_.reset(sampleRate_);
+    totalFrames_ = 0;
 
     HRESULT hr = mmDevice_->Activate(__uuidof(IAudioClient), CLSCTX_ALL, nullptr, reinterpret_cast<void **>(&audioClient_));
     if(FAILED(hr) || !audioClient_) {
@@ -309,14 +309,11 @@ void WasapiUacDevicePort::captureLoop() {
                     frame->updateData(reinterpret_cast<const uint8_t *>(data), byteCount);
                 }
 
-                // qpcPos is in 100-ns units; anchor on the first packet, then advance by sample count.
-                uint64_t qpcUs = qpcPos / 10;
-                if(anchorQpcUs_ == 0) {
-                    anchorQpcUs_ = qpcUs;
-                }
-                uint64_t tsUs = sampleRate_ ? anchorQpcUs_ + (totalFrames_ * 1000000ull) / sampleRate_ : qpcUs;
+                uint64_t nowUs         = utils::getNowTimesUs();
+                uint64_t pktDurationUs = (uint64_t)numFrames * 1000000ULL / sampleRate_;
+                uint64_t tsUs          = fitter_.update(totalFrames_, nowUs - pktDurationUs);
                 frame->setTimeStampUsec(tsUs);
-                frame->setSystemTimeStampUsec(utils::getNowTimesUs());
+                frame->setSystemTimeStampUsec(nowUs);
                 frame->setSteadyTimeStampUsec(utils::getSteadyTimeUs());
                 totalFrames_ += numFrames;
 

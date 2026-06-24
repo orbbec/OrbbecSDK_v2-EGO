@@ -240,8 +240,8 @@ void ObLibUacDevicePort::startStream(std::shared_ptr<const StreamProfile> profil
     }
     activatedProfile_ = profile->as<AudioStreamProfile>();
     frameCallback_    = callback;
-    anchorSteadyUs_   = 0;
-    totalSamples_     = 0;
+    fitter_.reset(activatedProfile_->getSampleRate());
+    totalSamples_ = 0;
 
     auto res = libusb_set_interface_alt_setting(devHandle_, asInterfaceNumber_, asAltSetting_);
     if(res != LIBUSB_SUCCESS) {
@@ -325,13 +325,10 @@ void ObLibUacDevicePort::handleIsoTransfer(struct libusb_transfer *transfer) {
             uint32_t bytesPerFrame  = channelCount * bytesPerSample;
             uint32_t sampleCount    = bytesPerFrame ? static_cast<uint32_t>(chunk.size() / bytesPerFrame) : 0;
 
-            auto nowUs    = utils::getNowTimesUs();
-            auto steadyUs = utils::getSteadyTimeUs();
-            if(anchorSteadyUs_ == 0) {
-                anchorSteadyUs_ = steadyUs;
-            }
-            // First-sample timestamp: anchor + accumulated samples (equal-spaced axis, plan §5.4).
-            uint64_t tsUs = sampleRate ? anchorSteadyUs_ + (totalSamples_.load() * 1000000ull) / sampleRate : steadyUs;
+            auto     nowUs         = utils::getNowTimesUs();
+            auto     steadyUs      = utils::getSteadyTimeUs();
+            uint64_t pktDurationUs = sampleCount > 0 ? (uint64_t)sampleCount * 1000000ULL / sampleRate : 0;
+            uint64_t tsUs          = fitter_.update(totalSamples_.load(), nowUs - pktDurationUs);
             frame->setTimeStampUsec(tsUs);
             frame->setSystemTimeStampUsec(nowUs);
             frame->setSteadyTimeStampUsec(steadyUs);
