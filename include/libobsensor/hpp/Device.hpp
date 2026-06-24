@@ -346,6 +346,22 @@ public:
         Error::handle(&error);
         return std::string(buf);
     }
+    
+    /**
+     * @brief Get the raw data of a device property
+     *
+     * @param[in] propertyId The ID of the property
+     * @param[in] callback The callback to receive data chunks during transfer
+     */
+    void getRawData(OBPropertyID propertyId, std::function<void(OBDataTranState state, OBDataChunk *dataChunk)> callback) const {
+        ob_error *error = nullptr;
+        auto cb = [](ob_data_tran_state state, ob_data_chunk *dataChunk, void *user_data) {
+            auto &func = *static_cast<std::function<void(OBDataTranState, OBDataChunk *)> *>(user_data);
+            func(state, dataChunk);
+        };
+        ob_device_get_raw_data(impl_, propertyId, cb, &callback, &error);
+        Error::handle(&error);
+    }
 
     /**
      * @brief Set the customer data type of a device property
