@@ -60,9 +60,8 @@ void EGODevice::init() {
     fetchDeviceInfo();
     fetchExtensionInfo();
 
-    deviceTimeFreq_ = 1000000;     // OB_STRUCT_DEVICE_TIME is reported in microseconds (1MHz).
-    frameTimeFreq_  = 1000000000;  // Per-frame timestamp (video SCR / IMU) counts at 1GHz (nanoseconds);
-                                   // the calculators divide by this freq to output microseconds.
+    deviceTimeFreq_ = 1000000;     
+    frameTimeFreq_  = 1000000;  
 
     auto globalTimestampFilter = std::make_shared<GlobalTimestampFitter>(this);
     registerComponent(OB_DEV_COMPONENT_GLOBAL_TIMESTAMP_FILTER, globalTimestampFilter);
@@ -286,7 +285,7 @@ void EGODevice::initSensorList() {
                 // trips the anomaly detector and drops every frame. Disable it until the timestamp is fixed.
                 sensor->enableTimestampAnomalyDetection(false);
 
-                // Firmware fills the IMU timestamp with a 1GHz (nanosecond) counter; convert it to microseconds.
+                // Firmware IMU timestamp unit is microseconds (1MHz); pass through directly.
                 auto imuFrameTimestampCalculator = std::make_shared<FrameTimestampCalculatorDirectly>(this, frameTimeFreq_);
                 sensor->setFrameTimestampCalculator(imuFrameTimestampCalculator);
 
@@ -311,7 +310,7 @@ void EGODevice::initSensorList() {
                 // trips the anomaly detector and drops every frame. Disable it until the timestamp is fixed.
                 sensor->enableTimestampAnomalyDetection(false);
 
-                // Firmware fills the IMU timestamp with a 1GHz (nanosecond) counter; convert it to microseconds.
+                // Firmware IMU timestamp unit is microseconds (1MHz); pass through directly.
                 auto imuFrameTimestampCalculator = std::make_shared<FrameTimestampCalculatorDirectly>(this, frameTimeFreq_);
                 sensor->setFrameTimestampCalculator(imuFrameTimestampCalculator);
 
