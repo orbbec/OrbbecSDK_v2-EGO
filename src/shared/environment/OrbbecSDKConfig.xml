@@ -464,23 +464,6 @@
             </IR>
         </FemtoMega>
 
-        <!-- [EGO-SIM] EGO emulated by a network Femto Mega. The device's own default color stream is H265 (4K),
-             which OpenCV/CVWindow cannot decode, so force an MJPG color profile here. The node name is the device
-             name "EGO series device" with spaces removed (see getStreamProfileFromEnvConfig). Remove this block
-             together with EGO_SIMULATE_WITH_FEMTO_MEGA (see DevicePids.hpp). -->
-        <EGOseriesdevice>
-            <Color>
-                <!-- The width of the default resolution, int type -->
-                <Width>1920</Width>
-                <!-- The height of the default resolution, int type -->
-                <Height>1080</Height>
-                <!-- Default frame rate, int type -->
-                <FPS>30</FPS>
-                <!-- Default frame format -->
-                <Format>MJPG</Format>
-            </Color>
-        </EGOseriesdevice>
-
         <FemtoMegai>
             <Misc>
                 <GlobalTimestampFitterEnable>false</GlobalTimestampFitterEnable>
@@ -3424,5 +3407,32 @@
                 <Format>MJPG</Format>
             </Color>
         </GeminiEW>
+        <Ego>
+            <!-- Default backend for Linux UVC devices. If the LinuxUVCBackend is set to "Auto,"
+            this item will determine the device's speciality. Optional values: V4L2, LibUVC -->
+            <LinuxUVCDefaultBackend>LibUVC</LinuxUVCDefaultBackend>
+
+            <LeftColor>
+                <!-- The width of the default resolution, int type -->
+                <Width>1600</Width>
+                <!-- The height of the default resolution, int type -->
+                <Height>1300</Height>
+                <!-- Default frame rate, int type -->
+                <FPS>30</FPS>
+                <!-- Default frame format -->
+                <Format>MJPG</Format>
+            </LeftColor>
+
+            <RightColor>
+                <!-- The width of the default resolution, int type -->
+                <Width>1600</Width>
+                <!-- The height of the default resolution, int type -->
+                <Height>1300</Height>
+                <!-- Default frame rate, int type -->
+                <FPS>30</FPS>
+                <!-- Default frame format -->
+                <Format>MJPG</Format>
+            </RightColor>
+        </Ego>
     </Device>
 </Config>

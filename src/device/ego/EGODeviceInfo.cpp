@@ -25,11 +25,11 @@ namespace libobsensor {
 // - color_left / color_right / audio share the same RTSP service port, distinguished by URL path.
 // - IMU runs on an independent private TCP data-stream port (parallel to the RTSP service port).
 // These values are placeholders pending firmware confirmation.
-static const uint16_t EGO_RTSP_SERVICE_PORT = 8554;  // shared RTSP service port for all video/audio streams
+static const uint16_t EGO_RTSP_SERVICE_PORT = 8888;  // shared RTSP service port for all video/audio streams
 static const uint16_t EGO_IMU_TCP_PORT      = 8900;  // private TCP IMU data stream (parallel to RTSP)
 
 const std::map<int, std::string> EGODeviceNameMap = {
-    { OB_DEVICE_EGO_PID, "PN2608 EGO" },
+    { OB_DEVICE_EGO_PID, "Ego" },
 };
 
 EGODeviceInfo::EGODeviceInfo(const SourcePortInfoList groupedInfoList) {
