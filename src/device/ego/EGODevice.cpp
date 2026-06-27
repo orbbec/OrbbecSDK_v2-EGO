@@ -60,11 +60,8 @@ void EGODevice::init() {
     fetchDeviceInfo();
     fetchExtensionInfo();
 
-    deviceTimeFreq_ = 1000000;     
-    frameTimeFreq_  = 1000000;  
-
-    auto globalTimestampFilter = std::make_shared<GlobalTimestampFitter>(this);
-    registerComponent(OB_DEV_COMPONENT_GLOBAL_TIMESTAMP_FILTER, globalTimestampFilter);
+    deviceTimeFreq_ = 1000000;
+    frameTimeFreq_  = 1000000;
 
     auto algParamManager = std::make_shared<EGOAlgParamManager>(this);
     registerComponent(OB_DEV_COMPONENT_ALG_PARAM_MANAGER, algParamManager);
@@ -142,8 +139,8 @@ void EGODevice::initSensorList() {
 
                 // Both color sensors share the same device clock domain via the single
                 // OB_DEV_COMPONENT_GLOBAL_TIMESTAMP_FILTER on this device, so left/right stay aligned.
-                auto globalFrameTimestampCalculator = std::make_shared<GlobalTimestampCalculator>(this, deviceTimeFreq_, frameTimeFreq_);
-                sensor->setGlobalTimestampCalculator(globalFrameTimestampCalculator);
+                // auto globalFrameTimestampCalculator = std::make_shared<GlobalTimestampCalculator>(this, deviceTimeFreq_, frameTimeFreq_);
+                // sensor->setGlobalTimestampCalculator(globalFrameTimestampCalculator);
 
                 auto frameProcessor = getComponentT<FrameProcessor>(OB_DEV_COMPONENT_LEFT_COLOR_FRAME_PROCESSOR, false);
                 if(frameProcessor) {
@@ -198,8 +195,6 @@ void EGODevice::initSensorList() {
                 auto port   = getSourcePort(rightColorPortInfo);
                 auto sensor = std::make_shared<VideoSensor>(this, OB_SENSOR_COLOR_RIGHT, port);
 
-                // [EGO-WIP] EGO firmware does not yet provide a reliable per-frame device timestamp, which
-                // trips the anomaly detector and drops every frame. Disable it until the timestamp is fixed.
                 sensor->enableTimestampAnomalyDetection(false);
 
                 std::vector<FormatFilterConfig> formatFilterConfigs = {
@@ -213,8 +208,8 @@ void EGODevice::initSensorList() {
                 auto videoFrameTimestampCalculator = std::make_shared<FrameTimestampCalculatorOverUvcSCR>(this, frameTimeFreq_);
                 sensor->setFrameTimestampCalculator(videoFrameTimestampCalculator);
 
-                auto globalFrameTimestampCalculator = std::make_shared<GlobalTimestampCalculator>(this, deviceTimeFreq_, frameTimeFreq_);
-                sensor->setGlobalTimestampCalculator(globalFrameTimestampCalculator);
+                // auto globalFrameTimestampCalculator = std::make_shared<GlobalTimestampCalculator>(this, deviceTimeFreq_, frameTimeFreq_);
+                // sensor->setGlobalTimestampCalculator(globalFrameTimestampCalculator);
 
                 auto frameProcessor = getComponentT<FrameProcessor>(OB_DEV_COMPONENT_RIGHT_COLOR_FRAME_PROCESSOR, false);
                 if(frameProcessor) {
@@ -289,8 +284,8 @@ void EGODevice::initSensorList() {
                 auto imuFrameTimestampCalculator = std::make_shared<FrameTimestampCalculatorDirectly>(this, frameTimeFreq_);
                 sensor->setFrameTimestampCalculator(imuFrameTimestampCalculator);
 
-                auto globalFrameTimestampCalculator = std::make_shared<GlobalTimestampCalculator>(this, deviceTimeFreq_, frameTimeFreq_);
-                sensor->setGlobalTimestampCalculator(globalFrameTimestampCalculator);
+                // auto globalFrameTimestampCalculator = std::make_shared<GlobalTimestampCalculator>(this, deviceTimeFreq_, frameTimeFreq_);
+                // sensor->setGlobalTimestampCalculator(globalFrameTimestampCalculator);
 
                 initSensorStreamProfile(sensor);
                 return sensor;
@@ -314,8 +309,8 @@ void EGODevice::initSensorList() {
                 auto imuFrameTimestampCalculator = std::make_shared<FrameTimestampCalculatorDirectly>(this, frameTimeFreq_);
                 sensor->setFrameTimestampCalculator(imuFrameTimestampCalculator);
 
-                auto globalFrameTimestampCalculator = std::make_shared<GlobalTimestampCalculator>(this, deviceTimeFreq_, frameTimeFreq_);
-                sensor->setGlobalTimestampCalculator(globalFrameTimestampCalculator);
+                // auto globalFrameTimestampCalculator = std::make_shared<GlobalTimestampCalculator>(this, deviceTimeFreq_, frameTimeFreq_);
+                // sensor->setGlobalTimestampCalculator(globalFrameTimestampCalculator);
 
                 initSensorStreamProfile(sensor);
                 return sensor;
@@ -331,7 +326,7 @@ void EGODevice::initProperties() {
     auto sensors = getSensorTypeList();
     for(auto &sensor: sensors) {
         auto &sourcePortInfo = getSensorPortInfo(sensor);
-        if(sensor == OB_SENSOR_COLOR_LEFT || sensor == OB_SENSOR_COLOR_RIGHT) {
+        if(sensor == OB_SENSOR_COLOR_LEFT) {
             auto uvcPropertyAccessor = std::make_shared<LazyPropertyAccessor>([this, &sourcePortInfo]() {
                 auto port     = getSourcePort(sourcePortInfo);
                 auto accessor = std::make_shared<UvcPropertyAccessor>(port);
@@ -339,7 +334,6 @@ void EGODevice::initProperties() {
             });
 
             propertyServer->registerProperty(OB_PROP_COLOR_AUTO_EXPOSURE_BOOL, "rw", "rw", uvcPropertyAccessor);
-            propertyServer->registerProperty(OB_PROP_COLOR_EXPOSURE_INT, "rw", "rw", uvcPropertyAccessor);
             propertyServer->registerProperty(OB_PROP_COLOR_GAIN_INT, "rw", "rw", uvcPropertyAccessor);
             propertyServer->registerProperty(OB_PROP_COLOR_SATURATION_INT, "rw", "rw", uvcPropertyAccessor);
             propertyServer->registerProperty(OB_PROP_COLOR_AUTO_WHITE_BALANCE_BOOL, "rw", "rw", uvcPropertyAccessor);
@@ -380,6 +374,8 @@ void EGODevice::initProperties() {
             auto accessor = std::make_shared<VendorPropertyAccessor>(this, port);
             return accessor;
         });
+
+        propertyServer->registerProperty(OB_PROP_COLOR_EXPOSURE_INT, "rw", "rw", vendorPropertyAccessor);
 
         // TODO:
         propertyServer->registerProperty(OB_STRUCT_VERSION, "", "r", vendorPropertyAccessor);
