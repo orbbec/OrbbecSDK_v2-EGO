@@ -12,7 +12,6 @@
 #include "sensor/audio/AudioSensor.hpp"
 
 #include "metadata/FrameMetadataParserContainer.hpp"
-#include "timestamp/GlobalTimestampFitter.hpp"
 #include "timestamp/FrameTimestampCalculator.hpp"
 #include "timestamp/DeviceClockSynchronizer.hpp"
 #include "property/VendorPropertyAccessor.hpp"
@@ -153,10 +152,6 @@ void EGONetDevice::initSensorList() {
                 auto videoFrameTimestampCalculator = std::make_shared<FrameTimestampCalculatorBaseDeviceTime>(this, deviceTimeFreq_, colorFrameTimeFreq_);
                 sensor->setFrameTimestampCalculator(videoFrameTimestampCalculator);
 
-                // Left/right color share the single device GlobalTimestampFitter -> same device clock domain.
-                auto globalFrameTimestampCalculator = std::make_shared<GlobalTimestampCalculator>(this, deviceTimeFreq_, colorFrameTimeFreq_);
-                sensor->setGlobalTimestampCalculator(globalFrameTimestampCalculator);
-
                 auto frameProcessor = getComponentT<FrameProcessor>(OB_DEV_COMPONENT_LEFT_COLOR_FRAME_PROCESSOR, false);
                 if(frameProcessor) {
                     sensor->setFrameProcessor(frameProcessor.get());
@@ -201,9 +196,6 @@ void EGONetDevice::initSensorList() {
                 auto videoFrameTimestampCalculator = std::make_shared<FrameTimestampCalculatorBaseDeviceTime>(this, deviceTimeFreq_, colorFrameTimeFreq_);
                 sensor->setFrameTimestampCalculator(videoFrameTimestampCalculator);
 
-                auto globalFrameTimestampCalculator = std::make_shared<GlobalTimestampCalculator>(this, deviceTimeFreq_, colorFrameTimeFreq_);
-                sensor->setGlobalTimestampCalculator(globalFrameTimestampCalculator);
-
                 auto frameProcessor = getComponentT<FrameProcessor>(OB_DEV_COMPONENT_RIGHT_COLOR_FRAME_PROCESSOR, false);
                 if(frameProcessor) {
                     sensor->setFrameProcessor(frameProcessor.get());
@@ -244,9 +236,6 @@ void EGONetDevice::initSensorList() {
                 auto videoFrameTimestampCalculator = std::make_shared<FrameTimestampCalculatorBaseDeviceTime>(this, deviceTimeFreq_, deviceTimeFreq_);
                 sensor->setFrameTimestampCalculator(videoFrameTimestampCalculator);
 
-                auto globalFrameTimestampCalculator = std::make_shared<GlobalTimestampCalculator>(this, deviceTimeFreq_, deviceTimeFreq_);
-                sensor->setGlobalTimestampCalculator(globalFrameTimestampCalculator);
-
                 return sensor;
             },
             true);
@@ -282,9 +271,6 @@ void EGONetDevice::initSensorList() {
                 // trips the anomaly detector and drops every frame. Disable it until the timestamp is fixed.
                 sensor->enableTimestampAnomalyDetection(false);
 
-                auto globalFrameTimestampCalculator = std::make_shared<GlobalTimestampCalculator>(this, deviceTimeFreq_, deviceTimeFreq_);
-                sensor->setGlobalTimestampCalculator(globalFrameTimestampCalculator);
-
                 initSensorStreamProfile(sensor);
                 return sensor;
             },
@@ -302,9 +288,6 @@ void EGONetDevice::initSensorList() {
                 // [EGO-WIP] EGO firmware does not yet provide a reliable per-frame IMU device timestamp, which
                 // trips the anomaly detector and drops every frame. Disable it until the timestamp is fixed.
                 sensor->enableTimestampAnomalyDetection(false);
-
-                auto globalFrameTimestampCalculator = std::make_shared<GlobalTimestampCalculator>(this, deviceTimeFreq_, deviceTimeFreq_);
-                sensor->setGlobalTimestampCalculator(globalFrameTimestampCalculator);
 
                 initSensorStreamProfile(sensor);
                 return sensor;
