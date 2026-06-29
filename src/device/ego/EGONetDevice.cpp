@@ -53,18 +53,21 @@ void EGONetDevice::init() {
 
     if(!inRecoveryMode_) {
         initSensorList();
-        fetchAllVideoStreamProfileList();
+        // [EGO-WIP] Firmware port 8090 crashes when receiving unimplemented commands.
+        // Re-enable once firmware implements OB_RAW_DATA_STREAM_PROFILE_LIST.
+        // fetchAllVideoStreamProfileList();
 
         deviceTimeFreq_ = 1000000;
 
-        auto globalTimestampFilter = std::make_shared<GlobalTimestampFitter>(this);
-        registerComponent(OB_DEV_COMPONENT_GLOBAL_TIMESTAMP_FILTER, globalTimestampFilter);
+        // [EGO-WIP] EGOAlgParamManager sends OB_RAW_DATA_ALIGN_CALIB_PARAM / OB_RAW_DATA_IMU_CALIB_PARAM
+        // to port 8090 on construction, which crashes the firmware. Re-enable once firmware supports them.
+        // auto algParamManager = std::make_shared<EGOAlgParamManager>(this);
+        // registerComponent(OB_DEV_COMPONENT_ALG_PARAM_MANAGER, algParamManager);
 
-        auto algParamManager = std::make_shared<EGOAlgParamManager>(this);
-        registerComponent(OB_DEV_COMPONENT_ALG_PARAM_MANAGER, algParamManager);
-
-        auto deviceClockSynchronizer = std::make_shared<DeviceClockSynchronizer>(this, deviceTimeFreq_, deviceTimeFreq_);
-        registerComponent(OB_DEV_COMPONENT_DEVICE_CLOCK_SYNCHRONIZER, deviceClockSynchronizer);
+        // [EGO-WIP] DeviceClockSynchronizer may send OB_STRUCT_DEVICE_TIME to port 8090.
+        // Re-enable once firmware supports the command.
+        // auto deviceClockSynchronizer = std::make_shared<DeviceClockSynchronizer>(this, deviceTimeFreq_, deviceTimeFreq_);
+        // registerComponent(OB_DEV_COMPONENT_DEVICE_CLOCK_SYNCHRONIZER, deviceClockSynchronizer);
     }
 
     // firmware updater
@@ -90,14 +93,19 @@ void EGONetDevice::fetchDeviceInfo() {
     deviceInfo_->uid_            = enumInfo_->getUid();
     deviceInfo_->connectionType_ = enumInfo_->getConnectionType();
 
-    auto propServer                   = getPropertyServer();
-    auto version                      = propServer->getStructureDataT<OBVersionInfo>(OB_STRUCT_VERSION);
-    deviceInfo_->fwVersion_           = version.firmwareVersion;
-    deviceInfo_->deviceSn_            = version.serialNumber;
-    deviceInfo_->asicName_            = version.depthChip;
-    deviceInfo_->hwVersion_           = version.hardwareVersion;
-    deviceInfo_->type_                = static_cast<uint16_t>(version.deviceType);
-    deviceInfo_->supportedSdkVersion_ = version.sdkVersion;
+    // [EGO-WIP] OB_STRUCT_VERSION sends a command to port 8090 and crashes the firmware.
+    // Re-enable once firmware implements this command.
+    // auto propServer = getPropertyServer();
+    // BEGIN_TRY_EXECUTE({
+    //     auto version                      = propServer->getStructureDataT<OBVersionInfo>(OB_STRUCT_VERSION);
+    //     deviceInfo_->fwVersion_           = version.firmwareVersion;
+    //     deviceInfo_->deviceSn_            = version.serialNumber;
+    //     deviceInfo_->asicName_            = version.depthChip;
+    //     deviceInfo_->hwVersion_           = version.hardwareVersion;
+    //     deviceInfo_->type_                = static_cast<uint16_t>(version.deviceType);
+    //     deviceInfo_->supportedSdkVersion_ = version.sdkVersion;
+    // })
+    // CATCH_EXCEPTION_AND_EXECUTE({ LOG_WARN("EGONetDevice: OB_STRUCT_VERSION not yet implemented by firmware, using defaults."); })
 
     // remove the prefix "Orbbec " from the device name if contained
     if(deviceInfo_->name_.find("Orbbec ") == 0) {
@@ -352,7 +360,7 @@ void EGONetDevice::initProperties() {
     propertyServer->registerProperty(OB_PROP_HEARTBEAT_BOOL, "rw", "rw", heartbeatPropertyAccessor);
     propertyServer->registerProperty(OB_PROP_DEVICE_COMMUNICATION_TYPE_INT, "", "w", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_STRUCT_VERSION, "", "r", vendorPropertyAccessor);
-    propertyServer->registerProperty(OB_STRUCT_DEVICE_SERIAL_NUMBER, "r", "rw", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_STRUCT_DEVICE_SERIAL_NUMBER, "r", "r", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_STRUCT_DEVICE_IP_ADDR_CONFIG, "rw", "rw", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_STRUCT_DEVICE_TIME, "rw", "rw", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_STRUCT_GET_TF_CARD_CAPACITY, "r", "r", vendorPropertyAccessor);
@@ -362,6 +370,10 @@ void EGONetDevice::initProperties() {
     propertyServer->registerProperty(OB_PROP_ACCEL_ODR_INT, "rw", "rw", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_PROP_GYRO_FULL_SCALE_INT, "rw", "rw", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_PROP_ACCEL_FULL_SCALE_INT, "rw", "rw", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_STRUCT_GET_ACCEL_PRESETS_ODR_LIST, "", "r", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_STRUCT_GET_ACCEL_PRESETS_FULL_SCALE_LIST, "", "r", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_STRUCT_GET_GYRO_PRESETS_ODR_LIST, "", "r", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_STRUCT_GET_GYRO_PRESETS_FULL_SCALE_LIST, "", "r", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_PROP_ACCEL_SWITCH_BOOL, "", "rw", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_PROP_GYRO_SWITCH_BOOL, "", "rw", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_RAW_DATA_IMU_CALIB_PARAM, "", "rw", vendorPropertyAccessor);
@@ -381,23 +393,25 @@ void EGONetDevice::initProperties() {
 
     registerComponent(OB_DEV_COMPONENT_PROPERTY_SERVER, propertyServer, false);
 
-    BEGIN_TRY_EXECUTE({ propertyServer->setPropertyValueT(OB_PROP_DEVICE_COMMUNICATION_TYPE_INT, OB_COMM_NET); })
-    CATCH_EXCEPTION_AND_EXECUTE({ LOG_ERROR("Set device communication type to ethernet mode failed!"); })
+    // [EGO-WIP] The following commands send to port 8090 and crash the firmware TCP service.
+    // Re-enable once firmware implements these properties.
+    // BEGIN_TRY_EXECUTE({ propertyServer->setPropertyValueT(OB_PROP_DEVICE_COMMUNICATION_TYPE_INT, OB_COMM_NET); })
+    // CATCH_EXCEPTION_AND_EXECUTE({ LOG_ERROR("Set device communication type to ethernet mode failed!"); })
 
     // check recovery mode
     inRecoveryMode_ = false;
-    BEGIN_TRY_EXECUTE({
-        inRecoveryMode_ = propertyServer->getPropertyValueT<bool>(OB_PROP_DEVICE_IN_RECOVERY_MODE_BOOL);
-        if(inRecoveryMode_) {
-            LOG_DEBUG("EGO net device is in recovery mode, skip init ...");
-            propertyServer->unregisterAllProperties();
-            propertyServer->registerProperty(OB_STRUCT_VERSION, "", "r", vendorPropertyAccessor);
-            propertyServer->registerProperty(OB_PROP_BOOT_INTO_RECOVERY_MODE_BOOL, "w", "w", vendorPropertyAccessor);
-            propertyServer->registerProperty(OB_PROP_DEVICE_IN_RECOVERY_MODE_BOOL, "r", "r", vendorPropertyAccessor);
-            return;
-        }
-    })
-    CATCH_EXCEPTION_AND_EXECUTE({ LOG_DEBUG("Get device in recovery mode failed!"); })
+    // BEGIN_TRY_EXECUTE({
+    //     inRecoveryMode_ = propertyServer->getPropertyValueT<bool>(OB_PROP_DEVICE_IN_RECOVERY_MODE_BOOL);
+    //     if(inRecoveryMode_) {
+    //         LOG_DEBUG("EGO net device is in recovery mode, skip init ...");
+    //         propertyServer->unregisterAllProperties();
+    //         propertyServer->registerProperty(OB_STRUCT_VERSION, "", "r", vendorPropertyAccessor);
+    //         propertyServer->registerProperty(OB_PROP_BOOT_INTO_RECOVERY_MODE_BOOL, "w", "w", vendorPropertyAccessor);
+    //         propertyServer->registerProperty(OB_PROP_DEVICE_IN_RECOVERY_MODE_BOOL, "r", "r", vendorPropertyAccessor);
+    //         return;
+    //     }
+    // })
+    // CATCH_EXCEPTION_AND_EXECUTE({ LOG_DEBUG("Get device in recovery mode failed!"); })
 }
 
 void EGONetDevice::initSensorStreamProfile(std::shared_ptr<ISensor> sensor) {
@@ -408,6 +422,15 @@ void EGONetDevice::initSensorStreamProfile(std::shared_ptr<ISensor> sensor) {
         if(streamType == profile->getType()) {
             profileList.push_back(profile);
         }
+    }
+
+    if(profileList.empty() && (streamType == OB_STREAM_COLOR_LEFT || streamType == OB_STREAM_COLOR_RIGHT)) {
+        // Firmware has not yet implemented OB_RAW_DATA_STREAM_PROFILE_LIST; provide a minimal
+        // hardcoded fallback so the RTSP stream can be opened for early bring-up testing.
+        profileList.push_back(StreamProfileFactory::createVideoStreamProfile(streamType, OB_FORMAT_MJPG, 1600, 1300, 30));
+        profileList.push_back(StreamProfileFactory::createVideoStreamProfile(streamType, OB_FORMAT_H264, 1600, 1300, 30));
+        profileList.push_back(StreamProfileFactory::createVideoStreamProfile(streamType, OB_FORMAT_H264, 1600, 1300, 64));
+        LOG_WARN("EGONetDevice: using hardcoded fallback stream profiles for sensor {}", sensorType);
     }
 
     if(!profileList.empty()) {
@@ -422,9 +445,12 @@ void EGONetDevice::initSensorStreamProfile(std::shared_ptr<ISensor> sensor) {
     auto profiles = sensor->getStreamProfileList();
 
     // bind params: extrinsics, intrinsics, etc. (audio has no spatial calibration)
+    // [EGO-WIP] EGOAlgParamManager is disabled during bring-up; skip binding when not registered.
     if(sensorType != OB_SENSOR_AUDIO) {
-        auto algParamManager = getComponentT<EGOAlgParamManager>(OB_DEV_COMPONENT_ALG_PARAM_MANAGER);
-        algParamManager->bindStreamProfileParams(profiles);
+        auto algParamManager = getComponentT<EGOAlgParamManager>(OB_DEV_COMPONENT_ALG_PARAM_MANAGER, false);
+        if(algParamManager) {
+            algParamManager->bindStreamProfileParams(profiles);
+        }
     }
 
     LOG_DEBUG("Sensor {} created! Found {} stream profiles.", sensorType, profiles.size());
