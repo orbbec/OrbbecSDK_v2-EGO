@@ -52,9 +52,8 @@ void EGONetDevice::init() {
 
     if(!inRecoveryMode_) {
         initSensorList();
-        // [EGO-WIP] Firmware port 8090 crashes when receiving unimplemented commands.
-        // Re-enable once firmware implements OB_RAW_DATA_STREAM_PROFILE_LIST.
-        // fetchAllVideoStreamProfileList();
+        
+        fetchAllVideoStreamProfileList();
 
         deviceTimeFreq_ = 1000000;
 
@@ -63,10 +62,8 @@ void EGONetDevice::init() {
         // auto algParamManager = std::make_shared<EGOAlgParamManager>(this);
         // registerComponent(OB_DEV_COMPONENT_ALG_PARAM_MANAGER, algParamManager);
 
-        // [EGO-WIP] DeviceClockSynchronizer may send OB_STRUCT_DEVICE_TIME to port 8090.
-        // Re-enable once firmware supports the command.
-        // auto deviceClockSynchronizer = std::make_shared<DeviceClockSynchronizer>(this, deviceTimeFreq_, deviceTimeFreq_);
-        // registerComponent(OB_DEV_COMPONENT_DEVICE_CLOCK_SYNCHRONIZER, deviceClockSynchronizer);
+         auto deviceClockSynchronizer = std::make_shared<DeviceClockSynchronizer>(this, deviceTimeFreq_, deviceTimeFreq_);
+         registerComponent(OB_DEV_COMPONENT_DEVICE_CLOCK_SYNCHRONIZER, deviceClockSynchronizer);
     }
 
     // firmware updater
@@ -92,19 +89,14 @@ void EGONetDevice::fetchDeviceInfo() {
     deviceInfo_->uid_            = enumInfo_->getUid();
     deviceInfo_->connectionType_ = enumInfo_->getConnectionType();
 
-    // [EGO-WIP] OB_STRUCT_VERSION sends a command to port 8090 and crashes the firmware.
-    // Re-enable once firmware implements this command.
-    // auto propServer = getPropertyServer();
-    // BEGIN_TRY_EXECUTE({
-    //     auto version                      = propServer->getStructureDataT<OBVersionInfo>(OB_STRUCT_VERSION);
-    //     deviceInfo_->fwVersion_           = version.firmwareVersion;
-    //     deviceInfo_->deviceSn_            = version.serialNumber;
-    //     deviceInfo_->asicName_            = version.depthChip;
-    //     deviceInfo_->hwVersion_           = version.hardwareVersion;
-    //     deviceInfo_->type_                = static_cast<uint16_t>(version.deviceType);
-    //     deviceInfo_->supportedSdkVersion_ = version.sdkVersion;
-    // })
-    // CATCH_EXCEPTION_AND_EXECUTE({ LOG_WARN("EGONetDevice: OB_STRUCT_VERSION not yet implemented by firmware, using defaults."); })
+    auto propServer                   = getPropertyServer();
+    auto version                      = propServer->getStructureDataT<OBVersionInfo>(OB_STRUCT_VERSION);
+    deviceInfo_->fwVersion_           = version.firmwareVersion;
+    deviceInfo_->deviceSn_            = version.serialNumber;
+    deviceInfo_->asicName_            = version.depthChip;
+    deviceInfo_->hwVersion_           = version.hardwareVersion;
+    deviceInfo_->type_                = static_cast<uint16_t>(version.deviceType);
+    deviceInfo_->supportedSdkVersion_ = version.sdkVersion;
 
     // remove the prefix "Orbbec " from the device name if contained
     if(deviceInfo_->name_.find("Orbbec ") == 0) {
@@ -427,8 +419,6 @@ void EGONetDevice::initSensorStreamProfile(std::shared_ptr<ISensor> sensor) {
 
     auto profiles = sensor->getStreamProfileList();
 
-    // bind params: extrinsics, intrinsics, etc. (audio has no spatial calibration)
-    // [EGO-WIP] EGOAlgParamManager is disabled during bring-up; skip binding when not registered.
     if(sensorType != OB_SENSOR_AUDIO) {
         auto algParamManager = getComponentT<EGOAlgParamManager>(OB_DEV_COMPONENT_ALG_PARAM_MANAGER, false);
         if(algParamManager) {

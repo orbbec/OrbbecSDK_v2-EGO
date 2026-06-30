@@ -378,9 +378,6 @@ std::shared_ptr<const IDeviceEnumInfo> NetDeviceEnumerator::queryNetDevice(std::
     info->port             = port;
     info->mac              = address + ":" + std::to_string(port);
     info->serialNumber     = "Unknown";
-    // TODO(EGO-WIP): Temporarily fall back to EGO PID when auto-detection fails, because EGO
-    // firmware does not yet implement OB_PROP_DEVICE_PID_INT. Revert to OB_FEMTO_MEGA_PID once
-    // the firmware implements the property and returns 0x1201.
     info->pid              = NetDeviceEnumerator::getDevicePid(info, OB_DEVICE_EGO_PID);
     info->vid              = ORBBEC_DEVICE_VID;
 
