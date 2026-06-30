@@ -63,8 +63,8 @@ void EGODevice::init() {
     deviceTimeFreq_ = 1000000;
     frameTimeFreq_  = 1000000;
 
-    auto algParamManager = std::make_shared<EGOAlgParamManager>(this);
-    registerComponent(OB_DEV_COMPONENT_ALG_PARAM_MANAGER, algParamManager);
+    //auto algParamManager = std::make_shared<EGOAlgParamManager>(this);
+    //registerComponent(OB_DEV_COMPONENT_ALG_PARAM_MANAGER, algParamManager);
 
     auto deviceClockSynchronizer = std::make_shared<DeviceClockSynchronizer>(this, deviceTimeFreq_, deviceTimeFreq_);
     registerComponent(OB_DEV_COMPONENT_DEVICE_CLOCK_SYNCHRONIZER, deviceClockSynchronizer);
@@ -86,13 +86,12 @@ void EGODevice::initSensorStreamProfile(std::shared_ptr<ISensor> sensor) {
 
     auto profiles = sensor->getStreamProfileList();
 
-    // bind params: extrinsics, intrinsics, etc. Only the calibrated EGO streams (dual color + IMU) are
-    // bound; audio has no EGO spatial calibration.
+/*
     if(sensorType == OB_SENSOR_COLOR_LEFT || sensorType == OB_SENSOR_COLOR_RIGHT || sensorType == OB_SENSOR_ACCEL || sensorType == OB_SENSOR_GYRO) {
         auto algParamManager = getComponentT<EGOAlgParamManager>(OB_DEV_COMPONENT_ALG_PARAM_MANAGER);
         algParamManager->bindStreamProfileParams(profiles);
     }
-
+*/
     LOG_DEBUG("Sensor {} created! Found {} stream profiles.", sensorType, profiles.size());
     for(auto &profile: profiles) {
         LOG_DEBUG(" - {}", profile);
@@ -395,8 +394,8 @@ void EGODevice::initProperties() {
         propertyServer->registerProperty(OB_STRUCT_GET_GYRO_PRESETS_FULL_SCALE_LIST, "", "rw", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_PROP_ACCEL_SWITCH_BOOL, "", "rw", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_PROP_GYRO_SWITCH_BOOL, "", "rw", vendorPropertyAccessor);
-        propertyServer->registerProperty(OB_RAW_DATA_IMU_CALIB_PARAM, "", "rw", vendorPropertyAccessor);
-        propertyServer->registerProperty(OB_RAW_DATA_ALIGN_CALIB_PARAM, "", "r", vendorPropertyAccessor);
+        //propertyServer->registerProperty(OB_RAW_DATA_IMU_CALIB_PARAM, "", "rw", vendorPropertyAccessor);
+        //propertyServer->registerProperty(OB_RAW_DATA_ALIGN_CALIB_PARAM, "", "r", vendorPropertyAccessor);
         // Transparent YAML passthrough interfaces for production calibration.
         // The firmware writes YAML files to flash during calibration; these properties read them back as
         // raw bytes. The SDK does not parse the data — the application layer saves it directly to a file.
