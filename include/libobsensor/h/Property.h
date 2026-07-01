@@ -858,6 +858,14 @@ typedef enum {
     OB_STRUCT_DEVICE_IP_ADDR_CONFIG_V2 = 1088,
 
     /**
+     * @brief Get TF card status and capacity information
+     * @see OBTFCardCapacity
+     *
+     * @attention read only
+     */
+    OB_STRUCT_GET_TF_CARD_CAPACITY = 1095,
+
+    /**
      * @brief Color AWB gain parameters
      * @see OBAwbGainParams
      */

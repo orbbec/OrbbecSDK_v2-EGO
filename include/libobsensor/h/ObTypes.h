@@ -795,6 +795,15 @@ typedef struct {
 } OBDeviceTemperature, ob_device_temperature, DEVICE_TEMPERATURE;
 
 /**
+ * @brief TF card status and capacity information
+ */
+typedef struct {
+    uint32_t tfCardStatus;   ///< 0: removed, 1: inserted
+    float    totalCapacity;  ///< TF total capacity in GB
+    float    remainCapacity; ///< TF remaining capacity in GB
+} OBTFCardCapacity, ob_tf_card_capacity, TF_CARD_CAPACITY;
+
+/**
  * @brief Enumeration for depth crop modes
  */
 typedef enum {
