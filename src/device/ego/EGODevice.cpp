@@ -63,8 +63,8 @@ void EGODevice::init() {
     deviceTimeFreq_ = 1000000;
     frameTimeFreq_  = 1000000;
 
-    //auto algParamManager = std::make_shared<EGOAlgParamManager>(this);
-    //registerComponent(OB_DEV_COMPONENT_ALG_PARAM_MANAGER, algParamManager);
+    // auto algParamManager = std::make_shared<EGOAlgParamManager>(this);
+    // registerComponent(OB_DEV_COMPONENT_ALG_PARAM_MANAGER, algParamManager);
 
     auto deviceClockSynchronizer = std::make_shared<DeviceClockSynchronizer>(this, deviceTimeFreq_, deviceTimeFreq_);
     registerComponent(OB_DEV_COMPONENT_DEVICE_CLOCK_SYNCHRONIZER, deviceClockSynchronizer);
@@ -86,12 +86,12 @@ void EGODevice::initSensorStreamProfile(std::shared_ptr<ISensor> sensor) {
 
     auto profiles = sensor->getStreamProfileList();
 
-/*
-    if(sensorType == OB_SENSOR_COLOR_LEFT || sensorType == OB_SENSOR_COLOR_RIGHT || sensorType == OB_SENSOR_ACCEL || sensorType == OB_SENSOR_GYRO) {
-        auto algParamManager = getComponentT<EGOAlgParamManager>(OB_DEV_COMPONENT_ALG_PARAM_MANAGER);
-        algParamManager->bindStreamProfileParams(profiles);
-    }
-*/
+    /*
+        if(sensorType == OB_SENSOR_COLOR_LEFT || sensorType == OB_SENSOR_COLOR_RIGHT || sensorType == OB_SENSOR_ACCEL || sensorType == OB_SENSOR_GYRO) {
+            auto algParamManager = getComponentT<EGOAlgParamManager>(OB_DEV_COMPONENT_ALG_PARAM_MANAGER);
+            algParamManager->bindStreamProfileParams(profiles);
+        }
+    */
     LOG_DEBUG("Sensor {} created! Found {} stream profiles.", sensorType, profiles.size());
     for(auto &profile: profiles) {
         LOG_DEBUG(" - {}", profile);
@@ -257,13 +257,10 @@ void EGODevice::initSensorList() {
     if(imuPortInfoIter != sourcePortInfoList.end()) {
         auto imuPortInfo = *imuPortInfoIter;
         registerComponent(OB_DEV_COMPONENT_IMU_STREAMER, [this, imuPortInfo]() {
-            // the gyro and accel are both on the same port and share the same filter
-            auto                                  port               = getSourcePort(imuPortInfo);
-            auto                                  imuReversionFilter = getSensorFrameFilter("IMUFrameReversion", OB_SENSOR_ACCEL, true);
-            auto                                  imuCorrectorFilter = getSensorFrameFilter("IMUCorrector", OB_SENSOR_ACCEL, true);
-            std::vector<std::shared_ptr<IFilter>> imuFilters         = { imuReversionFilter, imuCorrectorFilter };
-            auto                                  dataStreamPort     = std::dynamic_pointer_cast<IDataStreamPort>(port);
-            auto                                  imuStreamer        = std::make_shared<ImuStreamer>(this, dataStreamPort, imuFilters);
+            // the gyro and accel are both on the same port; no correction filter applied
+            auto port           = getSourcePort(imuPortInfo);
+            auto dataStreamPort = std::dynamic_pointer_cast<IDataStreamPort>(port);
+            auto imuStreamer    = std::make_shared<ImuStreamer>(this, dataStreamPort, std::vector<std::shared_ptr<IFilter>>{});
             return imuStreamer;
         });
 
@@ -394,11 +391,11 @@ void EGODevice::initProperties() {
         propertyServer->registerProperty(OB_STRUCT_GET_GYRO_PRESETS_FULL_SCALE_LIST, "", "rw", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_PROP_ACCEL_SWITCH_BOOL, "", "rw", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_PROP_GYRO_SWITCH_BOOL, "", "rw", vendorPropertyAccessor);
-        //propertyServer->registerProperty(OB_RAW_DATA_IMU_CALIB_PARAM, "", "rw", vendorPropertyAccessor);
-        //propertyServer->registerProperty(OB_RAW_DATA_ALIGN_CALIB_PARAM, "", "r", vendorPropertyAccessor);
-        // Transparent YAML passthrough interfaces for production calibration.
-        // The firmware writes YAML files to flash during calibration; these properties read them back as
-        // raw bytes. The SDK does not parse the data — the application layer saves it directly to a file.
+        // propertyServer->registerProperty(OB_RAW_DATA_IMU_CALIB_PARAM, "", "rw", vendorPropertyAccessor);
+        // propertyServer->registerProperty(OB_RAW_DATA_ALIGN_CALIB_PARAM, "", "r", vendorPropertyAccessor);
+        //  Transparent YAML passthrough interfaces for production calibration.
+        //  The firmware writes YAML files to flash during calibration; these properties read them back as
+        //  raw bytes. The SDK does not parse the data — the application layer saves it directly to a file.
         propertyServer->registerProperty(OB_RAW_DATA_ALIGN_CALIB_YAML, "r", "r", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_RAW_DATA_IMU_CALIB_YAML, "r", "r", vendorPropertyAccessor);
 

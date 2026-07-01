@@ -11,8 +11,6 @@
 
 namespace libobsensor {
 
-// PN2608_EGO USB device: dual independent RGB (UVC) + IMU (HID/vendor channel).
-// (UAC audio is wired in a later phase; see TN2608 plan §5.2.)
 class EGODevice : public DeviceBase {
 public:
     EGODevice(const std::shared_ptr<const IDeviceEnumInfo> &info);

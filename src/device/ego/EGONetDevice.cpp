@@ -52,7 +52,7 @@ void EGONetDevice::init() {
 
     if(!inRecoveryMode_) {
         initSensorList();
-        
+
         fetchAllVideoStreamProfileList();
 
         deviceTimeFreq_ = 1000000;
@@ -133,7 +133,7 @@ void EGONetDevice::initSensorList() {
                     { FormatFilterPolicy::REMOVE, OB_FORMAT_BGR, OB_FORMAT_ANY, nullptr },
                     { FormatFilterPolicy::REMOVE, OB_FORMAT_BGRA, OB_FORMAT_ANY, nullptr },
                 };
-  
+
                 sensor->updateFormatFilterConfig(formatFilterConfigs);
 
                 auto videoFrameTimestampCalculator = std::make_shared<FrameTimestampCalculatorBaseDeviceTime>(this, deviceTimeFreq_, colorFrameTimeFreq_);
@@ -174,7 +174,7 @@ void EGONetDevice::initSensorList() {
                     { FormatFilterPolicy::REMOVE, OB_FORMAT_BGR, OB_FORMAT_ANY, nullptr },
                     { FormatFilterPolicy::REMOVE, OB_FORMAT_BGRA, OB_FORMAT_ANY, nullptr },
                 };
-  
+
                 sensor->updateFormatFilterConfig(formatFilterConfigs);
 
                 auto videoFrameTimestampCalculator = std::make_shared<FrameTimestampCalculatorBaseDeviceTime>(this, deviceTimeFreq_, colorFrameTimeFreq_);
@@ -234,12 +234,10 @@ void EGONetDevice::initSensorList() {
     if(imuPortInfoIter != sourcePortInfoList.end()) {
         auto imuPortInfo = *imuPortInfoIter;
         registerComponent(OB_DEV_COMPONENT_IMU_STREAMER, [this, imuPortInfo]() {
-            auto                                  port               = getSourcePort(imuPortInfo);
-            auto                                  imuReversionFilter = getSensorFrameFilter("IMUFrameReversion", OB_SENSOR_ACCEL, true);
-            auto                                  imuCorrectorFilter = getSensorFrameFilter("IMUCorrector", OB_SENSOR_ACCEL, true);
-            std::vector<std::shared_ptr<IFilter>> imuFilters         = { imuReversionFilter, imuCorrectorFilter };
-            auto                                  dataStreamPort     = std::dynamic_pointer_cast<IDataStreamPort>(port);
-            auto                                  imuStreamer        = std::make_shared<ImuStreamer>(this, dataStreamPort, imuFilters);
+            // no correction filter applied: EGOAlgParamManager is disabled, so no intrinsics would be bound
+            auto port           = getSourcePort(imuPortInfo);
+            auto dataStreamPort = std::dynamic_pointer_cast<IDataStreamPort>(port);
+            auto imuStreamer    = std::make_shared<ImuStreamer>(this, dataStreamPort, std::vector<std::shared_ptr<IFilter>>{});
             return imuStreamer;
         });
 
