@@ -11,6 +11,8 @@
 #include "sensor/imu/AccelSensor.hpp"
 #include "sensor/imu/GyroSensor.hpp"
 #include "sensor/audio/AudioSensor.hpp"
+#include "hid/SharedDataStreamPort.hpp"
+#include "hid/DirectionKeyService.hpp"
 #include "usb/uvc/UvcDevicePort.hpp"
 
 #include "metadata/FrameMetadataParserContainer.hpp"
@@ -256,12 +258,24 @@ void EGODevice::initSensorList() {
 
     if(imuPortInfoIter != sourcePortInfoList.end()) {
         auto imuPortInfo = *imuPortInfoIter;
-        registerComponent(OB_DEV_COMPONENT_IMU_STREAMER, [this, imuPortInfo]() {
-            // the gyro and accel are both on the same port; no correction filter applied
+        registerComponent(OB_DEV_COMPONENT_SHARED_HID_STREAM, [this, imuPortInfo]() {
             auto port           = getSourcePort(imuPortInfo);
             auto dataStreamPort = std::dynamic_pointer_cast<IDataStreamPort>(port);
+            auto sharedHidPort  = std::make_shared<SharedDataStreamPort>(this, dataStreamPort);
+            return sharedHidPort;
+        });
+
+        registerComponent(OB_DEV_COMPONENT_IMU_STREAMER, [this]() {
+            // the gyro and accel are both on the same port; no correction filter applied
+            auto sharedHidPort = getComponentT<SharedDataStreamPort>(OB_DEV_COMPONENT_SHARED_HID_STREAM);
+            auto dataStreamPort = sharedHidPort->createClientPort();
             auto imuStreamer    = std::make_shared<ImuStreamer>(this, dataStreamPort, std::vector<std::shared_ptr<IFilter>>{});
             return imuStreamer;
+        });
+
+        registerComponent(OB_DEV_COMPONENT_DIRECTION_KEY_SERVICE, [this]() {
+            auto sharedHidPort = getComponentT<SharedDataStreamPort>(OB_DEV_COMPONENT_SHARED_HID_STREAM);
+            return std::make_shared<DirectionKeyService>(this, sharedHidPort->createClientPort());
         });
 
         registerComponent(

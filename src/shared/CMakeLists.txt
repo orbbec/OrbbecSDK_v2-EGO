@@ -10,6 +10,7 @@ add_library(shared STATIC)
 file(GLOB_RECURSE SOURCE_FILES "*.cpp" EXCLUDE unittest)
 file(GLOB_RECURSE HEADERS_FILES "*.hpp" EXCLUDE unittest)
 target_sources(shared PRIVATE ${SOURCE_FILES} ${HEADERS_FILES})
+target_sources(shared PRIVATE utils/alg_write_flash_crc.cpp utils/alg_write_flash_crc.h)
 
 add_subdirectory(${OB_3RDPARTY_DIR}/spdlog spdlog)
 target_link_libraries(shared PUBLIC spdlog::spdlog)

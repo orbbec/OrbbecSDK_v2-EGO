@@ -2106,6 +2106,44 @@ typedef enum {
     ob_clock_type;
 
 /**
+ * @brief HID direction key type reported by the device.
+ */
+typedef enum {
+    OB_DIRECTION_KEY_NONE          = 0,
+    OB_DIRECTION_KEY_MIDDLE        = 1,
+    OB_DIRECTION_KEY_LEFT          = 2,
+    OB_DIRECTION_KEY_RIGHT         = 3,
+    OB_DIRECTION_KEY_TOP           = 4,
+    OB_DIRECTION_KEY_BOTTOM        = 5,
+    OB_KEY_POWER                   = 6,
+    OB_KEY_VOLUME_UP               = 7,
+    OB_KEY_VOLUME_DOWN             = 8,
+    OB_KEY_WIFI_HANDLE_START       = 20,
+    OB_KEY_WIFI_HANDLE_RESET       = 21,
+} OBDirectionKey,
+    ob_direction_key;
+
+/**
+ * @brief HID direction key press status.
+ */
+typedef enum {
+    OB_DIRECTION_KEY_STATUS_NONE = 0,
+    OB_DIRECTION_KEY_STATUS_SHORT_PRESS,
+    OB_DIRECTION_KEY_STATUS_LONG_PRESS,
+    OB_DIRECTION_KEY_STATUS_DOUBLE_PRESS,
+} OBDirectionKeyStatus,
+    ob_direction_key_status;
+
+/**
+ * @brief Direction key event information reported by the device.
+ */
+typedef struct {
+    OBDirectionKey       key;
+    OBDirectionKeyStatus status;
+} OBDirectionKeyInfomation,
+    ob_direction_key_infomation;
+
+/**
  * @brief Callback for file transfer
  *
  * @param[in] state Transmission status
@@ -2133,6 +2171,14 @@ typedef void (*ob_device_fw_update_callback)(ob_fw_update_state state, const cha
  * @param[in] user_data User-defined data
  */
 typedef void (*ob_device_state_callback)(ob_device_state state, const char *message, void *user_data);
+
+/**
+ * @brief Callback for HID direction key event notifications.
+ *
+ * @param[in] info Direction key event information.
+ * @param[in] user_data User-defined data.
+ */
+typedef void (*ob_device_direction_key_callback)(const OBDirectionKeyInfomation *info, void *user_data);
 
 /**
  * @brief Callback for writing data

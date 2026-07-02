@@ -400,6 +400,24 @@ OB_EXPORT ob_device_state ob_device_get_device_state(const ob_device *device, ob
 OB_EXPORT void ob_device_set_state_changed_callback(ob_device *device, ob_device_state_callback callback, void *user_data, ob_error **error);
 
 /**
+ * @brief Set the direction key callback for devices that report key events over HID.
+ *
+ * @param[in] device The device object.
+ * @param[in] callback The callback function to be called when a direction key event is received.
+ * @param[in] user_data User-defined data that will be returned in the callback.
+ * @param[out] error Pointer to an error object that will be set if an error occurs.
+ */
+OB_EXPORT void ob_device_set_direction_key_callback(ob_device *device, ob_device_direction_key_callback callback, void *user_data, ob_error **error);
+
+/**
+ * @brief Clear the direction key callback.
+ *
+ * @param[in] device The device object.
+ * @param[out] error Pointer to an error object that will be set if an error occurs.
+ */
+OB_EXPORT void ob_device_clear_direction_key_callback(ob_device *device, ob_error **error);
+
+/**
  * @brief Enable or disable the device heartbeat.
  *
  * When enabled, the SDK sends heartbeat signals at the device monitor polling interval. The default interval is 3000 ms and can be adjusted with

@@ -20,6 +20,7 @@
 #endif
 #include "IAlgParamManager.hpp"
 #include "IFrameTimestamp.hpp"
+#include "hid/DirectionKeyService.hpp"
 
 #ifdef __cplusplus
 extern "C" {
@@ -690,6 +691,21 @@ void ob_device_set_state_changed_callback(ob_device *device, ob_device_state_cal
     });
 }
 HANDLE_EXCEPTIONS_NO_RETURN(device, callback, user_data)
+
+void ob_device_set_direction_key_callback(ob_device *device, ob_device_direction_key_callback callback, void *user_data, ob_error **error) BEGIN_API_CALL {
+    VALIDATE_NOT_NULL(device);
+    VALIDATE_NOT_NULL(callback);
+    auto directionKeyService = device->device->getComponentT<libobsensor::DirectionKeyService>(libobsensor::OB_DEV_COMPONENT_DIRECTION_KEY_SERVICE);
+    directionKeyService->setCallback([callback, user_data](const OBDirectionKeyInfomation &info) { callback(&info, user_data); });
+}
+HANDLE_EXCEPTIONS_NO_RETURN(device, callback, user_data)
+
+void ob_device_clear_direction_key_callback(ob_device *device, ob_error **error) BEGIN_API_CALL {
+    VALIDATE_NOT_NULL(device);
+    auto directionKeyService = device->device->getComponentT<libobsensor::DirectionKeyService>(libobsensor::OB_DEV_COMPONENT_DIRECTION_KEY_SERVICE);
+    directionKeyService->clearCallback();
+}
+HANDLE_EXCEPTIONS_NO_RETURN(device)
 
 void ob_device_enable_heartbeat(ob_device *device, bool enable, ob_error **error) BEGIN_API_CALL {
     VALIDATE_NOT_NULL(device);

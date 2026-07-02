@@ -86,6 +86,8 @@ private:
     X(OB_DEV_COMPONENT_GYRO_SENSOR, "gyro sensor")                                                   \
     X(OB_DEV_COMPONENT_ACCEL_SENSOR, "accel sensor")                                                 \
     X(OB_DEV_COMPONENT_IMU_STREAMER, "imu sensor")                                                   \
+    X(OB_DEV_COMPONENT_SHARED_HID_STREAM, "shared hid stream")                                       \
+    X(OB_DEV_COMPONENT_DIRECTION_KEY_SERVICE, "direction key service")                               \
     X(OB_DEV_COMPONENT_SENSOR_STREAM_STRATEGY, "sensor stream strategy")                             \
     X(OB_DEV_COMPONENT_STREAM_PROFILE_FILTER, "stream profile filter")                               \
     X(OB_DEV_COMPONENT_COLOR_FRAME_METADATA_CONTAINER, "color frame metadata container")             \

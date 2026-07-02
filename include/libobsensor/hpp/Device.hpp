@@ -52,9 +52,17 @@ public:
      */
     typedef std::function<void(OBDeviceState state, const char *message)> DeviceStateChangedCallback;
 
+    /**
+     * @brief Callback function for device direction key events.
+     *
+     * @param[in] info Direction key event information.
+     */
+    typedef std::function<void(const OBDirectionKeyInfomation &info)> DirectionKeyCallback;
+
 protected:
     ob_device                 *impl_ = nullptr;
     DeviceStateChangedCallback deviceStateChangeCallback_;
+    DirectionKeyCallback       directionKeyCallback_;
     DeviceFwUpdateCallback     fwUpdateCallback_;
 
 public:
@@ -537,6 +545,33 @@ public:
     static void deviceStateChangedCallback(OBDeviceState state, const char *message, void *userData) {
         auto device = static_cast<Device *>(userData);
         device->deviceStateChangeCallback_(state, message);
+    }
+
+    /**
+     * @brief Set the direction key callback.
+     *
+     * @param[in] callback The callback function that is triggered when a HID key event is received.
+     */
+    void setDirectionKeyCallback(DirectionKeyCallback callback) {
+        if(!callback) {
+            clearDirectionKeyCallback();
+            return;
+        }
+
+        ob_error *error       = nullptr;
+        directionKeyCallback_ = callback;
+        ob_device_set_direction_key_callback(impl_, &Device::directionKeyCallbackBridge, this, &error);
+        Error::handle(&error);
+    }
+
+    /**
+     * @brief Clear the direction key callback.
+     */
+    void clearDirectionKeyCallback() {
+        ob_error *error = nullptr;
+        ob_device_clear_direction_key_callback(impl_, &error);
+        Error::handle(&error);
+        directionKeyCallback_ = nullptr;
     }
 
     /**
@@ -1094,6 +1129,13 @@ public:
     }
 
 private:
+    static void directionKeyCallbackBridge(const OBDirectionKeyInfomation *info, void *userData) {
+        auto device = static_cast<Device *>(userData);
+        if(device && device->directionKeyCallback_ && info) {
+            device->directionKeyCallback_(*info);
+        }
+    }
+
     static void firmwareUpdateCallback(ob_fw_update_state state, const char *message, uint8_t percent, void *userData) {
         auto device = static_cast<Device *>(userData);
         if(device && device->fwUpdateCallback_) {
