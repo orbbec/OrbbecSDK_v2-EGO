@@ -7,6 +7,8 @@ target_sources(
     ${OB_TARGET_DEVICE}
     PRIVATE  ${CMAKE_CURRENT_LIST_DIR}/EGODevice.hpp
              ${CMAKE_CURRENT_LIST_DIR}/EGODevice.cpp
+             ${CMAKE_CURRENT_LIST_DIR}/EGOColorVideoSensor.hpp
+             ${CMAKE_CURRENT_LIST_DIR}/EGOColorVideoSensor.cpp
              ${CMAKE_CURRENT_LIST_DIR}/EGONetDevice.hpp
              ${CMAKE_CURRENT_LIST_DIR}/EGONetDevice.cpp
              ${CMAKE_CURRENT_LIST_DIR}/EGODeviceInfo.hpp

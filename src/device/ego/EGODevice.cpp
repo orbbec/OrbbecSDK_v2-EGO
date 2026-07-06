@@ -3,6 +3,7 @@
 
 #include "EGODevice.hpp"
 #include "EGOAlgParamManager.hpp"
+#include "EGOColorVideoSensor.hpp"
 #include "DevicePids.hpp"
 #include "environment/EnvConfig.hpp"
 #include "stream/StreamProfileFactory.hpp"
@@ -121,7 +122,7 @@ void EGODevice::initSensorList() {
             OB_DEV_COMPONENT_LEFT_COLOR_SENSOR,
             [this, leftColorPortInfo]() {
                 auto port   = getSourcePort(leftColorPortInfo);
-                auto sensor = std::make_shared<VideoSensor>(this, OB_SENSOR_COLOR_LEFT, port);
+                auto sensor = std::make_shared<EGOColorVideoSensor>(this, OB_SENSOR_COLOR_LEFT, port);
 
                 // [EGO-WIP] EGO firmware does not yet provide a reliable per-frame device timestamp, which
                 // trips the anomaly detector and drops every frame. Disable it until the timestamp is fixed.
@@ -194,7 +195,7 @@ void EGODevice::initSensorList() {
             OB_DEV_COMPONENT_RIGHT_COLOR_SENSOR,
             [this, rightColorPortInfo]() {
                 auto port   = getSourcePort(rightColorPortInfo);
-                auto sensor = std::make_shared<VideoSensor>(this, OB_SENSOR_COLOR_RIGHT, port);
+                auto sensor = std::make_shared<EGOColorVideoSensor>(this, OB_SENSOR_COLOR_RIGHT, port);
 
                 sensor->enableTimestampAnomalyDetection(false);
 
@@ -267,7 +268,7 @@ void EGODevice::initSensorList() {
 
         registerComponent(OB_DEV_COMPONENT_IMU_STREAMER, [this]() {
             // the gyro and accel are both on the same port; no correction filter applied
-            auto sharedHidPort = getComponentT<SharedDataStreamPort>(OB_DEV_COMPONENT_SHARED_HID_STREAM);
+            auto sharedHidPort  = getComponentT<SharedDataStreamPort>(OB_DEV_COMPONENT_SHARED_HID_STREAM);
             auto dataStreamPort = sharedHidPort->createClientPort();
             auto imuStreamer    = std::make_shared<ImuStreamer>(this, dataStreamPort, std::vector<std::shared_ptr<IFilter>>{});
             return imuStreamer;
@@ -386,7 +387,8 @@ void EGODevice::initProperties() {
         });
 
         propertyServer->registerProperty(OB_PROP_COLOR_EXPOSURE_INT, "rw", "rw", vendorPropertyAccessor);
-
+        // Stop-color is per-eye: EGOColorVideoSensor sends OB_PROP_STOP_COLOR_STREAM_BOOL on each color
+        // sensor's own interface XU, so it is intentionally NOT registered on this device-global accessor.
         // TODO:
         propertyServer->registerProperty(OB_STRUCT_VERSION, "", "r", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_STRUCT_DEVICE_SERIAL_NUMBER, "r", "r", vendorPropertyAccessor);
