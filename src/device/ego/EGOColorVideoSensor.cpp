@@ -6,11 +6,28 @@
 #include "usb/uvc/UvcDevicePort.hpp"
 #include "property/VendorPropertyAccessor.hpp"
 #include "component/property/InternalProperty.hpp"
+#include "exception/ObException.hpp"
 
 namespace libobsensor {
 
 EGOColorVideoSensor::EGOColorVideoSensor(IDevice *owner, OBSensorType sensorType, const std::shared_ptr<ISourcePort> &backend)
-    : VideoSensor(owner, sensorType, backend) {}
+    : VideoSensor(owner, sensorType, backend) {
+    // The base VideoSensor constructor already called trySendStopStreamVendorCmd() to clear any stream
+    // left over from a previous crash, but a virtual call during base construction does NOT reach a
+    // derived override (the vtable still points to the base), so only the base (no-op for EGO) version
+    // ran. Repeat it now that the object is fully constructed, so the stop actually goes out on this
+    // color's own interface XU.
+    TRY_EXECUTE({ trySendStopStreamVendorCmd(); })
+}
+
+EGOColorVideoSensor::~EGOColorVideoSensor() noexcept {
+    // ~VideoSensor() also calls stop() -> trySendStopStreamVendorCmd(), but by the time the base
+    // destructor runs the vtable has reverted to the base class, so the per-eye override would not
+    // fire. Call stop() here from the most-derived destructor so the override runs. stop() is
+    // idempotent (it early-returns once the stream is stopped), so ~VideoSensor()'s later stop() is a
+    // no-op and the vendor command is not sent twice.
+    TRY_EXECUTE({ stop(); })
+}
 
 void EGOColorVideoSensor::trySendStopStreamVendorCmd() {
     auto uvcPort = std::dynamic_pointer_cast<UvcDevicePort>(backend_);

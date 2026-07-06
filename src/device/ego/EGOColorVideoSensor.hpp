@@ -15,7 +15,7 @@ namespace libobsensor {
 class EGOColorVideoSensor : public VideoSensor {
 public:
     EGOColorVideoSensor(IDevice *owner, OBSensorType sensorType, const std::shared_ptr<ISourcePort> &backend);
-    ~EGOColorVideoSensor() noexcept override = default;
+    ~EGOColorVideoSensor() noexcept override;
 
 protected:
     void trySendStopStreamVendorCmd() override;
