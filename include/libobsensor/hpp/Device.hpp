@@ -1305,6 +1305,18 @@ public:
     }
 
     /**
+     * @brief Get the sub-system firmware version (e.g. MCU firmware version)
+     *
+     * @return const char* the sub-system firmware version
+     */
+    const char *getSubSystemVersion() const {
+        ob_error   *error   = nullptr;
+        const char *version = ob_device_info_get_subsystem_version(impl_, &error);
+        Error::handle(&error);
+        return version;
+    }
+
+    /**
      * @brief Get chip type name
      *
      * @return const char* the chip type name

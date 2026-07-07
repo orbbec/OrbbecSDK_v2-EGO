@@ -80,6 +80,69 @@ void EGODevice::init() {
     });
 }
 
+void EGODevice::fetchDeviceInfo() {
+    auto propServer = getPropertyServer();
+
+    auto version                      = propServer->getStructureDataT<OBVersionInfo>(OB_STRUCT_VERSION);
+    deviceInfo_->name_                = version.deviceName;
+    deviceInfo_->fwVersion_           = version.firmwareVersion;
+    deviceInfo_->deviceSn_            = version.serialNumber;
+    deviceInfo_->asicName_            = version.depthChip;
+    deviceInfo_->hwVersion_           = version.hardwareVersion;
+    deviceInfo_->type_                = static_cast<uint16_t>(version.deviceType);
+    deviceInfo_->supportedSdkVersion_ = version.sdkVersion;
+    deviceInfo_->subSystemVersion_    = version.subSystemVersion;
+
+#ifdef __ANDROID__
+    // Android need to query usb connect type from port.
+    // EGO has no depth sensor, so try candidates in priority order.
+    {
+        const OBSensorType kConnTypeCandidates[] = { OB_SENSOR_DEPTH, OB_SENSOR_COLOR, OB_SENSOR_COLOR_LEFT, OB_SENSOR_COLOR_RIGHT, OB_SENSOR_IR };
+        for(auto candidateType: kConnTypeCandidates) {
+            if(!isSensorExists(candidateType)) {
+                continue;
+            }
+            auto portInfo   = getSensorPortInfo(candidateType);
+            auto sourcePort = getSourcePort(portInfo);
+            auto uvcDevPort = std::dynamic_pointer_cast<UvcDevicePort>(sourcePort);
+            if(uvcDevPort) {
+                deviceInfo_->connectionType_ = uvcDevPort->getUsbConnectType();
+                break;
+            }
+        }
+    }
+#endif
+
+    // remove the prefix "Orbbec " from the device name if contained
+    if(deviceInfo_->name_.find("Orbbec ") == 0) {
+        deviceInfo_->name_ = deviceInfo_->name_.substr(7);
+    }
+    deviceInfo_->fullName_ = "Orbbec " + deviceInfo_->name_;
+
+#ifdef __linux__
+    // todo: net device does not have backend type
+    // Try each candidate in priority order; EGO has no depth sensor.
+    const OBSensorType kBackendCandidates[] = { OB_SENSOR_DEPTH, OB_SENSOR_COLOR, OB_SENSOR_COLOR_LEFT, OB_SENSOR_COLOR_RIGHT, OB_SENSOR_IR };
+    for(auto candidateType: kBackendCandidates) {
+        if(!isSensorExists(candidateType)) {
+            continue;
+        }
+        auto sensorPortInfo = getSensorPortInfo(candidateType);
+        if(sensorPortInfo->portType == SOURCE_PORT_USB_UVC) {
+            auto port                 = getSourcePort(sensorPortInfo);
+            auto uvcPort              = std::dynamic_pointer_cast<UvcDevicePort>(port);
+            deviceInfo_->backendType_ = uvcPort->getBackendType();
+            break;
+        }
+    }
+#else
+    deviceInfo_->backendType_ = OB_UVC_BACKEND_TYPE_MSMF;
+#endif
+
+    // mark the device as a multi-sensor device with same clock at default
+    extensionInfo_["AllSensorsUsingSameClock"] = "true";
+}
+
 void EGODevice::initSensorStreamProfile(std::shared_ptr<ISensor> sensor) {
     auto sensorType    = sensor->getSensorType();
     auto streamProfile = StreamProfileFactory::getDefaultStreamProfileFromEnvConfig(deviceInfo_->name_, sensorType);

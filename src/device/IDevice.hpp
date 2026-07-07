@@ -26,6 +26,7 @@ struct DeviceInfo {
     std::string supportedSdkVersion_;
     std::string asicName_;
     std::string deviceSn_;
+    std::string subSystemVersion_;  // Sub-system firmware version (e.g. MCU firmware version)
 
     OBUvcBackendType backendType_ = OB_UVC_BACKEND_TYPE_AUTO;
 };

@@ -72,23 +72,11 @@ void DeviceBase::fetchDeviceInfo() {
     deviceInfo_->supportedSdkVersion_ = version.sdkVersion;
 
 #ifdef __ANDROID__
-    // Android need to query usb connect type from port.
-    // Some devices (e.g. EGO) have no depth sensor, so try candidates in priority order.
-    {
-        const OBSensorType kConnTypeCandidates[] = { OB_SENSOR_DEPTH, OB_SENSOR_COLOR, OB_SENSOR_COLOR_LEFT, OB_SENSOR_COLOR_RIGHT, OB_SENSOR_IR };
-        for(auto candidateType: kConnTypeCandidates) {
-            if(!isSensorExists(candidateType)) {
-                continue;
-            }
-            auto portInfo   = getSensorPortInfo(candidateType);
-            auto sourcePort = getSourcePort(portInfo);
-            auto uvcDevPort = std::dynamic_pointer_cast<UvcDevicePort>(sourcePort);
-            if(uvcDevPort) {
-                deviceInfo_->connectionType_ = uvcDevPort->getUsbConnectType();
-                break;
-            }
-        }
-    }
+    // Android need to query usb connect type from port
+    auto depthPortInfo           = getSensorPortInfo(OB_SENSOR_DEPTH);
+    auto sourcePort              = getSourcePort(depthPortInfo);
+    auto uvcDevicePort           = std::dynamic_pointer_cast<UvcDevicePort>(sourcePort);
+    deviceInfo_->connectionType_ = uvcDevicePort->getUsbConnectType();
 #endif
 
     // remove the prefix "Orbbec " from the device name if contained
@@ -99,19 +87,11 @@ void DeviceBase::fetchDeviceInfo() {
 
 #ifdef __linux__
     // todo: net device does not have backend type
-    // Try each candidate in priority order; some devices (e.g. EGO) have no depth sensor.
-    const OBSensorType kBackendCandidates[] = { OB_SENSOR_DEPTH, OB_SENSOR_COLOR, OB_SENSOR_COLOR_LEFT, OB_SENSOR_COLOR_RIGHT, OB_SENSOR_IR };
-    for(auto candidateType: kBackendCandidates) {
-        if(!isSensorExists(candidateType)) {
-            continue;
-        }
-        auto sensorPortInfo = getSensorPortInfo(candidateType);
-        if(sensorPortInfo->portType == SOURCE_PORT_USB_UVC) {
-            auto port                 = getSourcePort(sensorPortInfo);
-            auto uvcPort              = std::dynamic_pointer_cast<UvcDevicePort>(port);
-            deviceInfo_->backendType_ = uvcPort->getBackendType();
-            break;
-        }
+    auto sensorPortInfo = getSensorPortInfo(OB_SENSOR_DEPTH);
+    if(sensorPortInfo->portType == SOURCE_PORT_USB_UVC) {
+        auto port                 = getSourcePort(sensorPortInfo);
+        auto uvcPort              = std::dynamic_pointer_cast<UvcDevicePort>(port);
+        deviceInfo_->backendType_ = uvcPort->getBackendType();
     }
 #else
     deviceInfo_->backendType_ = OB_UVC_BACKEND_TYPE_MSMF;

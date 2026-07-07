@@ -660,6 +660,16 @@ OB_EXPORT const char *ob_device_get_extension_info(const ob_device *device, cons
 OB_EXPORT const char *ob_device_info_get_supported_min_sdk_version(const ob_device_info *info, ob_error **error);
 
 /**
+ * @brief Get the sub-system firmware version (e.g. MCU firmware version)
+ *
+ * @param[in] info Device Information
+ * @param[out] error Pointer to an error object that will be set if an error occurs.
+ *
+ * @return const char* The sub-system firmware version
+ */
+OB_EXPORT const char *ob_device_info_get_subsystem_version(const ob_device_info *info, ob_error **error);
+
+/**
  * @brief Get the chip name
  *
  * @param[in] info Device Information

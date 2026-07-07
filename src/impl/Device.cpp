@@ -845,6 +845,12 @@ const char *ob_device_info_get_supported_min_sdk_version(const ob_device_info *i
 }
 HANDLE_EXCEPTIONS_AND_RETURN(nullptr, info)
 
+const char *ob_device_info_get_subsystem_version(const ob_device_info *info, ob_error **error) BEGIN_API_CALL {
+    VALIDATE_NOT_NULL(info);
+    return info->info->subSystemVersion_.c_str();
+}
+HANDLE_EXCEPTIONS_AND_RETURN(nullptr, info)
+
 const char *ob_device_info_get_asicName(const ob_device_info *info, ob_error **error) BEGIN_API_CALL {
     VALIDATE_NOT_NULL(info);
     return info->info->asicName_.c_str();

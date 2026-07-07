@@ -95,6 +95,7 @@ void EGONetDevice::fetchDeviceInfo() {
     deviceInfo_->hwVersion_           = version.hardwareVersion;
     deviceInfo_->type_                = static_cast<uint16_t>(version.deviceType);
     deviceInfo_->supportedSdkVersion_ = version.sdkVersion;
+    deviceInfo_->subSystemVersion_    = version.subSystemVersion;
 
     // remove the prefix "Orbbec " from the device name if contained
     if(deviceInfo_->name_.find("Orbbec ") == 0) {
