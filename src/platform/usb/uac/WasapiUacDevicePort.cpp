@@ -195,20 +195,12 @@ WasapiUacDevicePort::WasapiUacDevicePort(std::shared_ptr<const USBSourcePortInfo
         THROW_ITEM_NOT_FOUND_EXCEPTION("WASAPI: no matching UAC capture endpoint found for the EGO device");
     }
 
-    // Read the endpoint mix format to populate the reported audio profile.
-    IAudioClient *client = nullptr;
-    if(SUCCEEDED(mmDevice_->Activate(__uuidof(IAudioClient), CLSCTX_ALL, nullptr, reinterpret_cast<void **>(&client))) && client) {
-        WAVEFORMATEX *wfx = nullptr;
-        if(SUCCEEDED(client->GetMixFormat(&wfx)) && wfx) {
-            sampleRate_    = wfx->nSamplesPerSec;
-            channelCount_  = wfx->nChannels;
-            bitsPerSample_ = wfx->wBitsPerSample;
-            CoTaskMemFree(wfx);
-        }
-        client->Release();
-    }
-
-    LOG_DEBUG("WasapiUacDevicePort created: sampleRate={}, channels={}, bits={}", sampleRate_, channelCount_, bitsPerSample_);
+    // Force a fixed 16-bit integer PCM format (16 kHz mono) to match the EGO firmware / network path.
+    // The WASAPI shared-mode mix format is typically 32-bit float @48 kHz; consuming that as OB_FORMAT_PCM
+    // (16-bit) produced noise. We request the target format explicitly at stream start via
+    // AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM, so the audio engine resamples/reformats for us. Keep the members
+    // at the fixed target (header defaults 16000/1/16) instead of following the endpoint mix format.
+    LOG_DEBUG("WasapiUacDevicePort created: sampleRate={}, channels={}, bits={} (forced 16-bit PCM)", sampleRate_, channelCount_, bitsPerSample_);
 }
 
 WasapiUacDevicePort::~WasapiUacDevicePort() noexcept {
@@ -244,14 +236,21 @@ void WasapiUacDevicePort::startStream(std::shared_ptr<const StreamProfile> profi
         THROW_IO_EXCEPTION("WASAPI: failed to activate IAudioClient");
     }
 
-    WAVEFORMATEX *wfx = nullptr;
-    audioClient_->GetMixFormat(&wfx);
+    // Explicitly request 16-bit integer PCM at the fixed target rate/channels. In shared mode the audio
+    // engine resamples/reformats the endpoint stream to this format when AUTOCONVERTPCM is set, so the
+    // capture buffer already carries clean 16-bit PCM (no manual float->int conversion needed).
+    WAVEFORMATEX wfxTarget    = {};
+    wfxTarget.wFormatTag      = WAVE_FORMAT_PCM;
+    wfxTarget.nChannels       = static_cast<WORD>(channelCount_);
+    wfxTarget.nSamplesPerSec  = sampleRate_;
+    wfxTarget.wBitsPerSample  = static_cast<WORD>(bitsPerSample_);
+    wfxTarget.nBlockAlign     = static_cast<WORD>(wfxTarget.nChannels * wfxTarget.wBitsPerSample / 8);
+    wfxTarget.nAvgBytesPerSec = wfxTarget.nSamplesPerSec * wfxTarget.nBlockAlign;
+    wfxTarget.cbSize          = 0;
 
     REFERENCE_TIME bufferDuration = 200000;  // 20 ms in 100-ns units
-    hr                            = audioClient_->Initialize(AUDCLNT_SHAREMODE_SHARED, 0, bufferDuration, 0, wfx, nullptr);
-    if(wfx) {
-        CoTaskMemFree(wfx);
-    }
+    DWORD          streamFlags    = AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM | AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY;
+    hr                            = audioClient_->Initialize(AUDCLNT_SHAREMODE_SHARED, streamFlags, bufferDuration, 0, &wfxTarget, nullptr);
     if(FAILED(hr)) {
         audioClient_->Release();
         audioClient_ = nullptr;
