@@ -11,6 +11,8 @@
 
 #include <libusb.h>
 #include <atomic>
+#include <chrono>
+#include <condition_variable>
 #include <memory>
 #include <mutex>
 #include <thread>
@@ -83,8 +85,18 @@ private:
     std::vector<std::vector<uint8_t>>     transferBuffers_;
 
     std::atomic<bool> streaming_{ false };
+    // Number of transfers submitted and not yet terminally reaped. Every transfer
+    // frees itself in its own callback when it reaches a terminal state; stopAllStream
+    // waits for this to reach 0 before touching the buffers (never frees cross-thread).
+    std::atomic<int>  inflight_{ 0 };
+    // Set by stopAllStream's timeout path to force eventLoop out even while transfers are
+    // still in flight, so join() cannot hang on a wedged/unplugged device.
+    std::atomic<bool> drainStop_{ false };
     std::thread       eventThread_;
     std::mutex        streamMutex_;
+    // Guards the teardown reap-wait and the in-callback freeing of transfers_.
+    std::mutex              cbMutex_;
+    std::condition_variable cbCond_;
 
     AudioTimestampFitter  fitter_;
     std::atomic<uint64_t> totalSamples_{ 0 };

@@ -256,6 +256,10 @@ void ObLibUacDevicePort::startStream(std::shared_ptr<const StreamProfile> profil
     }
 
     streaming_ = true;
+    // Reset transient teardown state: a prior stopAllStream may have exited via its
+    // timeout path, leaving these dirty.
+    drainStop_.store(false, std::memory_order_relaxed);
+    inflight_.store(0, std::memory_order_relaxed);
 
     transfers_.resize(kNumTransfers, nullptr);
     transferBuffers_.resize(kNumTransfers);
@@ -264,7 +268,17 @@ void ObLibUacDevicePort::startStream(std::shared_ptr<const StreamProfile> profil
         transferBuffers_[i].assign(static_cast<size_t>(bufLen), 0);
         auto transfer = libusb_alloc_transfer(kNumIsoPackets);
         if(!transfer) {
+            // Roll back before bailing: none of these transfers has been submitted yet
+            // (no callbacks in flight, event thread not started), so it is safe to free
+            // the ones already allocated and reset, instead of leaking them.
             streaming_ = false;
+            for(auto *t: transfers_) {
+                if(t) {
+                    libusb_free_transfer(t);
+                }
+            }
+            transfers_.clear();
+            transferBuffers_.clear();
             THROW_MEMORY_EXCEPTION("UAC: libusb_alloc_transfer failed");
         }
         libusb_fill_iso_transfer(transfer, devHandle_, isoEndpointAddr_, transferBuffers_[i].data(), bufLen, kNumIsoPackets, &ObLibUacDevicePort::onIsoTransfer,
@@ -277,6 +291,18 @@ void ObLibUacDevicePort::startStream(std::shared_ptr<const StreamProfile> profil
         auto sres = libusb_submit_transfer(transfers_[i]);
         if(sres != LIBUSB_SUCCESS) {
             LOG_WARN("UAC: submit iso transfer {} failed: {}", i, libusb_strerror(sres));
+            // Never went in flight, so no callback will ever free it. Free it now and
+            // clear the slot (under cbMutex_, since a sibling transfer's terminal
+            // callback may concurrently walk transfers_). stopAllStream then only has
+            // to reap the transfers that are genuinely in flight.
+            std::lock_guard<std::mutex> cbLk(cbMutex_);
+            libusb_free_transfer(transfers_[i]);
+            transfers_[i] = nullptr;
+        }
+        else {
+            // Only count transfers that actually went in flight; a failed submit gets
+            // no callback and must not keep stopAllStream's reap-wait from completing.
+            inflight_.fetch_add(1, std::memory_order_relaxed);
         }
     }
 
@@ -285,7 +311,13 @@ void ObLibUacDevicePort::startStream(std::shared_ptr<const StreamProfile> profil
 }
 
 void ObLibUacDevicePort::eventLoop() {
-    while(streaming_) {
+    // Keep pumping until streaming stops AND every in-flight transfer has been reaped, so
+    // cancelled transfers are always completed on this thread we own -- never depending on
+    // any other (shared) event pump, which keeps teardown correct on every platform.
+    // drainStop_ lets stopAllStream force an exit if a wedged/unplugged device never
+    // delivers the cancellation completions.
+    while((streaming_.load(std::memory_order_relaxed) || inflight_.load(std::memory_order_acquire) > 0)
+          && !drainStop_.load(std::memory_order_relaxed)) {
         struct timeval tv {
             0, 100000
         };  // 100 ms
@@ -299,53 +331,74 @@ void LIBUSB_CALL ObLibUacDevicePort::onIsoTransfer(struct libusb_transfer *trans
 }
 
 void ObLibUacDevicePort::handleIsoTransfer(struct libusb_transfer *transfer) {
-    if(!streaming_) {
-        return;
-    }
+    if(streaming_.load(std::memory_order_relaxed)) {
+        if(transfer->status == LIBUSB_TRANSFER_COMPLETED || transfer->status == LIBUSB_TRANSFER_TIMED_OUT) {
+            // Gather all valid iso packets of this transfer into one contiguous PCM chunk.
+            std::vector<uint8_t> chunk;
+            chunk.reserve(static_cast<size_t>(transfer->length));
+            for(int p = 0; p < transfer->num_iso_packets; ++p) {
+                const libusb_iso_packet_descriptor &pkt = transfer->iso_packet_desc[p];
+                if(pkt.status == LIBUSB_TRANSFER_COMPLETED && pkt.actual_length > 0) {
+                    const uint8_t *data = libusb_get_iso_packet_buffer_simple(transfer, p);
+                    chunk.insert(chunk.end(), data, data + pkt.actual_length);
+                }
+            }
 
-    if(transfer->status == LIBUSB_TRANSFER_COMPLETED || transfer->status == LIBUSB_TRANSFER_TIMED_OUT) {
-        // Gather all valid iso packets of this transfer into one contiguous PCM chunk.
-        std::vector<uint8_t> chunk;
-        chunk.reserve(static_cast<size_t>(transfer->length));
-        for(int p = 0; p < transfer->num_iso_packets; ++p) {
-            const libusb_iso_packet_descriptor &pkt = transfer->iso_packet_desc[p];
-            if(pkt.status == LIBUSB_TRANSFER_COMPLETED && pkt.actual_length > 0) {
-                const uint8_t *data = libusb_get_iso_packet_buffer_simple(transfer, p);
-                chunk.insert(chunk.end(), data, data + pkt.actual_length);
+            if(!chunk.empty() && frameCallback_ && activatedProfile_) {
+                auto frame = FrameFactory::createFrame(OB_FRAME_AUDIO, OB_FORMAT_PCM, chunk.size());
+                frame->updateData(chunk.data(), chunk.size());
+
+                uint32_t channelCount   = activatedProfile_->getChannelCount();
+                uint32_t bytesPerSample = (activatedProfile_->getBitsPerSample() + 7) / 8;
+                uint32_t sampleRate     = activatedProfile_->getSampleRate();
+                uint32_t bytesPerFrame  = channelCount * bytesPerSample;
+                uint32_t sampleCount    = bytesPerFrame ? static_cast<uint32_t>(chunk.size() / bytesPerFrame) : 0;
+
+                auto     nowUs         = utils::getNowTimesUs();
+                auto     steadyUs      = utils::getSteadyTimeUs();
+                uint64_t pktDurationUs = sampleCount > 0 ? (uint64_t)sampleCount * 1000000ULL / sampleRate : 0;
+                uint64_t tsUs          = fitter_.update(totalSamples_.load(), nowUs - pktDurationUs);
+                frame->setTimeStampUsec(tsUs);
+                frame->setSystemTimeStampUsec(nowUs);
+                frame->setSteadyTimeStampUsec(steadyUs);
+                totalSamples_.fetch_add(sampleCount);
+
+                frameCallback_(frame);
             }
         }
-
-        if(!chunk.empty() && frameCallback_ && activatedProfile_) {
-            auto frame = FrameFactory::createFrame(OB_FRAME_AUDIO, OB_FORMAT_PCM, chunk.size());
-            frame->updateData(chunk.data(), chunk.size());
-
-            uint32_t channelCount   = activatedProfile_->getChannelCount();
-            uint32_t bytesPerSample = (activatedProfile_->getBitsPerSample() + 7) / 8;
-            uint32_t sampleRate     = activatedProfile_->getSampleRate();
-            uint32_t bytesPerFrame  = channelCount * bytesPerSample;
-            uint32_t sampleCount    = bytesPerFrame ? static_cast<uint32_t>(chunk.size() / bytesPerFrame) : 0;
-
-            auto     nowUs         = utils::getNowTimesUs();
-            auto     steadyUs      = utils::getSteadyTimeUs();
-            uint64_t pktDurationUs = sampleCount > 0 ? (uint64_t)sampleCount * 1000000ULL / sampleRate : 0;
-            uint64_t tsUs          = fitter_.update(totalSamples_.load(), nowUs - pktDurationUs);
-            frame->setTimeStampUsec(tsUs);
-            frame->setSystemTimeStampUsec(nowUs);
-            frame->setSteadyTimeStampUsec(steadyUs);
-            totalSamples_.fetch_add(sampleCount);
-
-            frameCallback_(frame);
+        else if(transfer->status != LIBUSB_TRANSFER_CANCELLED) {
+            LOG_WARN_INTVL(utils::string::to_string() << "UAC: iso transfer status=" << transfer->status);
         }
-    }
-    else if(transfer->status != LIBUSB_TRANSFER_CANCELLED) {
-        LOG_WARN_INTVL(utils::string::to_string() << "UAC: iso transfer status=" << transfer->status);
-    }
 
-    if(streaming_) {
         auto res = libusb_submit_transfer(transfer);
-        if(res != LIBUSB_SUCCESS && res != LIBUSB_ERROR_NO_DEVICE) {
+        if(res == LIBUSB_SUCCESS) {
+            return;  // resubmitted -> still in flight, not terminal
+        }
+        if(res != LIBUSB_ERROR_NO_DEVICE) {
             LOG_WARN_INTVL(utils::string::to_string() << "UAC: resubmit iso transfer failed: " << libusb_strerror(res));
         }
+        // resubmit failed -> fall through and free as terminal
+    }
+
+    // Terminal completion (streaming stopped, or resubmit failed): free the transfer
+    // here on the event thread -- never from stopAllStream -- so libusb is completely
+    // done with it, then wake stopAllStream once the last in-flight transfer is gone.
+    bool wasLast;
+    {
+        std::lock_guard<std::mutex> lk(cbMutex_);
+        for(auto *&t: transfers_) {
+            if(t == transfer) {
+                t = nullptr;
+                break;
+            }
+        }
+        libusb_free_transfer(transfer);
+        // Decrement under cbMutex_ so the reap-wait predicate is published atomically
+        // with the mutex -- the waiter can never miss the last transfer going away.
+        wasLast = (inflight_.fetch_sub(1, std::memory_order_acq_rel) == 1);
+    }
+    if(wasLast) {
+        cbCond_.notify_all();
     }
 }
 
@@ -361,23 +414,59 @@ void ObLibUacDevicePort::stopAllStream() {
     }
     streaming_ = false;
 
-    for(auto *transfer: transfers_) {
-        if(transfer) {
-            libusb_cancel_transfer(transfer);
+    {
+        // Cancel under cbMutex_ to close the race between this loop and a concurrently-
+        // completing transfer callback: after streaming_ goes false a callback on the
+        // event thread may reach the terminal path and free+null the slot. Without the
+        // lock the null-check and cancel call are not atomic -- we could call
+        // libusb_cancel_transfer on a pointer the callback already freed. Holding
+        // cbMutex_ serialises with the terminal-path lock in handleIsoTransfer so
+        // every pointer we see is either null (already freed) or still valid.
+        // libusb_cancel_transfer is documented thread-safe and does not call our
+        // callback synchronously, so it is safe to call while holding cbMutex_.
+        std::lock_guard<std::mutex> cbLk(cbMutex_);
+        for(auto *transfer: transfers_) {
+            if(transfer) {
+                libusb_cancel_transfer(transfer);
+            }
         }
+    }
+
+    // Wait for every cancelled transfer to be reaped and freed by its own callback --
+    // our eventThread_ keeps draining until inflight_ hits 0 -- before touching the
+    // buffers. Freeing a transfer (or its buffer) while it is still flying is exactly the
+    // use-after-free this fixes (mirrors libuvc's uvc_stream_stop). Bounded with a timeout
+    // so a wedged/unplugged device cannot hang teardown forever.
+    bool reaped;
+    {
+        std::unique_lock<std::mutex> cbLk(cbMutex_);
+        reaped = cbCond_.wait_for(cbLk, std::chrono::seconds(2),
+                                  [this] { return inflight_.load(std::memory_order_acquire) == 0; });
+    }
+
+    if(!reaped) {
+        // A cancellation never completed (wedged/unplugged device). Force the drain loop
+        // out so join() cannot hang; the still-flying transfers are intentionally leaked
+        // rather than freed (freeing an in-flight transfer would re-introduce the UAF).
+        drainStop_.store(true, std::memory_order_relaxed);
     }
 
     if(eventThread_.joinable()) {
         eventThread_.join();
     }
 
-    for(auto *transfer: transfers_) {
-        if(transfer) {
-            libusb_free_transfer(transfer);
-        }
+    if(reaped) {
+        // Every transfer already freed itself in its callback; just drop the containers.
+        std::lock_guard<std::mutex> cbLk(cbMutex_);
+        transfers_.clear();
+        transferBuffers_.clear();
     }
-    transfers_.clear();
-    transferBuffers_.clear();
+    else {
+        // Pathological (device wedged/unplugged): transfers are still in flight. Leak
+        // rather than free -- freeing a still-flying transfer or its buffer would just
+        // re-introduce the UAF.
+        LOG_WARN("UAC: timed out waiting for iso transfers to cancel; leaking to avoid UAF");
+    }
 
     // Switch back to the zero-bandwidth alt setting to release bus bandwidth.
     libusb_set_interface_alt_setting(devHandle_, asInterfaceNumber_, 0);
