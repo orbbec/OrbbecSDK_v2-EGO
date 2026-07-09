@@ -177,9 +177,9 @@ void EGONetDevice::initSensorList() {
                 };
 
                 sensor->updateFormatFilterConfig(formatFilterConfigs);
-                // TODO:
-                //  auto videoFrameTimestampCalculator = std::make_shared<FrameTimestampCalculatorBaseDeviceTime>(this, deviceTimeFreq_, colorFrameTimeFreq_);
-                //  sensor->setFrameTimestampCalculator(videoFrameTimestampCalculator);
+
+                auto videoFrameTimestampCalculator = std::make_shared<FrameTimestampCalculatorBaseDeviceTime>(this, deviceTimeFreq_, colorFrameTimeFreq_);
+                sensor->setFrameTimestampCalculator(videoFrameTimestampCalculator);
 
                 auto frameProcessor = getComponentT<FrameProcessor>(OB_DEV_COMPONENT_RIGHT_COLOR_FRAME_PROCESSOR, false);
                 if(frameProcessor) {
@@ -392,7 +392,7 @@ void EGONetDevice::initSensorStreamProfile(std::shared_ptr<ISensor> sensor) {
     if(profileList.empty() && (streamType == OB_STREAM_COLOR_LEFT || streamType == OB_STREAM_COLOR_RIGHT)) {
         // Firmware has not yet implemented OB_RAW_DATA_STREAM_PROFILE_LIST; provide a minimal
         // hardcoded fallback so the RTSP stream can be opened for early bring-up testing.
-        profileList.push_back(StreamProfileFactory::createVideoStreamProfile(streamType, OB_FORMAT_MJPG, 1600, 1300, 30));
+        //profileList.push_back(StreamProfileFactory::createVideoStreamProfile(streamType, OB_FORMAT_MJPG, 1600, 1300, 30));
         profileList.push_back(StreamProfileFactory::createVideoStreamProfile(streamType, OB_FORMAT_H264, 1600, 1300, 30));
         profileList.push_back(StreamProfileFactory::createVideoStreamProfile(streamType, OB_FORMAT_H264, 1600, 1300, 60));
         LOG_WARN("EGONetDevice: using hardcoded fallback stream profiles for sensor {}", sensorType);
