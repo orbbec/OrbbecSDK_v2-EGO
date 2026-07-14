@@ -35,6 +35,19 @@
 
 namespace libobsensor {
 
+namespace {
+OBFormat normalizeH265AliasFormat(OBFormat format) {
+    return format == OB_FORMAT_HEVC ? OB_FORMAT_H265 : format;
+}
+
+std::shared_ptr<const StreamProfile> normalizeH265AliasProfile(const std::shared_ptr<const StreamProfile> &profile) {
+    if(profile && profile->getFormat() == OB_FORMAT_HEVC) {
+        return profile->clone(OB_FORMAT_H265);
+    }
+    return profile;
+}
+}  // namespace
+
 EGONetDevice::EGONetDevice(const std::shared_ptr<const IDeviceEnumInfo> &info) : DeviceBase(info) {
     init();
 
@@ -399,10 +412,10 @@ void EGONetDevice::initSensorStreamProfile(std::shared_ptr<ISensor> sensor) {
         // Firmware has not yet implemented OB_RAW_DATA_STREAM_PROFILE_LIST; provide a minimal
         // hardcoded fallback so the RTSP stream can be opened for early bring-up testing.
         //profileList.push_back(StreamProfileFactory::createVideoStreamProfile(streamType, OB_FORMAT_MJPG, 1600, 1300, 30));
-        profileList.push_back(StreamProfileFactory::createVideoStreamProfile(streamType, OB_FORMAT_H264, 1600, 1300, 30));
-        profileList.push_back(StreamProfileFactory::createVideoStreamProfile(streamType, OB_FORMAT_H264, 1600, 1300, 60));
-        profileList.push_back(StreamProfileFactory::createVideoStreamProfile(streamType, OB_FORMAT_H264, 1600, 1200, 30));
-        profileList.push_back(StreamProfileFactory::createVideoStreamProfile(streamType, OB_FORMAT_H264, 1600, 1200, 60));
+        profileList.push_back(StreamProfileFactory::createVideoStreamProfile(streamType, OB_FORMAT_H265, 1600, 1300, 30));
+        profileList.push_back(StreamProfileFactory::createVideoStreamProfile(streamType, OB_FORMAT_H265, 1600, 1300, 60));
+        profileList.push_back(StreamProfileFactory::createVideoStreamProfile(streamType, OB_FORMAT_H265, 1600, 1200, 30));
+        profileList.push_back(StreamProfileFactory::createVideoStreamProfile(streamType, OB_FORMAT_H265, 1600, 1200, 60));
         LOG_WARN("EGONetDevice: using hardcoded fallback stream profiles for sensor {}", sensorType);
     }
 
@@ -412,7 +425,7 @@ void EGONetDevice::initSensorStreamProfile(std::shared_ptr<ISensor> sensor) {
 
     auto streamProfile = StreamProfileFactory::getDefaultStreamProfileFromEnvConfig(deviceInfo_->name_, sensorType);
     if(streamProfile) {
-        sensor->updateDefaultStreamProfile(streamProfile);
+        sensor->updateDefaultStreamProfile(normalizeH265AliasProfile(streamProfile));
     }
 
     auto profiles = sensor->getStreamProfileList();
@@ -456,7 +469,7 @@ void EGONetDevice::fetchAllVideoStreamProfileList() {
         allVideoStreamProfileList_.clear();
         for(const auto &item: outputProfiles) {
             OBStreamType streamType = utils::mapSensorTypeToStreamType((OBSensorType)item.sensorType);
-            OBFormat     format     = utils::uvcFourccToOBFormat(item.profile.video.formatFourcc);
+            OBFormat     format     = normalizeH265AliasFormat(utils::uvcFourccToOBFormat(item.profile.video.formatFourcc));
             allVideoStreamProfileList_.push_back(StreamProfileFactory::createVideoStreamProfile(streamType, format, item.profile.video.width,
                                                                                                 item.profile.video.height, item.profile.video.fps));
         }

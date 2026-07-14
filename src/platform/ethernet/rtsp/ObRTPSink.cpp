@@ -243,7 +243,10 @@ void ObRTPSink::outputFrameFunc() {
         auto format    = codecToOBFormat(codecName);
 
         do {
-            if(format != streamProfile_->getFormat()) {
+            const auto profileFormat = streamProfile_->getFormat();
+            const bool isH265Alias   = (format == OB_FORMAT_H265 || format == OB_FORMAT_HEVC)
+                                     && (profileFormat == OB_FORMAT_H265 || profileFormat == OB_FORMAT_HEVC);
+            if(format != profileFormat && !isH265Alias) {
                 LOG_ERROR("Received frame format is not same as required");
                 break;
             }

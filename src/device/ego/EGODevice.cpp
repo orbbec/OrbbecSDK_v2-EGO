@@ -41,6 +41,15 @@
 
 namespace libobsensor {
 
+namespace {
+std::shared_ptr<const StreamProfile> normalizeH265AliasProfile(const std::shared_ptr<const StreamProfile> &profile) {
+    if(profile && profile->getFormat() == OB_FORMAT_HEVC) {
+        return profile->clone(OB_FORMAT_H265);
+    }
+    return profile;
+}
+}  // namespace
+
 static const uint8_t EGO_USB_INTERFACE_COLOR_LEFT  = 0;
 static const uint8_t EGO_USB_INTERFACE_COLOR_RIGHT = 2;
 
@@ -144,7 +153,7 @@ void EGODevice::initSensorStreamProfile(std::shared_ptr<ISensor> sensor) {
     auto sensorType    = sensor->getSensorType();
     auto streamProfile = StreamProfileFactory::getDefaultStreamProfileFromEnvConfig(deviceInfo_->name_, sensorType);
     if(streamProfile) {
-        sensor->updateDefaultStreamProfile(streamProfile);
+        sensor->updateDefaultStreamProfile(normalizeH265AliasProfile(streamProfile));
     }
 
     auto profiles = sensor->getStreamProfileList();
@@ -187,6 +196,7 @@ void EGODevice::initSensorList() {
                 sensor->enableTimestampAnomalyDetection(false);
 
                 std::vector<FormatFilterConfig> formatFilterConfigs = {
+                    { FormatFilterPolicy::REPLACE, OB_FORMAT_HEVC, OB_FORMAT_H265, nullptr },
                     { FormatFilterPolicy::REMOVE, OB_FORMAT_NV12, OB_FORMAT_ANY, nullptr },
                     { FormatFilterPolicy::REMOVE, OB_FORMAT_BGR, OB_FORMAT_ANY, nullptr },
                     { FormatFilterPolicy::REMOVE, OB_FORMAT_BGRA, OB_FORMAT_ANY, nullptr },
@@ -256,6 +266,7 @@ void EGODevice::initSensorList() {
                 sensor->enableTimestampAnomalyDetection(false);
 
                 std::vector<FormatFilterConfig> formatFilterConfigs = {
+                    { FormatFilterPolicy::REPLACE, OB_FORMAT_HEVC, OB_FORMAT_H265, nullptr },
                     { FormatFilterPolicy::REMOVE, OB_FORMAT_NV12, OB_FORMAT_ANY, nullptr },
                     { FormatFilterPolicy::REMOVE, OB_FORMAT_BGR, OB_FORMAT_ANY, nullptr },
                     { FormatFilterPolicy::REMOVE, OB_FORMAT_BGRA, OB_FORMAT_ANY, nullptr },
