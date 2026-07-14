@@ -69,7 +69,6 @@ void EGONetDevice::init() {
         fetchAllVideoStreamProfileList();
 
         deviceTimeFreq_ = 1000000;
-
         // auto algParamManager = std::make_shared<EGOAlgParamManager>(this);
         // registerComponent(OB_DEV_COMPONENT_ALG_PARAM_MANAGER, algParamManager);
 
@@ -141,6 +140,7 @@ void EGONetDevice::initSensorList() {
             [this, leftColorPortInfo]() {
                 auto port   = getSourcePort(leftColorPortInfo);
                 auto sensor = std::make_shared<VideoSensor>(this, OB_SENSOR_COLOR_LEFT, port);
+                sensor->enableTimestampAnomalyDetection(false);
 
                 std::vector<FormatFilterConfig> formatFilterConfigs = {
                     { FormatFilterPolicy::REMOVE, OB_FORMAT_NV12, OB_FORMAT_ANY, nullptr },
@@ -182,6 +182,7 @@ void EGONetDevice::initSensorList() {
             [this, rightColorPortInfo]() {
                 auto port   = getSourcePort(rightColorPortInfo);
                 auto sensor = std::make_shared<VideoSensor>(this, OB_SENSOR_COLOR_RIGHT, port);
+                sensor->enableTimestampAnomalyDetection(false);
 
                 std::vector<FormatFilterConfig> formatFilterConfigs = {
                     { FormatFilterPolicy::REMOVE, OB_FORMAT_NV12, OB_FORMAT_ANY, nullptr },
