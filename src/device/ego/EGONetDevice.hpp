@@ -12,9 +12,9 @@
 
 namespace libobsensor {
 
-// PN2608_EGO WiFi device: dual independent RGB over RTSP (independent URL paths) +
-// IMU over an independent private TCP data stream (modeled on FemtoMega net IMU).
-// (Audio over RTSP is wired in a later phase; see TN2608 plan §5.3.)
+// EGO device: dual independent RGB over RTSP (independent URL paths)
+// IMU over an independent private TCP data stream.
+// (Audio over RTSP)
 class EGONetDevice : public DeviceBase {
 public:
     EGONetDevice(const std::shared_ptr<const IDeviceEnumInfo> &info);

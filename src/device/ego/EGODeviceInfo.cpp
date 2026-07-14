@@ -21,10 +21,6 @@
 
 namespace libobsensor {
 
-// PN2608_EGO WiFi port plan (see TN2608 plan §4.2 / §8, scheme A):
-// - color_left / color_right / audio share the same RTSP service port, distinguished by URL path.
-// - IMU runs on an independent private TCP data-stream port (parallel to the RTSP service port).
-// These values are placeholders pending firmware confirmation.
 static const uint16_t EGO_RTSP_SERVICE_PORT = 8888;  // shared RTSP service port for all video/audio streams
 static const uint16_t EGO_IMU_TCP_PORT      = 8900;  // private TCP IMU data stream (parallel to RTSP)
 
@@ -139,16 +135,13 @@ std::vector<std::shared_ptr<IDeviceEnumInfo>> EGODeviceInfo::pickNetDevices(cons
         if(iter->size() >= 1) {
             auto portInfo = std::dynamic_pointer_cast<const NetSourcePortInfo>(iter->front());
 
-            // Two independent color streams: each gets its own RTSPStreamPortInfo / URL path / ObRTSPClient,
-            // but shares the same RTSP service port (distinguished by URL path, see plan §4.2 scheme A).
             iter->emplace_back(std::make_shared<RTSPStreamPortInfo>(*portInfo, EGO_RTSP_SERVICE_PORT, portInfo->port, OB_STREAM_COLOR_LEFT));
             iter->emplace_back(std::make_shared<RTSPStreamPortInfo>(*portInfo, EGO_RTSP_SERVICE_PORT, portInfo->port, OB_STREAM_COLOR_RIGHT));
 
-            // Audio is an independent RTSP stream (independent URL path, own ObRTSPClient), sharing the
-            // same RTSP service port as color (distinguished by URL path, see plan §5.3 scheme A).
+            // Audio is an independent RTSP stream
             iter->emplace_back(std::make_shared<RTSPStreamPortInfo>(*portInfo, EGO_RTSP_SERVICE_PORT, portInfo->port, OB_STREAM_AUDIO));
 
-            // IMU over an independent private TCP data stream (not RTSP), modeled on FemtoMega.
+            // IMU over an independent private TCP data stream
             iter->emplace_back(std::make_shared<NetDataStreamPortInfo>(*portInfo, EGO_IMU_TCP_PORT, portInfo->port));
 
             auto deviceEnumInfo = std::make_shared<EGODeviceInfo>(*iter);

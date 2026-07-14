@@ -41,9 +41,6 @@
 
 namespace libobsensor {
 
-// EGO USB exposes two independent RGB cameras as two UVC VideoStreaming interfaces.
-// UVC interfaces are typically grouped (control + streaming) so the streaming interface
-// indices come in pairs. These values are placeholders pending firmware descriptor confirmation.
 static const uint8_t EGO_USB_INTERFACE_COLOR_LEFT  = 0;
 static const uint8_t EGO_USB_INTERFACE_COLOR_RIGHT = 2;
 
@@ -187,8 +184,6 @@ void EGODevice::initSensorList() {
                 auto port   = getSourcePort(leftColorPortInfo);
                 auto sensor = std::make_shared<EGOColorVideoSensor>(this, OB_SENSOR_COLOR_LEFT, port);
 
-                // [EGO-WIP] EGO firmware does not yet provide a reliable per-frame device timestamp, which
-                // trips the anomaly detector and drops every frame. Disable it until the timestamp is fixed.
                 sensor->enableTimestampAnomalyDetection(false);
 
                 std::vector<FormatFilterConfig> formatFilterConfigs = {
@@ -202,8 +197,6 @@ void EGODevice::initSensorList() {
                 auto videoFrameTimestampCalculator = std::make_shared<FrameTimestampCalculatorOverUvcSCR>(this, frameTimeFreq_);
                 sensor->setFrameTimestampCalculator(videoFrameTimestampCalculator);
 
-                // Both color sensors share the same device clock domain via the single
-                // OB_DEV_COMPONENT_GLOBAL_TIMESTAMP_FILTER on this device, so left/right stay aligned.
                 // auto globalFrameTimestampCalculator = std::make_shared<GlobalTimestampCalculator>(this, deviceTimeFreq_, frameTimeFreq_);
                 // sensor->setGlobalTimestampCalculator(globalFrameTimestampCalculator);
 
@@ -350,8 +343,6 @@ void EGODevice::initSensorList() {
                 auto imuStreamerSharedPtr = imuStreamer.get();
                 auto sensor               = std::make_shared<AccelSensor>(this, port, imuStreamerSharedPtr);
 
-                // [EGO-WIP] EGO firmware does not yet provide a reliable per-frame IMU device timestamp, which
-                // trips the anomaly detector and drops every frame. Disable it until the timestamp is fixed.
                 sensor->enableTimestampAnomalyDetection(false);
 
                 // Firmware IMU timestamp unit is microseconds (1MHz); pass through directly.
@@ -375,8 +366,6 @@ void EGODevice::initSensorList() {
                 auto imuStreamerSharedPtr = imuStreamer.get();
                 auto sensor               = std::make_shared<GyroSensor>(this, port, imuStreamerSharedPtr);
 
-                // [EGO-WIP] EGO firmware does not yet provide a reliable per-frame IMU device timestamp, which
-                // trips the anomaly detector and drops every frame. Disable it until the timestamp is fixed.
                 sensor->enableTimestampAnomalyDetection(false);
 
                 // Firmware IMU timestamp unit is microseconds (1MHz); pass through directly.

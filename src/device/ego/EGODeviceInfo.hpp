@@ -11,9 +11,7 @@
 
 namespace libobsensor {
 
-// Device enumeration info for the PN2608_EGO head-mounted device.
-// Modeled on FemtoMegaDeviceInfo: a single createDevice() branches by connectionType
-// to build either the USB (EGODevice) or WiFi (EGONetDevice) device class.
+// Device enumeration info for the EGO device
 class EGODeviceInfo : public DeviceEnumInfoBase, public std::enable_shared_from_this<EGODeviceInfo> {
 public:
     EGODeviceInfo(const SourcePortInfoList groupedInfoList);

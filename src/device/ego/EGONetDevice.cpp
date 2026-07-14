@@ -227,7 +227,7 @@ void EGONetDevice::initSensorList() {
         registerSensorPortInfo(OB_SENSOR_AUDIO, audioPortInfo);
     }
 
-    // ---- IMU (private TCP data stream, modeled on FemtoMega) ----
+    // ---- IMU (private TCP data stream)
     auto imuPortInfoIter = std::find_if(sourcePortInfoList.begin(), sourcePortInfoList.end(), [](const std::shared_ptr<const SourcePortInfo> &portInfo) {
         return portInfo->portType == SOURCE_PORT_NET_VENDOR_STREAM;
     });
