@@ -685,14 +685,20 @@ typedef enum {
     OB_PROP_MJPEG_QUALITY_INT = 277,
 
     /**
-     * @brief Audio (microphone) mute switch (true: muted)
+     * @brief Color camera bitrate adjustment
      */
-    OB_PROP_AUDIO_MUTE_BOOL = 280,//TODO
+    OB_PROP_COLOR_BITRATE_INT = 279,
 
     /**
-     * @brief Audio (microphone) capture gain  
+     * @brief Color camera dynamic bitrate enable switch
      */
-    OB_PROP_RECORDING_PROMPT_INT = 281,//TODO
+    OB_PROP_COLOR_DYNAMIC_BITRATE_ENABLE_BOOL = 280,
+
+    /**
+     * @brief Play a recording voice prompt on the device
+     * @param value OBRecordingPrompt
+     */
+    OB_PROP_RECORDING_PROMPT_INT = 281,
 
     /**
      * @brief Audio (microphone) automatic gain control switch (true: enabled)
