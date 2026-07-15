@@ -2046,6 +2046,15 @@ typedef enum {
     OBPlaybackStatus;
 
 /**
+ * @brief Recording voice prompt played by the device
+ */
+typedef enum {
+    OB_RECORDING_PROMPT_STOP  = 0, /**< Play the "stop recording" voice prompt */
+    OB_RECORDING_PROMPT_START = 1, /**< Play the "start recording" voice prompt */
+} OBRecordingPrompt,
+    ob_recording_prompt;
+
+/**
  * @brief Intra-camera Sync Reference based on the exposure start time, the exposure middle time, or the exposure end time.
  */
 typedef enum {
