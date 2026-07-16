@@ -347,7 +347,7 @@ void EGONetDevice::initProperties() {
     propertyServer->registerProperty(OB_STRUCT_GET_TF_CARD_CAPACITY, "r", "r", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_STRUCT_DEVICE_TEMPERATURE, "r", "r", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_PROP_REBOOT_DEVICE_BOOL, "w", "w", vendorPropertyAccessor);
-    propertyServer->registerProperty(OB_PROP_RECORDING_PROMPT_INT, "w", "w", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_PROP_RECORDING_PROMPT_INT, "rw", "w", vendorPropertyAccessor);
 
     propertyServer->registerProperty(OB_PROP_GYRO_ODR_INT, "rw", "rw", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_PROP_ACCEL_ODR_INT, "rw", "rw", vendorPropertyAccessor);
