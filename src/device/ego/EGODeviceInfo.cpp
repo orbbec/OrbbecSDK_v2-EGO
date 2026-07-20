@@ -21,8 +21,10 @@
 
 namespace libobsensor {
 
-static const uint16_t EGO_RTSP_SERVICE_PORT = 8888;  // shared RTSP service port for all video/audio streams
-static const uint16_t EGO_IMU_TCP_PORT      = 8900;  // private TCP IMU data stream (parallel to RTSP)
+static const uint16_t EGO_LEFT_COLOR_RTSP_PORT    = 8888;
+static const uint16_t EGO_RIGHT_COLOR_RTSP_PORT   = 8889;
+static const uint16_t EGO_RTSP_AUDIO_PORT         = 8890;
+static const uint16_t EGO_IMU_TCP_PORT            = 8900;  // private TCP IMU data stream (parallel to RTSP)
 
 const std::map<int, std::string> EGODeviceNameMap = {
     { OB_DEVICE_EGO_PID, "Ego" },
@@ -135,11 +137,11 @@ std::vector<std::shared_ptr<IDeviceEnumInfo>> EGODeviceInfo::pickNetDevices(cons
         if(iter->size() >= 1) {
             auto portInfo = std::dynamic_pointer_cast<const NetSourcePortInfo>(iter->front());
 
-            iter->emplace_back(std::make_shared<RTSPStreamPortInfo>(*portInfo, EGO_RTSP_SERVICE_PORT, portInfo->port, OB_STREAM_COLOR_LEFT));
-            iter->emplace_back(std::make_shared<RTSPStreamPortInfo>(*portInfo, EGO_RTSP_SERVICE_PORT, portInfo->port, OB_STREAM_COLOR_RIGHT));
+            iter->emplace_back(std::make_shared<RTSPStreamPortInfo>(*portInfo, EGO_LEFT_COLOR_RTSP_PORT, portInfo->port, OB_STREAM_COLOR_LEFT));
+            iter->emplace_back(std::make_shared<RTSPStreamPortInfo>(*portInfo, EGO_RIGHT_COLOR_RTSP_PORT, portInfo->port, OB_STREAM_COLOR_RIGHT));
 
             // Audio is an independent RTSP stream
-            iter->emplace_back(std::make_shared<RTSPStreamPortInfo>(*portInfo, EGO_RTSP_SERVICE_PORT, portInfo->port, OB_STREAM_AUDIO));
+            iter->emplace_back(std::make_shared<RTSPStreamPortInfo>(*portInfo, EGO_RTSP_AUDIO_PORT, portInfo->port, OB_STREAM_AUDIO));
 
             // IMU over an independent private TCP data stream
             iter->emplace_back(std::make_shared<NetDataStreamPortInfo>(*portInfo, EGO_IMU_TCP_PORT, portInfo->port));
