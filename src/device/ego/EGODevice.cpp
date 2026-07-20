@@ -4,6 +4,7 @@
 #include "EGODevice.hpp"
 #include "EGOAlgParamManager.hpp"
 #include "EGOColorVideoSensor.hpp"
+#include "EGOStreamStrategy.hpp"
 #include "DevicePids.hpp"
 #include "environment/EnvConfig.hpp"
 #include "stream/StreamProfileFactory.hpp"
@@ -26,6 +27,7 @@
 #include "property/CommonPropertyAccessors.hpp"
 #include "property/FilterPropertyAccessors.hpp"
 #include "param/AlgParamManager.hpp"
+#include "component/fwrecord/FwRecordProfileManager.hpp"
 
 #include "FilterFactory.hpp"
 #include "publicfilters/FormatConverterProcess.hpp"
@@ -77,6 +79,7 @@ void EGODevice::init() {
 
     auto deviceClockSynchronizer = std::make_shared<DeviceClockSynchronizer>(this, deviceTimeFreq_, deviceTimeFreq_);
     registerComponent(OB_DEV_COMPONENT_DEVICE_CLOCK_SYNCHRONIZER, deviceClockSynchronizer);
+    registerComponent(OB_DEV_COMPONENT_FW_RECORD_PROFILE_MANAGER, [this]() { return std::make_shared<FwRecordProfileManager>(this); });
 
     // firmware updater
     registerComponent(OB_DEV_COMPONENT_FIRMWARE_UPDATER, [this]() {
@@ -171,6 +174,8 @@ void EGODevice::initSensorStreamProfile(std::shared_ptr<ISensor> sensor) {
 }
 
 void EGODevice::initSensorList() {
+    registerComponent(OB_DEV_COMPONENT_SENSOR_STREAM_STRATEGY, [this]() { return std::make_shared<EGOStreamStrategy>(this); });
+
     registerComponent(OB_DEV_COMPONENT_FRAME_PROCESSOR_FACTORY, [this]() {
         std::shared_ptr<FrameProcessorFactory> factory;
         TRY_EXECUTE({ factory = std::make_shared<FrameProcessorFactory>(this); })
@@ -352,7 +357,7 @@ void EGODevice::initSensorList() {
                 auto port                 = getSourcePort(imuPortInfo);
                 auto imuStreamer          = getComponentT<ImuStreamer>(OB_DEV_COMPONENT_IMU_STREAMER);
                 auto imuStreamerSharedPtr = imuStreamer.get();
-                auto sensor               = std::make_shared<AccelSensor>(this, port, imuStreamerSharedPtr);
+                auto sensor               = std::make_shared<AccelSensor>(this, port, imuStreamerSharedPtr, true);
 
                 sensor->enableTimestampAnomalyDetection(false);
 
@@ -375,7 +380,7 @@ void EGODevice::initSensorList() {
                 auto port                 = getSourcePort(imuPortInfo);
                 auto imuStreamer          = getComponentT<ImuStreamer>(OB_DEV_COMPONENT_IMU_STREAMER);
                 auto imuStreamerSharedPtr = imuStreamer.get();
-                auto sensor               = std::make_shared<GyroSensor>(this, port, imuStreamerSharedPtr);
+                auto sensor               = std::make_shared<GyroSensor>(this, port, imuStreamerSharedPtr, true);
 
                 sensor->enableTimestampAnomalyDetection(false);
 
@@ -472,6 +477,9 @@ void EGODevice::initProperties() {
         propertyServer->registerProperty(OB_STRUCT_GET_GYRO_PRESETS_FULL_SCALE_LIST, "", "rw", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_PROP_ACCEL_SWITCH_BOOL, "", "rw", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_PROP_GYRO_SWITCH_BOOL, "", "rw", vendorPropertyAccessor);
+        propertyServer->registerProperty(OB_PROP_FW_RECORDING_STATE_BOOL, "", "r", vendorPropertyAccessor);
+        propertyServer->registerProperty(OB_PROP_FW_RECORDING_FILE_SPLIT_DURATION_MIN_INT, "rw", "rw", vendorPropertyAccessor);
+        propertyServer->registerProperty(OB_RAW_DATA_FW_RECORDING_PROFILE_LIST, "", "rw", vendorPropertyAccessor);
         // propertyServer->registerProperty(OB_RAW_DATA_IMU_CALIB_PARAM, "", "rw", vendorPropertyAccessor);
         // propertyServer->registerProperty(OB_RAW_DATA_ALIGN_CALIB_PARAM, "", "r", vendorPropertyAccessor);
         //  Transparent YAML passthrough interfaces for production calibration.

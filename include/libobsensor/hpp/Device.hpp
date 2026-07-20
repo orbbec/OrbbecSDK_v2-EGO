@@ -372,6 +372,37 @@ public:
     }
 
     /**
+     * @brief Get firmware recording profile list saved on the device.
+     *
+     * @return std::vector<OBFwRecordStreamProfile> Firmware recording profile list
+     */
+    std::vector<OBFwRecordStreamProfile> getFwRecordProfileList() const {
+        ob_error *error = nullptr;
+        uint32_t  count = 0;
+        ob_device_get_fw_record_profile_list(impl_, nullptr, &count, &error);
+        Error::handle(&error);
+
+        std::vector<OBFwRecordStreamProfile> profiles(count);
+        if(count > 0) {
+            ob_device_get_fw_record_profile_list(impl_, profiles.data(), &count, &error);
+            Error::handle(&error);
+            profiles.resize(count);
+        }
+        return profiles;
+    }
+
+    /**
+     * @brief Set firmware recording profile list used by device-side recording.
+     *
+     * @param[in] profiles Firmware recording profile list
+     */
+    void setFwRecordProfileList(const std::vector<OBFwRecordStreamProfile> &profiles) const {
+        ob_error *error = nullptr;
+        ob_device_set_fw_record_profile_list(impl_, profiles.data(), static_cast<uint32_t>(profiles.size()), &error);
+        Error::handle(&error);
+    }
+
+    /**
      * @brief Set the customer data type of a device property
      *
      * @param[in] data The data to set

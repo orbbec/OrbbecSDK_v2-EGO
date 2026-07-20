@@ -692,7 +692,7 @@ typedef enum {
     /**
      * @brief Audio (microphone) capture gain  
      */
-    OB_PROP_AUDIO_GAIN_INT = 281,//TODO
+    OB_PROP_RECORDING_PROMPT_INT = 281,//TODO
 
     /**
      * @brief Audio (microphone) automatic gain control switch (true: enabled)
@@ -749,6 +749,13 @@ typedef enum {
      *       OB_PROP_ACTION_GROUP_KEY_INT on the same device.
      */
     OB_PROP_ACTION_GROUP_MASK_INT = 301,
+
+    /**
+     * @brief Firmware-side recording file split duration, unit: minute
+     *
+     * @attention read and write
+     */
+    OB_PROP_FW_RECORDING_FILE_SPLIT_DURATION_MIN_INT = 283,
 
     /**
      * @brief Baseline calibration parameters

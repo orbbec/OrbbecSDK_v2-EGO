@@ -32,17 +32,23 @@ bool checkStatus(uint32_t propertyId, HpStatus stat, bool throwException) {
         LOG_WARN("Request failed, device response with warning, errorCode: {0}, msg:{1}, propertyId: {2}", static_cast<int>(stat.respErrorCode), stat.msg,
                  propertyId);
         return false;
-    case HP_STATUS_DEVICE_RESPONSE_ERROR:
+    case HP_STATUS_DEVICE_RESPONSE_ERROR: {
         retMsg = std::string("Request failed, device response with error, errorCode: ") + std::to_string(stat.respErrorCode) + ", msg: " + stat.msg
                  + ", propertyId: " + std::to_string(propertyId);
+        OBStatus errorStatus = OB_ERROR_DEVICE_RESPONSE_ERROR;
+        if(stat.respErrorCode == HP_RESP_ERROR_OPERATION_NOT_ALLOWED_WHILE_RECORDING) {
+            errorStatus = OB_ERROR_RESOURCE_BUSY;
+            retMsg += ", device is streaming or recording to SD card; stop streaming and SD card recording before configuring";
+        }
         if(throwException) {
-            THROW_IO_EXCEPTION_WITH_ERROR(retMsg, OB_ERROR_DEVICE_RESPONSE_ERROR);
+            THROW_IO_EXCEPTION_WITH_ERROR(retMsg, errorStatus);
         }
         else {
             LOG_ERROR(retMsg);
             return false;
         }
         break;
+    }
     case HP_STATUS_DEVICE_RESPONSE_ERROR_UNKNOWN:
         retMsg = std::string("Request failed, device response with unknown error! propertyId: ") + std::to_string(propertyId);
         if(throwException) {

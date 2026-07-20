@@ -98,6 +98,9 @@ typedef enum {
     OB_PROP_LIDAR_TX_LOWER_POWER_VOLTAGE_INT     = 8032, /**< LiDAR: get tx lower power voltage, uint: 0.01v*/
     OB_RAW_DATA_LIDAR_MOTOR_VERSION              = 8033, /**< LiDAR: get motor version*/
     OB_RAW_DATA_LIDAR_MEMS_VERSION               = 8034, /**< LiDAR: get mems version*/
+
+    OB_PROP_FW_RECORDING_STATE_BOOL       = 282,  /**< Whether firmware is recording to storage */
+    OB_RAW_DATA_FW_RECORDING_PROFILE_LIST = 1096, /**< Current firmware recording profile list, OBInternalStreamProfile[] */
 } OBInternalPropertyID;
 
 }  // namespace libobsensor

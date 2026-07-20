@@ -20,7 +20,11 @@
 #endif
 #include "IAlgParamManager.hpp"
 #include "IFrameTimestamp.hpp"
+#include "component/fwrecord/FwRecordProfileManager.hpp"
 #include "hid/DirectionKeyService.hpp"
+#include "utils/PublicTypeHelper.hpp"
+
+#include <cstring>
 
 #ifdef __cplusplus
 extern "C" {
@@ -550,6 +554,34 @@ void ob_device_get_raw_data(ob_device *device, ob_property_id property_id, ob_ge
         libobsensor::PROP_ACCESS_USER);
 }
 HANDLE_EXCEPTIONS_NO_RETURN(device, property_id, user_data)
+
+void ob_device_get_fw_record_profile_list(ob_device *device, ob_fw_record_stream_profile *profiles, uint32_t *profile_count,
+                                          ob_error **error) BEGIN_API_CALL {
+    VALIDATE_NOT_NULL(device);
+    VALIDATE_NOT_NULL(profile_count);
+
+    auto fwRecordProfileManager =
+        device->device->getComponentT<libobsensor::IFwRecordProfileManager>(libobsensor::OB_DEV_COMPONENT_FW_RECORD_PROFILE_MANAGER, false);
+    if(!fwRecordProfileManager) {
+        THROW_UNSUPPORTED_OPERATION_EXCEPTION("Firmware recording profile list is not supported by this device");
+    }
+    fwRecordProfileManager->getProfileList(profiles, profile_count);
+}
+HANDLE_EXCEPTIONS_NO_RETURN(device, profiles, profile_count)
+
+void ob_device_set_fw_record_profile_list(ob_device *device, const ob_fw_record_stream_profile *profiles, uint32_t profile_count,
+                                          ob_error **error) BEGIN_API_CALL {
+    VALIDATE_NOT_NULL(device);
+    VALIDATE_NOT_NULL(profiles);
+
+    auto fwRecordProfileManager =
+        device->device->getComponentT<libobsensor::IFwRecordProfileManager>(libobsensor::OB_DEV_COMPONENT_FW_RECORD_PROFILE_MANAGER, false);
+    if(!fwRecordProfileManager) {
+        THROW_UNSUPPORTED_OPERATION_EXCEPTION("Firmware recording profile list is not supported by this device");
+    }
+    fwRecordProfileManager->setProfileList(profiles, profile_count);
+}
+HANDLE_EXCEPTIONS_NO_RETURN(device, profiles, profile_count)
 
 void ob_device_write_customer_data(ob_device *device, const void *data, uint32_t data_size, ob_error **error) BEGIN_API_CALL {
     VALIDATE_NOT_NULL(device);

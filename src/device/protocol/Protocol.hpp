@@ -80,6 +80,7 @@ enum HpRespErrorCode {
     HP_RESP_ERROR_ACCESS_FORBIDDEN    = 0x0004,  // Access to the device is forbidden
     HP_RESP_ERROR_ERROR_COMMAND       = 0x0005,  // Error executing the request command
     HP_RESP_ERROR_RESOURCE_NOT_FOUND  = 0x0006,  // Specified resource not found
+    HP_RESP_ERROR_OPERATION_NOT_ALLOWED_WHILE_RECORDING = 0x0007,  // Device is recording to SD card; configuration is not allowed
 
     // warning
     HP_RESP_WARNING_REPETITIVE_REQUEST = 0x8000,

@@ -3,6 +3,7 @@
 
 #include "EGONetDevice.hpp"
 #include "EGOAlgParamManager.hpp"
+#include "EGOStreamStrategy.hpp"
 #include "environment/EnvConfig.hpp"
 #include "stream/StreamProfileFactory.hpp"
 #include "sensor/video/VideoSensor.hpp"
@@ -18,6 +19,7 @@
 #include "property/PropertyServer.hpp"
 #include "property/CommonPropertyAccessors.hpp"
 #include "property/FilterPropertyAccessors.hpp"
+#include "component/fwrecord/FwRecordProfileManager.hpp"
 
 #include "FilterFactory.hpp"
 #include "publicfilters/IMUCorrector.hpp"
@@ -74,6 +76,7 @@ void EGONetDevice::init() {
 
         auto deviceClockSynchronizer = std::make_shared<DeviceClockSynchronizer>(this, deviceTimeFreq_, deviceTimeFreq_);
         registerComponent(OB_DEV_COMPONENT_DEVICE_CLOCK_SYNCHRONIZER, deviceClockSynchronizer);
+        registerComponent(OB_DEV_COMPONENT_FW_RECORD_PROFILE_MANAGER, [this]() { return std::make_shared<FwRecordProfileManager>(this); });
     }
 
     // firmware updater
@@ -120,6 +123,8 @@ void EGONetDevice::fetchDeviceInfo() {
 }
 
 void EGONetDevice::initSensorList() {
+    registerComponent(OB_DEV_COMPONENT_SENSOR_STREAM_STRATEGY, [this]() { return std::make_shared<EGOStreamStrategy>(this); });
+
     registerComponent(OB_DEV_COMPONENT_FRAME_PROCESSOR_FACTORY, [this]() {
         std::shared_ptr<FrameProcessorFactory> factory;
         TRY_EXECUTE({ factory = std::make_shared<FrameProcessorFactory>(this); })
@@ -262,7 +267,7 @@ void EGONetDevice::initSensorList() {
                 auto port                 = getSourcePort(imuPortInfo);
                 auto imuStreamer          = getComponentT<ImuStreamer>(OB_DEV_COMPONENT_IMU_STREAMER);
                 auto imuStreamerSharedPtr = imuStreamer.get();
-                auto sensor               = std::make_shared<AccelSensor>(this, port, imuStreamerSharedPtr);
+                auto sensor               = std::make_shared<AccelSensor>(this, port, imuStreamerSharedPtr, true);
 
                 // [EGO-WIP] EGO firmware does not yet provide a reliable per-frame IMU device timestamp, which
                 // trips the anomaly detector and drops every frame. Disable it until the timestamp is fixed.
@@ -280,7 +285,7 @@ void EGONetDevice::initSensorList() {
                 auto port                 = getSourcePort(imuPortInfo);
                 auto imuStreamer          = getComponentT<ImuStreamer>(OB_DEV_COMPONENT_IMU_STREAMER);
                 auto imuStreamerSharedPtr = imuStreamer.get();
-                auto sensor               = std::make_shared<GyroSensor>(this, port, imuStreamerSharedPtr);
+                auto sensor               = std::make_shared<GyroSensor>(this, port, imuStreamerSharedPtr, true);
 
                 // [EGO-WIP] EGO firmware does not yet provide a reliable per-frame IMU device timestamp, which
                 // trips the anomaly detector and drops every frame. Disable it until the timestamp is fixed.
@@ -366,6 +371,9 @@ void EGONetDevice::initProperties() {
     propertyServer->registerProperty(OB_RAW_DATA_IMU_CALIB_YAML, "r", "r", vendorPropertyAccessor);
 
     propertyServer->registerProperty(OB_RAW_DATA_STREAM_PROFILE_LIST, "r", "r", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_PROP_FW_RECORDING_STATE_BOOL, "", "r", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_PROP_FW_RECORDING_FILE_SPLIT_DURATION_MIN_INT, "rw", "rw", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_RAW_DATA_FW_RECORDING_PROFILE_LIST, "", "rw", vendorPropertyAccessor);
 
     // propertyServer->registerProperty(OB_PROP_DEVICE_IN_RECOVERY_MODE_BOOL, "rw", "rw", vendorPropertyAccessor);
     // propertyServer->registerProperty(OB_PROP_BOOT_INTO_RECOVERY_MODE_BOOL, "w", "w", vendorPropertyAccessor);

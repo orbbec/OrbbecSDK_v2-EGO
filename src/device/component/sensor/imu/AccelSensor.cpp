@@ -3,6 +3,7 @@
 
 #include "AccelSensor.hpp"
 #include "IDevice.hpp"
+#include "ISensorStreamStrategy.hpp"
 #include "property/InternalProperty.hpp"
 #include "stream/StreamProfileFactory.hpp"
 
@@ -20,8 +21,11 @@ typedef struct {
 } AccelFullScaleRangeList;
 #pragma pack()
 
-AccelSensor::AccelSensor(IDevice *owner, const std::shared_ptr<ISourcePort> &backend, const std::shared_ptr<IStreamer> &streamer)
-    : SensorBase(owner, OB_SENSOR_ACCEL, backend), streamer_(streamer) {
+AccelSensor::AccelSensor(IDevice *owner, const std::shared_ptr<ISourcePort> &backend, const std::shared_ptr<IStreamer> &streamer,
+                         bool enableStreamStrategyValidation)
+    : SensorBase(owner, OB_SENSOR_ACCEL, backend),
+      streamer_(streamer),
+      enableStreamStrategyValidation_(enableStreamStrategyValidation) {
     auto propServer = owner->getPropertyServer();
 
     auto accelSampleRateList     = propServer->getStructureDataT<AccelSampleRateList>(OB_STRUCT_GET_ACCEL_PRESETS_ODR_LIST);
@@ -63,11 +67,18 @@ void AccelSensor::start(std::shared_ptr<const StreamProfile> sp, FrameCallback c
     // validate device state
     validateDeviceState(sp);
 
+    auto owner = getOwner();
+    if(enableStreamStrategyValidation_) {
+        auto strategy = owner->getComponentT<ISensorStreamStrategy>(OB_DEV_COMPONENT_SENSOR_STREAM_STRATEGY, false);
+        if(strategy) {
+            strategy->validateStream(sp);
+        }
+    }
+
     activatedStreamProfile_ = sp;
     frameCallback_          = callback;
     updateStreamState(STREAM_STATE_STARTING);
 
-    auto owner      = getOwner();
     auto propServer = owner->getPropertyServer();
 
     auto accelSp = sp->as<AccelStreamProfile>();

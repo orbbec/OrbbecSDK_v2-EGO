@@ -306,6 +306,33 @@ typedef enum {
 } OBFormat,
     ob_format;
 
+/**
+ * @brief Firmware recording stream profile.
+ *
+ * This is an application-facing structure. The SDK converts it to the fixed
+ * firmware wire layout before sending property 1096.
+ * For video profiles, formatType uses @ref ob_format.
+ */
+typedef struct {
+    uint16_t sensorType; /**< enum value of @ref ob_sensor_type */
+    union {
+        struct {
+            uint32_t width;
+            uint32_t height;
+            uint32_t fps;
+            uint32_t formatType; /**< enum value of @ref ob_format */
+        } video;
+        struct {
+            uint16_t fullScaleRange; /**< enum value of @ref ob_accel_full_scale_range */
+            uint16_t sampleRate;     /**< enum value of @ref ob_accel_sample_rate */
+        } accel;
+        struct {
+            uint16_t fullScaleRange; /**< enum value of @ref ob_gyro_full_scale_range */
+            uint16_t sampleRate;     /**< enum value of @ref ob_gyro_sample_rate */
+        } gyro;
+    } profile;
+} OBFwRecordStreamProfile, ob_fw_record_stream_profile;
+
 #define OB_FORMAT_RGB888 OB_FORMAT_RGB  // Alias of OB_FORMAT_RGB for compatibility
 #define OB_FORMAT_MJPEG OB_FORMAT_MJPG  // Alias of OB_FORMAT_MJPG for compatibility
 

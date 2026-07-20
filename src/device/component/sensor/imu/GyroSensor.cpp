@@ -3,6 +3,7 @@
 
 #include "GyroSensor.hpp"
 #include "IDevice.hpp"
+#include "ISensorStreamStrategy.hpp"
 #include "property/InternalProperty.hpp"
 #include "stream/StreamProfileFactory.hpp"
 
@@ -20,8 +21,11 @@ typedef struct {
 } GyroFullScaleRangeList;
 #pragma pack()
 
-GyroSensor::GyroSensor(IDevice *owner, const std::shared_ptr<ISourcePort> &backend, const std::shared_ptr<IStreamer> &streamer)
-    : SensorBase(owner, OB_SENSOR_GYRO, backend), streamer_(streamer) {
+GyroSensor::GyroSensor(IDevice *owner, const std::shared_ptr<ISourcePort> &backend, const std::shared_ptr<IStreamer> &streamer,
+                       bool enableStreamStrategyValidation)
+    : SensorBase(owner, OB_SENSOR_GYRO, backend),
+      streamer_(streamer),
+      enableStreamStrategyValidation_(enableStreamStrategyValidation) {
     auto propServer = owner->getPropertyServer();
 
     auto gyroSampleRateList     = propServer->getStructureDataT<GyroSampleRateList>(OB_STRUCT_GET_GYRO_PRESETS_ODR_LIST);
@@ -63,11 +67,18 @@ void GyroSensor::start(std::shared_ptr<const StreamProfile> sp, FrameCallback ca
     // validate device state
     validateDeviceState(sp);
 
+    auto owner = getOwner();
+    if(enableStreamStrategyValidation_) {
+        auto strategy = owner->getComponentT<ISensorStreamStrategy>(OB_DEV_COMPONENT_SENSOR_STREAM_STRATEGY, false);
+        if(strategy) {
+            strategy->validateStream(sp);
+        }
+    }
+
     activatedStreamProfile_ = sp;
     frameCallback_          = callback;
     updateStreamState(STREAM_STATE_STARTING);
 
-    auto owner      = getOwner();
     auto propServer = owner->getPropertyServer();
 
     auto gyroSp = sp->as<GyroStreamProfile>();

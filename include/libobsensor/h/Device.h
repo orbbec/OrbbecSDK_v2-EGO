@@ -245,6 +245,26 @@ OB_EXPORT void ob_device_clear_license_info(ob_device *device, ob_error **error)
 OB_EXPORT void ob_device_get_raw_data(ob_device *device, ob_property_id property_id, ob_get_data_callback cb, void *user_data, ob_error **error);
 
 /**
+ * @brief Get the firmware recording profile list saved on the device.
+ *
+ * @param[in] device The device object.
+ * @param[out] profiles Output profile buffer. Set to NULL to query the required profile count.
+ * @param[in,out] profile_count Input buffer capacity when profiles is not NULL; output actual profile count.
+ * @param[out] error Pointer to an error object that will be set if an error occurs.
+ */
+OB_EXPORT void ob_device_get_fw_record_profile_list(ob_device *device, ob_fw_record_stream_profile *profiles, uint32_t *profile_count, ob_error **error);
+
+/**
+ * @brief Set the firmware recording profile list used by device-side recording.
+ *
+ * @param[in] device The device object.
+ * @param[in] profiles Profile list to save to firmware.
+ * @param[in] profile_count Profile count.
+ * @param[out] error Pointer to an error object that will be set if an error occurs.
+ */
+OB_EXPORT void ob_device_set_fw_record_profile_list(ob_device *device, const ob_fw_record_stream_profile *profiles, uint32_t profile_count, ob_error **error);
+
+/**
  * @brief Set customer data.
  *
  * @param[in] device The device object.

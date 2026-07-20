@@ -9,7 +9,8 @@
 namespace libobsensor {
 class GyroSensor : public SensorBase {
 public:
-    GyroSensor(IDevice *owner, const std::shared_ptr<ISourcePort> &backend, const std::shared_ptr<IStreamer> &streamer);
+    GyroSensor(IDevice *owner, const std::shared_ptr<ISourcePort> &backend, const std::shared_ptr<IStreamer> &streamer,
+               bool enableStreamStrategyValidation = false);
     ~GyroSensor() noexcept override;
 
     void start(std::shared_ptr<const StreamProfile> sp, FrameCallback callback) override;
@@ -17,5 +18,6 @@ public:
 
 private:
     std::shared_ptr<IStreamer> streamer_;
+    bool                       enableStreamStrategyValidation_;
 };
 }  // namespace libobsensor
