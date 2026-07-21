@@ -13,7 +13,7 @@ namespace libobsensor {
 
 class IFwRecordProfileManager : virtual public IDeviceComponent {
 public:
-    virtual ~IFwRecordProfileManager() = default;
+    ~IFwRecordProfileManager() override = default;
 
     virtual void getProfileList(ob_fw_record_stream_profile *profiles, uint32_t *profileCount) = 0;
     virtual void setProfileList(const ob_fw_record_stream_profile *profiles, uint32_t profileCount) = 0;

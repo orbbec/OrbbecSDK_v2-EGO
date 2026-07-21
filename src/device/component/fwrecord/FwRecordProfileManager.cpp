@@ -65,7 +65,11 @@ ob_fw_record_stream_profile fromInternalFwRecordProfile(const OBInternalStreamPr
         profile.profile.video.width      = internalProfile.profile.video.width;
         profile.profile.video.height     = internalProfile.profile.video.height;
         profile.profile.video.fps        = internalProfile.profile.video.fps;
-        profile.profile.video.formatType = utils::uvcFourccToOBFormat(internalProfile.profile.video.formatFourcc);
+        auto format = utils::uvcFourccToOBFormat(internalProfile.profile.video.formatFourcc);
+        if(format == OB_FORMAT_HEVC) {
+            format = OB_FORMAT_H265;
+        }
+        profile.profile.video.formatType = format;
     }
     else if(internalProfile.sensorType == OB_SENSOR_ACCEL) {
         profile.profile.accel.fullScaleRange = internalProfile.profile.accel.fullScaleRange;
