@@ -18,7 +18,6 @@
 #include "usb/uvc/UvcDevicePort.hpp"
 
 #include "metadata/FrameMetadataParserContainer.hpp"
-#include "timestamp/GlobalTimestampFitter.hpp"
 #include "timestamp/FrameTimestampCalculator.hpp"
 #include "timestamp/DeviceClockSynchronizer.hpp"
 #include "property/VendorPropertyAccessor.hpp"
