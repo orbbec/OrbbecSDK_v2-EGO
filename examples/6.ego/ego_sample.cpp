@@ -286,6 +286,39 @@ static void printImuValue(OBFloat3D val, uint64_t index, uint64_t tsUs, float te
               << " x=" << val.x << unit << " y=" << val.y << unit << " z=" << val.z << unit << std::endl;
 }
 
+static const char *egoWorkStateToString(OBEgoWorkState state) {
+    switch(state) {
+    case OB_EGO_WORK_STATE_BOOTING:
+        return "BOOTING";
+    case OB_EGO_WORK_STATE_SELF_TESTING:
+        return "SELF_TESTING";
+    case OB_EGO_WORK_STATE_READY:
+        return "READY";
+    case OB_EGO_WORK_STATE_RECORD_COUNTDOWN:
+        return "RECORD_COUNTDOWN";
+    case OB_EGO_WORK_STATE_RECORDING:
+        return "RECORDING";
+    case OB_EGO_WORK_STATE_STOPPING_RECORD:
+        return "STOPPING_RECORD";
+    case OB_EGO_WORK_STATE_SAVING:
+        return "SAVING";
+    case OB_EGO_WORK_STATE_FW_UPGRADING:
+        return "FW_UPGRADING";
+    case OB_EGO_WORK_STATE_SHUTTING_DOWN:
+        return "SHUTTING_DOWN";
+    case OB_EGO_WORK_STATE_FAULT:
+        return "FAULT";
+    default:
+        return "UNKNOWN";
+    }
+}
+
+static void printEgoState(const OBEgoStateReport &state) {
+    std::cout << "Ego state: protocol=" << state.protocol_version << " seq=" << state.sequence << " workState=" << egoWorkStateToString(state.work_state)
+              << " stateFlags=0x" << std::hex << state.state_flags << " errorFlags=0x" << state.error_flags << std::dec
+              << " storageFreeBytes=" << state.storage_free_bytes << std::endl;
+}
+
 int main(void) try {
 
     // On Linux, select the UVC backend before opening any device.
@@ -307,13 +340,22 @@ int main(void) try {
     // Start the pipeline with config.
     pipe.start(config);
 
+    auto device = pipe.getDevice();
+
+    try {
+        device->setEgoStateCallback([](const OBEgoStateReport &state) { printEgoState(state); });
+        std::cout << "Ego state callback registered." << std::endl;
+    }
+    catch(ob::Error &e) {
+        std::cerr << "Ego state unavailable: " << e.what() << std::endl;
+    }
+
     // ---- Audio: start the audio sensor directly, play it back and save it to a .wav file ----
     std::shared_ptr<ob::Sensor> audioSensor;
     AudioPlayer                 audioPlayer;
     // WavWriter                   wavWriter;
     // const std::string           wavPath = "ego_audio.wav";
     try {
-        auto device = pipe.getDevice();
         audioSensor = device->getSensor(OB_SENSOR_AUDIO);
         if(audioSensor) {
             auto profiles = audioSensor->getStreamProfileList();
@@ -380,7 +422,6 @@ int main(void) try {
     // ---- IMU: dedicated pipeline (separate from video pipeline) with frameset callback ----
     std::shared_ptr<ob::Pipeline> imuPipe;
     try {
-        auto device    = pipe.getDevice();
         imuPipe        = std::make_shared<ob::Pipeline>(device);
         auto imuConfig = std::make_shared<ob::Config>();
         imuConfig->enableAccelStream();

@@ -124,22 +124,25 @@ void ImuStreamer::stopStream(std::shared_ptr<const StreamProfile> sp) {
 
 void ImuStreamer::parseIMUData(std::shared_ptr<Frame> frame) {
     auto         data     = frame->getData();
-    OBImuHeader *header   = (OBImuHeader *)data;
     auto         dataSize = frame->getDataSize();
-
-    if(header->reportId != 1) {
-        LOG_WARN_INTVL("Imu header is invalid,drop imu package!");
+    if(dataSize < sizeof(OBHidHeader)) {
         return;
     }
 
-    const auto computeDataSize = sizeof(OBImuHeader) + sizeof(OBImuOriginData) * header->groupCount;
+    OBHidHeader *header = (OBHidHeader *)data;
+
+    if(header->reportId != OB_HID_REPORT_ID_IMU) {
+        return;
+    }
+
+    const auto computeDataSize = sizeof(OBHidHeader) + sizeof(OBImuOriginData) * header->groupCount;
     if(dataSize < computeDataSize) {
         LOG_WARN_INTVL("Imu header is invalid, drop imu package!, invalid data size. dataSize={}, computeDataSize={}, groupCount={}", dataSize, computeDataSize,
                        header->groupCount);
         return;
     }
 
-    const auto computeDataSizeP = sizeof(OBImuHeader) + static_cast<size_t>(header->groupLen) * header->groupCount;
+    const auto computeDataSizeP = sizeof(OBHidHeader) + static_cast<size_t>(header->groupLen) * header->groupCount;
     if(dataSize < computeDataSizeP) {
         LOG_WARN_INTVL("Imu header is invalid, drop imu package!, invalid data size. dataSize={}, computeDataSizeP={}, groupCount={}", dataSize,
                        computeDataSizeP, header->groupCount);
@@ -176,7 +179,7 @@ void ImuStreamer::parseIMUData(std::shared_ptr<Frame> frame) {
         }
     }
 
-    uint8_t *imuOrgData = (uint8_t *)data + sizeof(OBImuHeader);
+    uint8_t *imuOrgData = (uint8_t *)data + sizeof(OBHidHeader);
     for(int groupIndex = discardCount; groupIndex < header->groupCount; groupIndex++) {
         auto frameSet = FrameFactory::createFrameSet();
 

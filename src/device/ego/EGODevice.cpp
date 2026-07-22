@@ -14,6 +14,7 @@
 #include "sensor/imu/GyroSensor.hpp"
 #include "sensor/audio/AudioSensor.hpp"
 #include "hid/SharedDataStreamPort.hpp"
+#include "hid/EgoStateService.hpp"
 #include "hid/DirectionKeyService.hpp"
 #include "usb/uvc/UvcDevicePort.hpp"
 
@@ -350,6 +351,11 @@ void EGODevice::initSensorList() {
             return std::make_shared<DirectionKeyService>(this, sharedHidPort->createClientPort());
         });
 
+        registerComponent(OB_DEV_COMPONENT_EGO_STATE_SERVICE, [this]() {
+            auto sharedHidPort = getComponentT<SharedDataStreamPort>(OB_DEV_COMPONENT_SHARED_HID_STREAM);
+            return std::make_shared<EgoStateService>(this, sharedHidPort->createClientPort());
+        });
+
         registerComponent(
             OB_DEV_COMPONENT_ACCEL_SENSOR,
             [this, imuPortInfo]() {
@@ -483,7 +489,7 @@ void EGODevice::initProperties() {
         // propertyServer->registerProperty(OB_RAW_DATA_ALIGN_CALIB_PARAM, "", "r", vendorPropertyAccessor);
         //  Transparent YAML passthrough interfaces for production calibration.
         //  The firmware writes YAML files to flash during calibration; these properties read them back as
-        //  raw bytes. The SDK does not parse the data — the application layer saves it directly to a file.
+        //  raw bytes. The SDK does not parse the data; the application layer saves it directly to a file.
         propertyServer->registerProperty(OB_RAW_DATA_ALIGN_CALIB_YAML, "r", "r", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_RAW_DATA_IMU_CALIB_YAML, "r", "r", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_PROP_COLOR_BITRATE_INT, "rw", "rw", vendorPropertyAccessor);

@@ -6,6 +6,7 @@
 #include "IFilter.hpp"
 #include "ISourcePort.hpp"
 #include "IDeviceComponent.hpp"
+#include "hid/HidTypes.hpp"
 #include "ImuCalculator.hpp"
 #include "IStreamer.hpp"
 
@@ -16,14 +17,6 @@
 namespace libobsensor {
 
 // Original imu data, software packaging method, needs to be calculated on the sdk side
-typedef struct {
-    uint8_t  reportId;    // Firmware fixed transmission 1
-    uint8_t  sampleRate;  // OB_SAMPLE_RATE
-    uint8_t  groupLen;    // sizeof(OBImuOriginData)
-    uint8_t  groupCount;  // How many frames of data are in a packet.
-    uint32_t reserved;    // reserve
-} OBImuHeader;
-
 typedef struct {
     int16_t  groupId;  // The number of groups in a pack
     int16_t  accelX;

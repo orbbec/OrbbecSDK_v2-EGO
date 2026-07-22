@@ -438,6 +438,24 @@ OB_EXPORT void ob_device_set_direction_key_callback(ob_device *device, ob_device
 OB_EXPORT void ob_device_clear_direction_key_callback(ob_device *device, ob_error **error);
 
 /**
+ * @brief Set the Ego device state callback.
+ *
+ * @param[in] device The device object.
+ * @param[in] callback The callback function to be called when an Ego state report is received.
+ * @param[in] user_data User-defined data that will be returned in the callback.
+ * @param[out] error Pointer to an error object that will be set if an error occurs.
+ */
+OB_EXPORT void ob_device_set_ego_state_callback(ob_device *device, ob_ego_state_callback callback, void *user_data, ob_error **error);
+
+/**
+ * @brief Clear the Ego device state callback.
+ *
+ * @param[in] device The device object.
+ * @param[out] error Pointer to an error object that will be set if an error occurs.
+ */
+OB_EXPORT void ob_device_clear_ego_state_callback(ob_device *device, ob_error **error);
+
+/**
  * @brief Enable or disable the device heartbeat.
  *
  * When enabled, the SDK sends heartbeat signals at the device monitor polling interval. The default interval is 3000 ms and can be adjusted with

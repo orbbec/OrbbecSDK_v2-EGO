@@ -2180,6 +2180,79 @@ typedef struct {
     ob_direction_key_infomation;
 
 /**
+ * @brief Ego device work state reported through HID.
+ */
+typedef enum {
+    OB_EGO_WORK_STATE_BOOTING          = 0, /**< Device is booting. */
+    OB_EGO_WORK_STATE_SELF_TESTING     = 1, /**< Device self-test is running. */
+    OB_EGO_WORK_STATE_READY            = 2, /**< Device is ready. */
+    OB_EGO_WORK_STATE_RECORD_COUNTDOWN = 3, /**< Recording countdown is in progress. */
+    OB_EGO_WORK_STATE_RECORDING        = 4, /**< Device is recording. */
+    OB_EGO_WORK_STATE_STOPPING_RECORD  = 5, /**< Device is stopping recording. */
+    OB_EGO_WORK_STATE_SAVING           = 6, /**< File packaging or saving is in progress. */
+    OB_EGO_WORK_STATE_FW_UPGRADING     = 7, /**< Firmware upgrade is in progress. */
+    OB_EGO_WORK_STATE_SHUTTING_DOWN    = 8, /**< Device is shutting down. */
+    OB_EGO_WORK_STATE_FAULT            = 9, /**< Device is in a severe fault state. */
+} OBEgoWorkState,
+    ob_ego_work_state;
+
+/**
+ * @brief Ego device state flags reported through HID. Multiple flags can be set at the same time.
+ */
+typedef enum {
+    OB_EGO_STATE_NONE             = 0,       /**< No state flag is set. */
+    OB_EGO_STATE_EXTERNAL_POWER   = 1U << 0, /**< External power is connected. */
+    OB_EGO_STATE_AUDIO_MUTED      = 1U << 1, /**< Audio is muted. */
+    OB_EGO_STATE_STORAGE_PRESENT  = 1U << 2, /**< Storage card is detected. */
+    OB_EGO_STATE_WIFI_CONFIG_MODE = 1U << 3, /**< Device is in Wi-Fi configuration mode. */
+    OB_EGO_STATE_WIFI_CONNECTED   = 1U << 4, /**< Wi-Fi is connected. */
+    OB_EGO_STATE_BLE_CONNECTED    = 1U << 5, /**< BLE is connected. */
+    OB_EGO_STATE_HOST_CONNECTED   = 1U << 6, /**< Host is connected. */
+} OBEgoStateFlag,
+    ob_ego_state_flag;
+
+/**
+ * @brief Ego device error flags reported through HID. Multiple flags can be set at the same time.
+ */
+typedef enum {
+    OB_EGO_ERROR_NONE                 = 0,          /**< No error flag is set. */
+    OB_EGO_ERROR_UNKNOWN              = 1ULL << 0,  /**< Undefined error. */
+    OB_EGO_ERROR_INTERNAL             = 1ULL << 1,  /**< Internal system error. */
+    OB_EGO_ERROR_SELF_TEST            = 1ULL << 2,  /**< Power-on self-test failed. */
+    OB_EGO_ERROR_CAMERA               = 1ULL << 3,  /**< Camera error. */
+    OB_EGO_ERROR_IMU                  = 1ULL << 4,  /**< IMU error. */
+    OB_EGO_ERROR_SYNC                 = 1ULL << 5,  /**< Synchronization error. */
+    OB_EGO_ERROR_MIC                  = 1ULL << 6,  /**< Microphone error. */
+    OB_EGO_ERROR_STORAGE_NOT_FOUND    = 1ULL << 7,  /**< Storage card is not detected. */
+    OB_EGO_ERROR_STORAGE_READ_ONLY    = 1ULL << 8,  /**< Storage card is read-only. */
+    OB_EGO_ERROR_STORAGE_LOW_SPACE    = 1ULL << 9,  /**< Storage space is low. */
+    OB_EGO_ERROR_STORAGE_FULL         = 1ULL << 10, /**< Storage space is full. */
+    OB_EGO_ERROR_STORAGE_WRITE        = 1ULL << 11, /**< Storage write error. */
+    OB_EGO_ERROR_FILE_SAVE            = 1ULL << 12, /**< File packaging or saving failed. */
+    OB_EGO_ERROR_POWER                = 1ULL << 13, /**< Power error. */
+    OB_EGO_ERROR_OVER_TEMP_PROTECTION = 1ULL << 14, /**< Over-temperature protection is active. */
+    OB_EGO_ERROR_WIFI_CONFIG          = 1ULL << 15, /**< Wi-Fi configuration failed. */
+    OB_EGO_ERROR_WIFI_DISCONNECTED    = 1ULL << 16, /**< Wi-Fi disconnected unexpectedly. */
+    OB_EGO_ERROR_BLE_DISCONNECTED     = 1ULL << 17, /**< BLE disconnected unexpectedly. */
+    OB_EGO_ERROR_FW_UPGRADE           = 1ULL << 18, /**< Firmware upgrade failed. */
+    OB_EGO_ERROR_RECORD_ABORTED       = 1ULL << 19, /**< Recording aborted unexpectedly. */
+} OBEgoErrorFlag,
+    ob_ego_error_flag;
+
+/**
+ * @brief Ego device state information reported through HID.
+ */
+typedef struct {
+    uint32_t       protocol_version;    /**< Protocol version. */
+    uint32_t       sequence;            /**< State packet sequence number. */
+    OBEgoWorkState work_state;          /**< Current work state. */
+    uint32_t       state_flags;         /**< Combined value of @ref OBEgoStateFlag. */
+    uint64_t       error_flags;         /**< Combined value of @ref OBEgoErrorFlag. */
+    uint64_t       storage_free_bytes;  /**< Free storage space in bytes. */
+} OBEgoStateReport,
+    ob_ego_state_report;
+
+/**
  * @brief Callback for file transfer
  *
  * @param[in] state Transmission status
@@ -2215,6 +2288,14 @@ typedef void (*ob_device_state_callback)(ob_device_state state, const char *mess
  * @param[in] user_data User-defined data.
  */
 typedef void (*ob_device_direction_key_callback)(const OBDirectionKeyInfomation *info, void *user_data);
+
+/**
+ * @brief Callback for Ego HID state notifications.
+ *
+ * @param[in] state Ego device state information.
+ * @param[in] user_data User-defined data.
+ */
+typedef void (*ob_ego_state_callback)(const OBEgoStateReport *state, void *user_data);
 
 /**
  * @brief Callback for writing data

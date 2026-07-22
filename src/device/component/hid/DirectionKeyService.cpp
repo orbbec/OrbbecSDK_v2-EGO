@@ -4,6 +4,7 @@
 #include "DirectionKeyService.hpp"
 
 #include "frame/Frame.hpp"
+#include "hid/HidTypes.hpp"
 #include "logger/Logger.hpp"
 #include "logger/LoggerInterval.hpp"
 #include "utils/alg_write_flash_crc.h"
@@ -14,18 +15,9 @@ namespace libobsensor {
 
 namespace {
 
-constexpr uint8_t HID_REPORT_ID_DIRECTION_KEY = 2;
-constexpr uint32_t DIRECTION_KEY_MAGIC_CODE   = 0x4321;
+constexpr uint32_t DIRECTION_KEY_MAGIC_CODE = 0x4321;
 
 #pragma pack(push, 1)
-typedef struct {
-    uint8_t  reportId;
-    uint8_t  sampleRate;
-    uint8_t  groupLen;
-    uint8_t  groupCount;
-    uint32_t reserved;
-} OBHidHeader;
-
 typedef struct {
     uint32_t magicCode;
     uint32_t eventIndex;
@@ -129,7 +121,7 @@ void DirectionKeyService::onFrame(std::shared_ptr<Frame> frame) {
     }
 
     auto header = reinterpret_cast<const OBHidHeader *>(data);
-    if(header->reportId != HID_REPORT_ID_DIRECTION_KEY) {
+    if(header->reportId != OB_HID_REPORT_ID_DIRECTION_KEY) {
         return;
     }
     if(header->groupCount == 0) {

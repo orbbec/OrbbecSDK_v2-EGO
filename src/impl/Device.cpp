@@ -21,6 +21,7 @@
 #include "IAlgParamManager.hpp"
 #include "IFrameTimestamp.hpp"
 #include "component/fwrecord/FwRecordProfileManager.hpp"
+#include "hid/EgoStateService.hpp"
 #include "hid/DirectionKeyService.hpp"
 #include "utils/PublicTypeHelper.hpp"
 
@@ -736,6 +737,21 @@ void ob_device_clear_direction_key_callback(ob_device *device, ob_error **error)
     VALIDATE_NOT_NULL(device);
     auto directionKeyService = device->device->getComponentT<libobsensor::DirectionKeyService>(libobsensor::OB_DEV_COMPONENT_DIRECTION_KEY_SERVICE);
     directionKeyService->clearCallback();
+}
+HANDLE_EXCEPTIONS_NO_RETURN(device)
+
+void ob_device_set_ego_state_callback(ob_device *device, ob_ego_state_callback callback, void *user_data, ob_error **error) BEGIN_API_CALL {
+    VALIDATE_NOT_NULL(device);
+    VALIDATE_NOT_NULL(callback);
+    auto egoStateService = device->device->getComponentT<libobsensor::EgoStateService>(libobsensor::OB_DEV_COMPONENT_EGO_STATE_SERVICE);
+    egoStateService->setCallback([callback, user_data](const OBEgoStateReport &state) { callback(&state, user_data); });
+}
+HANDLE_EXCEPTIONS_NO_RETURN(device, callback, user_data)
+
+void ob_device_clear_ego_state_callback(ob_device *device, ob_error **error) BEGIN_API_CALL {
+    VALIDATE_NOT_NULL(device);
+    auto egoStateService = device->device->getComponentT<libobsensor::EgoStateService>(libobsensor::OB_DEV_COMPONENT_EGO_STATE_SERVICE);
+    egoStateService->clearCallback();
 }
 HANDLE_EXCEPTIONS_NO_RETURN(device)
 

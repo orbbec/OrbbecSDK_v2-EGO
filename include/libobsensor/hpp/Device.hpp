@@ -59,10 +59,18 @@ public:
      */
     typedef std::function<void(const OBDirectionKeyInfomation &info)> DirectionKeyCallback;
 
+    /**
+     * @brief Callback function for Ego HID state reports.
+     *
+     * @param[in] state Ego device state information.
+     */
+    typedef std::function<void(const OBEgoStateReport &state)> EgoStateCallback;
+
 protected:
     ob_device                 *impl_ = nullptr;
     DeviceStateChangedCallback deviceStateChangeCallback_;
     DirectionKeyCallback       directionKeyCallback_;
+    EgoStateCallback           egoStateCallback_;
     DeviceFwUpdateCallback     fwUpdateCallback_;
 
 public:
@@ -603,6 +611,33 @@ public:
         ob_device_clear_direction_key_callback(impl_, &error);
         Error::handle(&error);
         directionKeyCallback_ = nullptr;
+    }
+
+    /**
+     * @brief Set the Ego device state callback.
+     *
+     * @param[in] callback The callback function that is triggered when an Ego HID state report is received.
+     */
+    void setEgoStateCallback(EgoStateCallback callback) {
+        if(!callback) {
+            clearEgoStateCallback();
+            return;
+        }
+
+        ob_error *error    = nullptr;
+        egoStateCallback_ = callback;
+        ob_device_set_ego_state_callback(impl_, &Device::egoStateCallbackBridge, this, &error);
+        Error::handle(&error);
+    }
+
+    /**
+     * @brief Clear the Ego device state callback.
+     */
+    void clearEgoStateCallback() {
+        ob_error *error = nullptr;
+        ob_device_clear_ego_state_callback(impl_, &error);
+        Error::handle(&error);
+        egoStateCallback_ = nullptr;
     }
 
     /**
@@ -1164,6 +1199,13 @@ private:
         auto device = static_cast<Device *>(userData);
         if(device && device->directionKeyCallback_ && info) {
             device->directionKeyCallback_(*info);
+        }
+    }
+
+    static void egoStateCallbackBridge(const OBEgoStateReport *state, void *userData) {
+        auto device = static_cast<Device *>(userData);
+        if(device && device->egoStateCallback_ && state) {
+            device->egoStateCallback_(*state);
         }
     }
 
