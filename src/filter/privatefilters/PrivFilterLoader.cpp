@@ -10,6 +10,10 @@
 #include "utils/Utils.hpp"
 #include "environment/EnvConfig.hpp"
 
+#if defined(__APPLE__)
+#include <TargetConditionals.h>
+#endif
+
 namespace libobsensor {
 
 PrivFilterCreator::PrivFilterCreator(std::shared_ptr<PrivFilterPackageContext> pkgCtx, size_t index) : pkgCtx_(pkgCtx), index_(index) {
@@ -199,6 +203,27 @@ std::map<std::string, std::shared_ptr<IFilterCreator>> getCreators() {
         auto packageName = folderName;  // the filter lib file name should be the same as the folder name
         TRY_EXECUTE({ load(dir, packageName); });
     });
+
+#if defined(__APPLE__) && TARGET_OS_IOS
+    // On iOS the filter packages are distributed as standalone frameworks embedded in the app bundle
+    // next to the SDK framework, so enumerate the sibling frameworks when the legacy extensions
+    // directory layout did not yield any filter creator.
+    if(filterCreators.empty()) {
+        const auto moduleDir = utils::getCurrentWorkDirectory();
+        const auto slashPos  = moduleDir.find_last_of('/');
+        if(slashPos != std::string::npos) {
+            const auto frameworksDir = moduleDir.substr(0, slashPos) + "/";
+            utils::forEachSubDirInDirectory(frameworksDir, [&](const std::string &folderName) {
+                constexpr const char *frameworkSuffix    = ".framework";
+                constexpr size_t      frameworkSuffixLen = 10;  // strlen(".framework")
+                if(folderName.size() <= frameworkSuffixLen || folderName.compare(folderName.size() - frameworkSuffixLen, frameworkSuffixLen, frameworkSuffix) != 0) {
+                    return;
+                }
+                TRY_EXECUTE({ load(frameworksDir, folderName); });
+            });
+        }
+    }
+#endif
 
     return filterCreators;
 }

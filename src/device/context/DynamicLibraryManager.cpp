@@ -6,7 +6,44 @@
 #include "logger/Logger.hpp"
 #include "utils/Utils.hpp"
 
+#include <vector>
+
+#if defined(__APPLE__)
+#include <TargetConditionals.h>
+#endif
+
 namespace libobsensor {
+
+#if defined(__APPLE__) && TARGET_OS_IOS
+// On iOS, bare dylibs cannot be embedded inside a framework, so extension libraries are packaged as
+// standalone frameworks (e.g. "ob_priv_filter.framework/ob_priv_filter") and embedded in the app bundle
+// next to the SDK framework. Try the framework layout before falling back to the plain dylib path.
+static std::shared_ptr<dylib> tryLoadExtensionFramework(const std::string &moduleLoadPath, const std::string &libraryName) {
+    const std::string frameworkRelPath = libraryName + ".framework/" + libraryName;
+
+    std::vector<std::string> candidateDirs = { moduleLoadPath };
+    // sibling frameworks directory of the current SDK binary (e.g. MyApp.app/Frameworks)
+    const auto moduleDir = utils::getCurrentWorkDirectory();
+    const auto slashPos  = moduleDir.find_last_of('/');
+    if(slashPos != std::string::npos) {
+        candidateDirs.push_back(moduleDir.substr(0, slashPos));
+    }
+    candidateDirs.emplace_back("@rpath");
+
+    for(const auto &dir: candidateDirs) {
+        if(dir.empty()) {
+            continue;
+        }
+        try {
+            return std::make_shared<dylib>(dir, frameworkRelPath, dylib::no_filename_decorations);
+        }
+        catch(const std::exception &e) {
+            LOG_DEBUG("Failed to load extension framework {}/{}: {}", dir, frameworkRelPath, e.what());
+        }
+    }
+    return nullptr;
+}
+#endif
 
 std::mutex                           DynamicLibraryManager::instanceMutex_;
 std::weak_ptr<DynamicLibraryManager> DynamicLibraryManager::instanceWeakPtr_;
@@ -42,7 +79,14 @@ std::shared_ptr<dylib> DynamicLibraryManager::loadLibrary(const std::string &mod
     }
 
     LOG_DEBUG("Current working directory: {}", utils::getCurrentWorkDirectory());
-    auto library         = std::make_shared<dylib>(moduleLoadPath.c_str(), libraryName.c_str());
+
+    std::shared_ptr<dylib> library;
+#if defined(__APPLE__) && TARGET_OS_IOS
+    library = tryLoadExtensionFramework(moduleLoadPath, libraryName);
+#endif
+    if(!library) {
+        library = std::make_shared<dylib>(moduleLoadPath.c_str(), libraryName.c_str());
+    }
     libMap_[libraryName] = library;
 
     auto callbackIt = loadedCallbacks_.find(libraryName);

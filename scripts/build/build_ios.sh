@@ -23,6 +23,8 @@ BUILD_TYPE=${BUILD_TYPE:-Release}
 IOS_PLATFORM="OS64"
 ENABLE_BITCODE=${ENABLE_BITCODE:-FALSE}
 BUILD_JOBS=${BUILD_JOBS:-$(sysctl -n hw.ncpu)}
+IOS_CODESIGN=${IOS_CODESIGN:-ON}
+IOS_CODESIGN_IDENTITY=${IOS_CODESIGN_IDENTITY:--}
 
 VERSION=$(grep -o "project(.* VERSION [0-9]*\.[0-9]*\.[0-9]*" "${PROJECT_ROOT}/CMakeLists.txt" | grep -o "[0-9]*\.[0-9]*\.[0-9]*")
 TIMESTAMP=$(date +"%Y%m%d%H%M")
@@ -41,6 +43,8 @@ echo ">>>>> build config: ${BUILD_TYPE}"
 echo ">>>>> SDK library name: ${SDK_LIB_NAME}"
 echo ">>>>> enable bitcode: ${ENABLE_BITCODE}"
 echo ">>>>> parallel jobs: ${BUILD_JOBS}"
+echo ">>>>> iOS codesign: ${IOS_CODESIGN}"
+echo ">>>>> iOS codesign identity: ${IOS_CODESIGN_IDENTITY}"
 echo ""
 
 rm -rf "${PACKAGE_ROOT}"
@@ -131,10 +135,6 @@ create_framework_bundle() {
         cp "${config_xml}" "${framework_dir}/${SDK_LIB_NAME}Config.xml"
     fi
 
-    if [ -d "${INSTALL_DIR}/lib/extensions" ]; then
-        cp -R "${INSTALL_DIR}/lib/extensions" "${framework_dir}/extensions"
-    fi
-
     cat > "${modules_dir}/module.modulemap" <<EOF
 framework module ${FRAMEWORK_NAME} {
   umbrella "Headers"
@@ -171,6 +171,108 @@ EOF
 EOF
 
     install_name_tool -id "@rpath/${FRAMEWORK_NAME}.framework/${FRAMEWORK_NAME}" "${framework_binary}"
+}
+
+is_codesign_enabled() {
+    case "$(echo "$IOS_CODESIGN" | tr '[:upper:]' '[:lower:]')" in
+        on|true|1|yes)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+sign_path() {
+    local path="$1"
+    if ! is_codesign_enabled; then
+        return 0
+    fi
+
+    if ! command -v codesign >/dev/null 2>&1; then
+        echo "codesign tool not found" >&2
+        exit 1
+    fi
+
+    if [ ! -e "$path" ]; then
+        echo "Path not found for codesign: $path" >&2
+        exit 1
+    fi
+
+    codesign --force --sign "$IOS_CODESIGN_IDENTITY" --timestamp=none "$path"
+}
+
+sign_framework_bundle() {
+    local framework_dir="$1"
+
+    if ! is_codesign_enabled; then
+        return 0
+    fi
+
+    sign_path "${framework_dir}/${FRAMEWORK_NAME}"
+    sign_path "${framework_dir}"
+}
+
+# iOS apps cannot ship bare dylibs nested inside a framework, so every extension library is
+# packaged as its own minimal framework (binary + Info.plist) that the app embeds next to the
+# SDK framework. The SDK locates them at runtime as sibling frameworks via dlopen.
+create_extension_frameworks() {
+    local extensions_src="${INSTALL_DIR}/lib/extensions"
+    local dest_dir="${ARTIFACTS_DIR}/frameworks/device/extensions"
+
+    if [ ! -d "${extensions_src}" ]; then
+        return 0
+    fi
+
+    mkdir -p "${dest_dir}"
+
+    local dylib_path
+    while IFS= read -r -d '' dylib_path; do
+        local dylib_name ext_name framework_dir
+        dylib_name=$(basename "${dylib_path}")
+        ext_name="${dylib_name%.dylib}"
+        ext_name="${ext_name#lib}"
+        framework_dir="${dest_dir}/${ext_name}.framework"
+
+        rm -rf "${framework_dir}"
+        mkdir -p "${framework_dir}"
+        cp "${dylib_path}" "${framework_dir}/${ext_name}"
+
+        cat > "${framework_dir}/Info.plist" <<EOF
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleDevelopmentRegion</key>
+    <string>en</string>
+    <key>CFBundleExecutable</key>
+    <string>${ext_name}</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.orbbec.${ext_name}</string>
+    <key>CFBundleInfoDictionaryVersion</key>
+    <string>6.0</string>
+    <key>CFBundleName</key>
+    <string>${ext_name}</string>
+    <key>CFBundlePackageType</key>
+    <string>FMWK</string>
+    <key>CFBundleShortVersionString</key>
+    <string>${VERSION}</string>
+    <key>CFBundleVersion</key>
+    <string>${VERSION}</string>
+    <key>MinimumOSVersion</key>
+    <string>13.0</string>
+</dict>
+</plist>
+EOF
+
+        install_name_tool -id "@rpath/${ext_name}.framework/${ext_name}" "${framework_dir}/${ext_name}"
+
+        sign_path "${framework_dir}/${ext_name}"
+        sign_path "${framework_dir}"
+
+        echo "Created extension framework: ${ext_name}.framework"
+    done < <(find "${extensions_src}" -type f -name "*.dylib" -print0)
 }
 
 create_cmake_package_wrapper() {
@@ -226,6 +328,8 @@ FRAMEWORK_DIR="${ARTIFACTS_DIR}/frameworks/device/${FRAMEWORK_NAME}.framework"
 mkdir -p "${ARTIFACTS_DIR}/frameworks/device"
 
 create_framework_bundle "${DEVICE_DYLIB}" "${FRAMEWORK_DIR}"
+sign_framework_bundle "${FRAMEWORK_DIR}"
+create_extension_frameworks
 create_cmake_package_wrapper
 
 cat > "${ARTIFACTS_DIR}/README.txt" <<EOF
@@ -233,10 +337,14 @@ ${FRAMEWORK_NAME}.framework
 
 Contents:
 - frameworks/device/${FRAMEWORK_NAME}.framework: app-facing iPhoneOS device framework
+- frameworks/device/extensions/*.framework: private extension frameworks (filters, frame processor, firmware updater)
 - lib/${SDK_LIB_NAME}Config.cmake: downstream CMake import wrapper
 
 Notes:
-- Private extensions are bundled inside the framework at framework-root/extensions
+- iOS apps cannot ship bare dylibs nested inside a framework, so every extension library is packaged
+  as a standalone framework; embed ${FRAMEWORK_NAME}.framework and all extension frameworks in the app
+  target ("Embed & Sign") so they land side by side in the app's Frameworks directory
+- The SDK locates extension frameworks at runtime as siblings of ${FRAMEWORK_NAME}.framework via dlopen
 - ${SDK_LIB_NAME}Config.xml is bundled at framework root because the SDK resolves it relative to the library location
 - Raw CMake install tree is preserved under ${INSTALL_DIR}
 - Simulator support is intentionally not packaged; this distribution targets iPhoneOS devices only
