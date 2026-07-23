@@ -6,6 +6,8 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <cstdint>
+#include <limits>
 #include <sstream>
 namespace libobsensor {
 namespace {
@@ -29,15 +31,15 @@ uint32_t hex32(const std::string &s) {
     if(value.empty() || value.size() > 8) {
         THROW_INVALID_PARAM_EXCEPTION("Invalid EGO BIN hexadecimal field");
     }
-    size_t        used = 0;
-    unsigned long v    = 0;
+    size_t   used = 0;
+    uint64_t v    = 0;
     try {
-        v = std::stoul(value, &used, 16);
+        v = std::stoull(value, &used, 16);
     }
     catch(...) {
         THROW_INVALID_PARAM_EXCEPTION("Invalid EGO BIN hexadecimal field");
     }
-    if(used != value.size() || v > 0xffffffffUL) {
+    if(used != value.size() || v > std::numeric_limits<uint32_t>::max()) {
         THROW_INVALID_PARAM_EXCEPTION("Invalid EGO BIN hexadecimal field");
     }
     return static_cast<uint32_t>(v);
