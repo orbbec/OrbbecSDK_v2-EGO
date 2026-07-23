@@ -10,6 +10,7 @@
 #include "usb/hid/HidDevicePort.hpp"
 #include "usb/hid/HidDevicePortGmsl.hpp"
 #include "usb/vendor/VendorUsbDevicePort.hpp"
+#include "usb/scsi/linux/LinuxScsiDevicePort.hpp"
 #include "usb/uvc/ObLibuvcDevicePort.hpp"
 #include "usb/uac/ObLibUacDevicePort.hpp"
 #include "usb/uvc/ObV4lUvcDevicePort.hpp"
@@ -244,6 +245,15 @@ std::shared_ptr<ISourcePort> LinuxUsbPal::getSourcePort(std::shared_ptr<const So
         }
         port = std::make_shared<ObLibUacDevicePort>(usbDev, std::dynamic_pointer_cast<const USBSourcePortInfo>(portInfo));
         LOG_DEBUG("UAC device have been create with libusb backend!");
+        break;
+    }
+    case SOURCE_PORT_USB_MASS_STORAGE: {
+        auto usbPortInfo = std::dynamic_pointer_cast<const USBSourcePortInfo>(portInfo);
+        auto usbDev = usbEnumerator_->openUsbDevice(usbPortInfo->url);
+        if(!usbDev) {
+            THROW_DEVICE_UNAVAILABLE_EXCEPTION("Failed to open EGO mass-storage device");
+        }
+        port = std::make_shared<LinuxScsiDevicePort>(usbDev, usbPortInfo);
         break;
     }
 

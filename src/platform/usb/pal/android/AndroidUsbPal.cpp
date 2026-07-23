@@ -7,6 +7,7 @@
 #include <usb/pal/android/AndroidUsbDeviceManager.hpp>
 
 #include "usb/enumerator/UsbTypes.hpp"
+#include "usb/scsi/linux/LinuxScsiDevicePort.hpp"
 #include "usb/uvc/ObLibuvcDevicePort.hpp"
 #include "usb/uac/ObLibUacDevicePort.hpp"
 #include "usb/uvc/ObV4lUvcDevicePort.hpp"
@@ -100,6 +101,15 @@ std::shared_ptr<ISourcePort> AndroidUsbPal::getSourcePort(std::shared_ptr<const 
         }
         // NOTE: Android iso capture / snd-usb-audio detach must be validated by the §8 PoC per target ROM.
         port = std::make_shared<ObLibUacDevicePort>(usbDev, std::dynamic_pointer_cast<const USBSourcePortInfo>(portInfo));
+        break;
+    }
+    case SOURCE_PORT_USB_MASS_STORAGE: {
+        auto usbPortInfo = std::dynamic_pointer_cast<const USBSourcePortInfo>(portInfo);
+        auto usbDev      = androidUsbManager_->openUsbDevice(usbPortInfo->url);
+        if(usbDev == nullptr) {
+            THROW_DEVICE_UNAVAILABLE_EXCEPTION("Failed to open EGO mass-storage device");
+        }
+        port = std::make_shared<LinuxScsiDevicePort>(usbDev, usbPortInfo);
         break;
     }
 

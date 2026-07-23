@@ -29,6 +29,7 @@
 #include "usb/hid/HidDevicePort.hpp"
 #include "usb/uac/WasapiUacDevicePort.hpp"
 #include "usb/vendor/VendorUsbDevicePort.hpp"
+#include "usb/scsi/win/WinScsiDevicePort.hpp"
 
 #include "logger/Logger.hpp"
 #include "exception/ObException.hpp"
@@ -36,6 +37,9 @@
 
 constexpr GUID     GUID_DEVINTERFACE_USB_DEVICE = { 0xA5DCBF10, 0x6530, 0x11D2, { 0x90, 0x1F, 0x00, 0xC0, 0x4F, 0xB9, 0x51, 0xED } };
 constexpr uint16_t PID_BOOTLOADER_UVC           = 0x0501;
+constexpr uint16_t EGO_BOOT_DEVICE_VID           = 0x1B20;
+constexpr uint16_t PID_EGO_BOOT_ROM              = 0x0300;
+constexpr uint16_t PID_EGO_BOOT_UBOOT            = 0x0301;
 namespace libobsensor {
 
 class WinUsbDeviceWatcher : public IDeviceWatcher {
@@ -227,6 +231,9 @@ std::shared_ptr<ISourcePort> WinUsbPal::getSourcePort(std::shared_ptr<const Sour
 
         break;
     }
+    case SOURCE_PORT_USB_MASS_STORAGE:
+        port = std::make_shared<WinScsiDevicePort>(std::dynamic_pointer_cast<const USBSourcePortInfo>(portInfo));
+        break;
     default:
         THROW_INVALID_PARAM_EXCEPTION("unsupported source port type!");
     }
@@ -268,10 +275,11 @@ SourcePortInfoList WinUsbPal::querySourcePortInfos() {
 
     const auto &usbInfoList = usbEnumerator_->queryUsbInterfaces();
     for(const auto &info: usbInfoList) {
-        if(isSupportedDevice(info.vid, info.pid) && (info.cls == OB_USB_CLASS_HID || info.cls == OB_USB_CLASS_VENDOR_SPECIFIC)) {
+        if(isSupportedDevice(info.vid, info.pid)
+           && (info.cls == OB_USB_CLASS_HID || info.cls == OB_USB_CLASS_VENDOR_SPECIFIC || info.cls == OB_USB_CLASS_MASS_STORAGE)) {
             // 1. Filter non orbbec devices 2. Filter uvc class
             auto portInfo      = std::make_shared<USBSourcePortInfo>();
-            portInfo->portType = info.cls == OB_USB_CLASS_HID ? SOURCE_PORT_USB_HID : SOURCE_PORT_USB_VENDOR;
+            portInfo->portType = cvtUsbClassToPortType(info.cls);
             portInfo->url      = info.url;
             portInfo->uid      = info.uid;
             portInfo->vid      = info.vid;
@@ -406,7 +414,15 @@ LRESULT CALLBACK WinUsbDeviceWatcher::onWinEvent(HWND hWnd, UINT message, WPARAM
                     symbolicLink          = utils::string::toUpper(symbolicLink);
                     if(wParam == DBT_DEVICEARRIVAL) {
                         LOG_DEBUG("Device arrival event occurred! symbolicLink={}", symbolicLink);
-                        if(devIntf->dbcc_classguid != GUID_DEVINTERFACE_USB_DEVICE || ((ORBBEC_DEVICE_VID == vid) && (PID_BOOTLOADER_UVC == pid))) {
+                        const bool isUsbDeviceInterface = devIntf->dbcc_classguid == GUID_DEVINTERFACE_USB_DEVICE;
+                        const bool isUvcBootloader      = (ORBBEC_DEVICE_VID == vid) && (PID_BOOTLOADER_UVC == pid);
+                        const bool isEgoBootDevice      = vid == EGO_BOOT_DEVICE_VID && (pid == PID_EGO_BOOT_ROM || pid == PID_EGO_BOOT_UBOOT);
+
+                        // Generic USB-device notifications are normally suppressed because a
+                        // UVC/HID device also generates its own interface notifications. EGO
+                        // boot devices expose only this generic USB mass-storage notification,
+                        // so allow only their two known recovery PIDs through.
+                        if(!isUsbDeviceInterface || isUvcBootloader || isEgoBootDevice) {
                             (void)watcherExtraData->callback_(OB_DEVICE_ARRIVAL, symbolicLink);
                         }
                     }

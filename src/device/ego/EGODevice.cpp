@@ -36,7 +36,6 @@
 #include "utils/PublicTypeHelper.hpp"
 #include "utils/Utils.hpp"
 
-#include "firmwareupdater/FirmwareUpdater.hpp"
 #include "monitor/DeviceMonitor.hpp"
 #include "ISourcePort.hpp"
 #include "IProperty.hpp"
@@ -81,12 +80,6 @@ void EGODevice::init() {
     registerComponent(OB_DEV_COMPONENT_DEVICE_CLOCK_SYNCHRONIZER, deviceClockSynchronizer);
     registerComponent(OB_DEV_COMPONENT_FW_RECORD_PROFILE_MANAGER, [this]() { return std::make_shared<FwRecordProfileManager>(this); });
 
-    // firmware updater
-    registerComponent(OB_DEV_COMPONENT_FIRMWARE_UPDATER, [this]() {
-        std::shared_ptr<FirmwareUpdater> firmwareUpdater;
-        TRY_EXECUTE({ firmwareUpdater = std::make_shared<FirmwareUpdater>(this); })
-        return firmwareUpdater;
-    });
 }
 
 void EGODevice::fetchDeviceInfo() {
@@ -470,6 +463,10 @@ void EGODevice::initProperties() {
         propertyServer->registerProperty(OB_STRUCT_DEVICE_TEMPERATURE, "r", "r", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_PROP_REBOOT_DEVICE_BOOL, "w", "w", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_PROP_RECORDING_PROMPT_INT, "rw", "w", vendorPropertyAccessor);
+        // The application explicitly sets this property to reboot EGO into
+        // recovery mode. EGODevice itself does not perform firmware updates;
+        // the re-enumerated EGOBootDevice owns that capability.
+        propertyServer->registerProperty(OB_PROP_DEVICE_IN_RECOVERY_MODE_BOOL, "w", "w", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_PROP_GYRO_ODR_INT, "rw", "rw", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_PROP_ACCEL_ODR_INT, "rw", "rw", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_PROP_GYRO_FULL_SCALE_INT, "rw", "rw", vendorPropertyAccessor);

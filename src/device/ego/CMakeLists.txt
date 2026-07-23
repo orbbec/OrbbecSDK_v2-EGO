@@ -17,4 +17,14 @@ target_sources(
              ${CMAKE_CURRENT_LIST_DIR}/EGODeviceInfo.cpp
              ${CMAKE_CURRENT_LIST_DIR}/EGOAlgParamManager.hpp
              ${CMAKE_CURRENT_LIST_DIR}/EGOAlgParamManager.cpp
+             ${CMAKE_CURRENT_LIST_DIR}/boot/EGOBootDevice.hpp
+             ${CMAKE_CURRENT_LIST_DIR}/boot/EGOBootDevice.cpp
+             ${CMAKE_CURRENT_LIST_DIR}/boot/EGOBootDeviceInfo.hpp
+             ${CMAKE_CURRENT_LIST_DIR}/boot/EGOBootDeviceInfo.cpp
+             ${CMAKE_CURRENT_LIST_DIR}/boot/EGOBinFirmwareUpdater.hpp
+             ${CMAKE_CURRENT_LIST_DIR}/boot/EGOBinFirmwareUpdater.cpp
+             ${CMAKE_CURRENT_LIST_DIR}/boot/EGOBinPackage.hpp
+             ${CMAKE_CURRENT_LIST_DIR}/boot/EGOBinPackage.cpp
+             ${CMAKE_CURRENT_LIST_DIR}/boot/EGOMd5.hpp
+             ${CMAKE_CURRENT_LIST_DIR}/boot/EGOMd5.cpp
         )

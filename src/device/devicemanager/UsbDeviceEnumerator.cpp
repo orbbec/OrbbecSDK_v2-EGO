@@ -13,6 +13,7 @@
 #include "femtobolt/FemtoBoltDeviceInfo.hpp"
 #include "femtomega/FemtoMegaDeviceInfo.hpp"
 #include "ego/EGODeviceInfo.hpp"
+#include "ego/boot/EGOBootDeviceInfo.hpp"
 #include "openni/OpenNIDeviceInfo.hpp"
 #include "bootloader/BootDeviceInfo.hpp"
 
@@ -196,6 +197,9 @@ DeviceEnumInfoList UsbDeviceEnumerator::usbDeviceInfoMatch(const SourcePortInfoL
 
     auto egoDevs = EGODeviceInfo::pickDevices(portInfoList);
     std::copy(egoDevs.begin(), egoDevs.end(), std::back_inserter(deviceInfoList));
+
+    auto egoBootDevs = EGOBootDeviceInfo::pickDevices(portInfoList);
+    std::copy(egoBootDevs.begin(), egoBootDevs.end(), std::back_inserter(deviceInfoList));
 
     auto openniDevs = OpenNIDeviceInfo::pickDevices(portInfoList);
     std::copy(openniDevs.begin(), openniDevs.end(), std::back_inserter(deviceInfoList));

@@ -9,6 +9,7 @@ add_subdirectory(uvc)
 add_subdirectory(hid)
 add_subdirectory(uac)
 add_subdirectory(vendor)
+add_subdirectory(scsi)
 
 target_sources(${OB_TARGET_PAL} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/UsbPortGroup.hpp ${CMAKE_CURRENT_LIST_DIR}/UsbPortGroup.cpp)
 

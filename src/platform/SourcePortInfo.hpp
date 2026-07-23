@@ -24,6 +24,7 @@ enum SourcePortType {
     SOURCE_PORT_USB_MULTI_UVC,
     SOURCE_PORT_USB_HID,
     SOURCE_PORT_USB_UAC,  // USB Audio Class (microphone) streaming interface
+    SOURCE_PORT_USB_MASS_STORAGE,
     SOURCE_PORT_NET_VENDOR = 0x10,
     SOURCE_PORT_NET_VENDOR_STREAM,
     SOURCE_PORT_NET_LIDAR_VENDOR_STREAM,  // LiDAR VENDOR stream
@@ -33,7 +34,7 @@ enum SourcePortType {
     SOURCE_PORT_UNKNOWN = 0xff,
 };
 
-#define IS_USB_PORT(type) ((type) >= SOURCE_PORT_USB_VENDOR && (type) <= SOURCE_PORT_USB_UAC)
+#define IS_USB_PORT(type) ((type) >= SOURCE_PORT_USB_VENDOR && (type) <= SOURCE_PORT_USB_MASS_STORAGE)
 #define IS_NET_PORT(type) ((type) >= SOURCE_PORT_NET_VENDOR && (type) <= SOURCE_PORT_NET_RTP)
 
 struct SourcePortInfo {

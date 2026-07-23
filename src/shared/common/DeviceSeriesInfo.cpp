@@ -246,6 +246,14 @@ bool isSupportedDevice(uint32_t vid, uint32_t pid) {
     if(vid == ORBBEC_DEVICE_VID && pid == 0x0501 && supportedUsbVids.count(ORBBEC_DEVICE_VID) == 0) {
         return true;
     }
+#if defined(_WIN32) || defined(__linux__)
+    // EGO recovery/boot device exposed by the SigmaStar ROM and U-Boot USB
+    // mass-storage gadget. Keep this whitelist narrow: other 0x1B20 devices
+    // are not OpenOrbbecSDK devices.
+    if(vid == 0x1B20 && (pid == 0x0300 || pid == 0x0301)) {
+        return true;
+    }
+#endif
 
     uint32_t key = (static_cast<uint32_t>(vid) << 16) | static_cast<uint32_t>(pid);
     return deviceEnumWhitelist.count(key) > 0;

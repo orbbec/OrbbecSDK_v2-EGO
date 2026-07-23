@@ -31,6 +31,8 @@ SourcePortType cvtUsbClassToPortType(uint8_t cls) {
         // UAC audio interface (microphone). Both AudioControl and AudioStreaming sub-interfaces report
         // LIBUSB_CLASS_AUDIO; the AudioStreaming (capture) interface is selected at port init time.
         return SOURCE_PORT_USB_UAC;
+    case LIBUSB_CLASS_MASS_STORAGE:
+        return SOURCE_PORT_USB_MASS_STORAGE;
     case LIBUSB_CLASS_VENDOR_SPEC:
         return SOURCE_PORT_USB_VENDOR;
     default:
