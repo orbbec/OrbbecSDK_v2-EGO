@@ -1,7 +1,7 @@
 // Copyright (c) Orbbec Inc. All Rights Reserved.
 // Licensed under the MIT License.
 
-// EGO sample: render the dual RGB (left + right) streams and play back the device microphone audio.
+// EGO/Wrist sample: render the available RGB stream(s) and play back the device microphone audio when present.
 // Audio playback is cross-platform:
 //   - Windows: WinMM waveOut
 //   - Linux / arm64: ALSA (when libasound is available; define OB_EGO_HAVE_ALSA)
@@ -13,9 +13,11 @@
 #include "utils_opencv.hpp"
 
 #include <chrono>
+#include <cstdlib>
 #include <cstring>
 #include <fstream>
 #include <mutex>
+#include <string>
 #include <vector>
 
 // ============================ Cross-platform audio playback ============================
@@ -319,6 +321,16 @@ static void printEgoState(const OBEgoStateReport &state) {
               << " storageFreeBytes=" << state.storage_free_bytes << std::endl;
 }
 
+static bool hasSensorType(const std::shared_ptr<ob::Device> &device, OBSensorType sensorType) {
+    auto sensorList = device->getSensorList();
+    for(uint32_t index = 0; index < sensorList->getCount(); index++) {
+        if(sensorList->getSensorType(index) == sensorType) {
+            return true;
+        }
+    }
+    return false;
+}
+
 int main(void) try {
 
     // On Linux, select the UVC backend before opening any device.
@@ -330,17 +342,38 @@ int main(void) try {
 
     // Create a pipeline with default device.
     ob::Pipeline pipe;
+    auto         device = pipe.getDevice();
 
-    // Configure which streams to enable. The EGO device exposes two RGB cameras (left + right) plus
-    // audio (microphone). Both color streams are opened in MJPG format.
+    bool hasColor      = hasSensorType(device, OB_SENSOR_COLOR);
+    bool hasLeftColor  = hasSensorType(device, OB_SENSOR_COLOR_LEFT);
+    bool hasRightColor = hasSensorType(device, OB_SENSOR_COLOR_RIGHT);
+
+    // Configure which streams to enable. Wrist exposes one normal Color stream; EGO exposes left/right Color streams.
     std::shared_ptr<ob::Config> config = std::make_shared<ob::Config>();
-    config->enableVideoStream(OB_STREAM_COLOR_LEFT, OB_WIDTH_ANY, OB_HEIGHT_ANY, OB_FPS_ANY, OB_FORMAT_MJPG);
-    config->enableVideoStream(OB_STREAM_COLOR_RIGHT, OB_WIDTH_ANY, OB_HEIGHT_ANY, OB_FPS_ANY, OB_FORMAT_MJPG);
+    std::string                  windowTitle;
+    if(hasColor) {
+        config->enableVideoStream(OB_STREAM_COLOR, OB_WIDTH_ANY, OB_HEIGHT_ANY, OB_FPS_ANY, OB_FORMAT_MJPG);
+        windowTitle = "EGO/Wrist: Color (+ optional Audio)";
+        std::cout << "Enabled COLOR stream." << std::endl;
+    }
+    else if(hasLeftColor || hasRightColor) {
+        if(hasLeftColor) {
+            config->enableVideoStream(OB_STREAM_COLOR_LEFT, OB_WIDTH_ANY, OB_HEIGHT_ANY, OB_FPS_ANY, OB_FORMAT_MJPG);
+            std::cout << "Enabled COLOR_LEFT stream." << std::endl;
+        }
+        if(hasRightColor) {
+            config->enableVideoStream(OB_STREAM_COLOR_RIGHT, OB_WIDTH_ANY, OB_HEIGHT_ANY, OB_FPS_ANY, OB_FORMAT_MJPG);
+            std::cout << "Enabled COLOR_RIGHT stream." << std::endl;
+        }
+        windowTitle = (hasLeftColor && hasRightColor) ? "EGO: Dual Color (+ optional Audio)" : "EGO/Wrist: Color (+ optional Audio)";
+    }
+    else {
+        std::cerr << "No color sensor found." << std::endl;
+        return EXIT_FAILURE;
+    }
 
     // Start the pipeline with config.
     pipe.start(config);
-
-    auto device = pipe.getDevice();
 
     try {
         device->setEgoStateCallback([](const OBEgoStateReport &state) { printEgoState(state); });
@@ -459,9 +492,8 @@ int main(void) try {
         imuPipe = nullptr;
     }
 
-    // Create a window for rendering and set the resolution of the window. Use ARRANGE_ONE_ROW so that
-    // both color streams (left + right) are rendered side by side instead of only the first one.
-    ob_smpl::CVWindow win("EGO: Dual Color (+ Audio)", 1280, 720, ob_smpl::ARRANGE_ONE_ROW);
+    // Create a window for rendering. ARRANGE_ONE_ROW keeps EGO dual color side by side and is harmless for Wrist single color.
+    ob_smpl::CVWindow win(windowTitle.c_str(), 1280, 720, ob_smpl::ARRANGE_ONE_ROW);
 
     while(win.run()) {
         // Wait for up to 100ms for a frameset in blocking mode.
@@ -470,7 +502,7 @@ int main(void) try {
             continue;
         }
 
-        // Render every frame in the set (left + right color).
+        // Render every frame in the set.
         win.pushFramesToView(frameSet);
     }
 

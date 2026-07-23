@@ -4,6 +4,7 @@
 #include "NetDeviceEnumerator.hpp"
 #include "femtomega/FemtoMegaDeviceInfo.hpp"
 #include "ego/EGODeviceInfo.hpp"
+#include "wrist/WristDeviceInfo.hpp"
 #include "gemini330/G330DeviceInfo.hpp"
 #include "lidar/LiDARDeviceInfo.hpp"
 #include "gemini2/G2DeviceInfo.hpp"
@@ -130,6 +131,9 @@ DeviceEnumInfoList NetDeviceEnumerator::deviceInfoMatch(const SourcePortInfoList
 
     auto egoDevices = EGODeviceInfo::pickNetDevices(infoList);
     deviceInfoList.insert(deviceInfoList.end(), egoDevices.begin(), egoDevices.end());
+
+    auto wristDevices = WristDeviceInfo::pickNetDevices(infoList);
+    deviceInfoList.insert(deviceInfoList.end(), wristDevices.begin(), wristDevices.end());
 
     auto dev330Devices = G330DeviceInfo::pickNetDevices(infoList);
     deviceInfoList.insert(deviceInfoList.end(), dev330Devices.begin(), dev330Devices.end());

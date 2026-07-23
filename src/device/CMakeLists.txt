@@ -29,6 +29,7 @@ add_subdirectory(astra2) # Astra 2 series
 add_subdirectory(femtobolt) # FemtoBolt
 add_subdirectory(femtomega) # FemtoMega
 add_subdirectory(ego) # PN2608_EGO head-mounted dual-RGB + IMU + audio
+add_subdirectory(wrist) # Wrist single-RGB + IMU
 add_subdirectory(openni) # OpenNI device
 add_subdirectory(bootloader) # Bootloader device
 add_subdirectory(lidar) # LiDAR series

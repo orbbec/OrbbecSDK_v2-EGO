@@ -1,0 +1,434 @@
+// Copyright (c) Orbbec Inc. All Rights Reserved.
+// Licensed under the MIT License.
+
+#include "WristNetDevice.hpp"
+#include "ego/EGOAlgParamManager.hpp"
+#include "ego/EGOStreamStrategy.hpp"
+#include "environment/EnvConfig.hpp"
+#include "stream/StreamProfileFactory.hpp"
+#include "sensor/video/VideoSensor.hpp"
+#include "sensor/imu/ImuStreamer.hpp"
+#include "sensor/imu/AccelSensor.hpp"
+#include "sensor/imu/GyroSensor.hpp"
+#include "hid/EgoStateService.hpp"
+#include "hid/SharedDataStreamPort.hpp"
+
+#include "metadata/FrameMetadataParserContainer.hpp"
+#include "timestamp/FrameTimestampCalculator.hpp"
+#include "timestamp/DeviceClockSynchronizer.hpp"
+#include "property/VendorPropertyAccessor.hpp"
+#include "property/PropertyServer.hpp"
+#include "property/CommonPropertyAccessors.hpp"
+#include "property/FilterPropertyAccessors.hpp"
+#include "component/fwrecord/FwRecordProfileManager.hpp"
+
+#include "FilterFactory.hpp"
+#include "publicfilters/IMUCorrector.hpp"
+
+#include "utils/BufferParser.hpp"
+#include "utils/PublicTypeHelper.hpp"
+#include "utils/Utils.hpp"
+
+#include "firmwareupdater/FirmwareUpdater.hpp"
+#include "monitor/DeviceMonitor.hpp"
+
+#if defined(BUILD_NET_PAL)
+#include "ethernet/RTSPStreamPort.hpp"
+#endif
+
+namespace libobsensor {
+
+namespace {
+OBFormat normalizeH265AliasFormat(OBFormat format) {
+    return format == OB_FORMAT_HEVC ? OB_FORMAT_H265 : format;
+}
+
+std::shared_ptr<const StreamProfile> normalizeH265AliasProfile(const std::shared_ptr<const StreamProfile> &profile) {
+    if(profile && profile->getFormat() == OB_FORMAT_HEVC) {
+        return profile->clone(OB_FORMAT_H265);
+    }
+    return profile;
+}
+}  // namespace
+
+WristNetDevice::WristNetDevice(const std::shared_ptr<const IDeviceEnumInfo> &info) : DeviceBase(info) {
+    init();
+}
+
+WristNetDevice::~WristNetDevice() noexcept {}
+
+void WristNetDevice::init() {
+    initProperties();
+
+    fetchDeviceInfo();
+    fetchExtensionInfo();
+
+    if(!inRecoveryMode_) {
+        initSensorList();
+
+        fetchAllVideoStreamProfileList();
+
+        deviceTimeFreq_ = 1000000;
+        // auto algParamManager = std::make_shared<EGOAlgParamManager>(this);
+        // registerComponent(OB_DEV_COMPONENT_ALG_PARAM_MANAGER, algParamManager);
+
+        auto deviceClockSynchronizer = std::make_shared<DeviceClockSynchronizer>(this, deviceTimeFreq_, deviceTimeFreq_);
+        registerComponent(OB_DEV_COMPONENT_DEVICE_CLOCK_SYNCHRONIZER, deviceClockSynchronizer);
+        registerComponent(OB_DEV_COMPONENT_FW_RECORD_PROFILE_MANAGER, [this]() { return std::make_shared<FwRecordProfileManager>(this); });
+    }
+
+    // firmware updater
+    registerComponent(OB_DEV_COMPONENT_FIRMWARE_UPDATER, [this]() {
+        std::shared_ptr<FirmwareUpdater> firmwareUpdater;
+        TRY_EXECUTE({ firmwareUpdater = std::make_shared<FirmwareUpdater>(this); })
+        return firmwareUpdater;
+    });
+}
+
+void WristNetDevice::fetchDeviceInfo() {
+    auto portInfo           = enumInfo_->getSourcePortInfoList().front();
+    auto netPortInfo        = std::dynamic_pointer_cast<const NetSourcePortInfo>(portInfo);
+    auto deviceInfo         = std::make_shared<NetDeviceInfo>();
+    deviceInfo->ipAddress_  = netPortInfo->address;
+    deviceInfo->subnetMask_ = netPortInfo->mask;
+    deviceInfo->gateway_    = netPortInfo->gateway;
+    deviceInfo_             = deviceInfo;
+
+    deviceInfo_->name_           = enumInfo_->getName();
+    deviceInfo_->pid_            = enumInfo_->getPid();
+    deviceInfo_->vid_            = enumInfo_->getVid();
+    deviceInfo_->uid_            = enumInfo_->getUid();
+    deviceInfo_->connectionType_ = enumInfo_->getConnectionType();
+
+    auto propServer                   = getPropertyServer();
+    auto version                      = propServer->getStructureDataT<OBVersionInfo>(OB_STRUCT_VERSION);
+    deviceInfo_->fwVersion_           = version.firmwareVersion;
+    deviceInfo_->deviceSn_            = version.serialNumber;
+    deviceInfo_->asicName_            = version.depthChip;
+    deviceInfo_->hwVersion_           = version.hardwareVersion;
+    deviceInfo_->type_                = static_cast<uint16_t>(version.deviceType);
+    deviceInfo_->supportedSdkVersion_ = version.sdkVersion;
+    deviceInfo_->subSystemVersion_    = version.subSystemVersion;
+
+    // remove the prefix "Orbbec " from the device name if contained
+    if(deviceInfo_->name_.find("Orbbec ") == 0) {
+        deviceInfo_->name_ = deviceInfo_->name_.substr(7);
+    }
+    deviceInfo_->fullName_ = "Orbbec " + deviceInfo_->name_;
+
+    // mark the device as a multi-sensor device with same clock at default
+    extensionInfo_["AllSensorsUsingSameClock"] = "true";
+}
+
+void WristNetDevice::initSensorList() {
+    registerComponent(OB_DEV_COMPONENT_SENSOR_STREAM_STRATEGY, [this]() { return std::make_shared<EGOStreamStrategy>(this); });
+
+    registerComponent(OB_DEV_COMPONENT_FRAME_PROCESSOR_FACTORY, [this]() {
+        std::shared_ptr<FrameProcessorFactory> factory;
+        TRY_EXECUTE({ factory = std::make_shared<FrameProcessorFactory>(this); })
+        return factory;
+    });
+
+    const auto &sourcePortInfoList = enumInfo_->getSourcePortInfoList();
+
+    // ---- Color (RTSP) ----
+    auto colorPortInfoIter = std::find_if(sourcePortInfoList.begin(), sourcePortInfoList.end(), [](const std::shared_ptr<const SourcePortInfo> &portInfo) {
+        return portInfo->portType == SOURCE_PORT_NET_RTSP && std::dynamic_pointer_cast<const RTSPStreamPortInfo>(portInfo)->streamType == OB_STREAM_COLOR;
+    });
+
+    if(colorPortInfoIter != sourcePortInfoList.end()) {
+        auto colorPortInfo = *colorPortInfoIter;
+        registerComponent(
+            OB_DEV_COMPONENT_COLOR_SENSOR,
+            [this, colorPortInfo]() {
+                auto port   = getSourcePort(colorPortInfo);
+                auto sensor = std::make_shared<VideoSensor>(this, OB_SENSOR_COLOR, port);
+                sensor->enableTimestampAnomalyDetection(false);
+
+                std::vector<FormatFilterConfig> formatFilterConfigs = {
+                    { FormatFilterPolicy::REMOVE, OB_FORMAT_NV12, OB_FORMAT_ANY, nullptr },
+                    { FormatFilterPolicy::REMOVE, OB_FORMAT_BGR, OB_FORMAT_ANY, nullptr },
+                    { FormatFilterPolicy::REMOVE, OB_FORMAT_BGRA, OB_FORMAT_ANY, nullptr },
+                };
+
+                sensor->updateFormatFilterConfig(formatFilterConfigs);
+
+                auto videoFrameTimestampCalculator = std::make_shared<FrameTimestampCalculatorBaseDeviceTime>(this, deviceTimeFreq_, colorFrameTimeFreq_);
+                sensor->setFrameTimestampCalculator(videoFrameTimestampCalculator);
+
+                auto frameProcessor = getComponentT<FrameProcessor>(OB_DEV_COMPONENT_COLOR_FRAME_PROCESSOR, false);
+                if(frameProcessor) {
+                    sensor->setFrameProcessor(frameProcessor.get());
+                }
+
+                initSensorStreamProfile(sensor);
+                return sensor;
+            },
+            true);
+        registerSensorPortInfo(OB_SENSOR_COLOR, colorPortInfo);
+        registerComponent(OB_DEV_COMPONENT_COLOR_FRAME_PROCESSOR, [this]() {
+            auto factory        = getComponentT<FrameProcessorFactory>(OB_DEV_COMPONENT_FRAME_PROCESSOR_FACTORY);
+            auto frameProcessor = factory->createFrameProcessor(OB_SENSOR_COLOR);
+            return frameProcessor;
+        });
+    }
+
+    // ---- IMU (private TCP data stream)
+    auto imuPortInfoIter = std::find_if(sourcePortInfoList.begin(), sourcePortInfoList.end(), [](const std::shared_ptr<const SourcePortInfo> &portInfo) {
+        return portInfo->portType == SOURCE_PORT_NET_VENDOR_STREAM;
+    });
+
+    if(imuPortInfoIter != sourcePortInfoList.end()) {
+        auto imuPortInfo = *imuPortInfoIter;
+        registerComponent(OB_DEV_COMPONENT_SHARED_HID_STREAM, [this, imuPortInfo]() {
+            auto port           = getSourcePort(imuPortInfo);
+            auto dataStreamPort = std::dynamic_pointer_cast<IDataStreamPort>(port);
+            auto sharedHidPort  = std::make_shared<SharedDataStreamPort>(this, dataStreamPort);
+            return sharedHidPort;
+        });
+
+        registerComponent(OB_DEV_COMPONENT_IMU_STREAMER, [this, imuPortInfo]() {
+            // no correction filter applied: EGOAlgParamManager is disabled, so no intrinsics would be bound
+            auto sharedHidPort  = getComponentT<SharedDataStreamPort>(OB_DEV_COMPONENT_SHARED_HID_STREAM);
+            auto dataStreamPort = sharedHidPort->createClientPort();
+            auto imuStreamer    = std::make_shared<ImuStreamer>(this, dataStreamPort, std::vector<std::shared_ptr<IFilter>>{});
+            return imuStreamer;
+        });
+
+        registerComponent(OB_DEV_COMPONENT_EGO_STATE_SERVICE, [this]() {
+            auto sharedHidPort = getComponentT<SharedDataStreamPort>(OB_DEV_COMPONENT_SHARED_HID_STREAM);
+            return std::make_shared<EgoStateService>(this, sharedHidPort->createClientPort());
+        });
+
+        registerComponent(
+            OB_DEV_COMPONENT_ACCEL_SENSOR,
+            [this, imuPortInfo]() {
+                auto port                 = getSourcePort(imuPortInfo);
+                auto imuStreamer          = getComponentT<ImuStreamer>(OB_DEV_COMPONENT_IMU_STREAMER);
+                auto imuStreamerSharedPtr = imuStreamer.get();
+                auto sensor               = std::make_shared<AccelSensor>(this, port, imuStreamerSharedPtr, true);
+
+                // [Wrist-WIP] Wrist firmware does not yet provide a reliable per-frame IMU device timestamp, which
+                // trips the anomaly detector and drops every frame. Disable it until the timestamp is fixed.
+                sensor->enableTimestampAnomalyDetection(false);
+
+                initSensorStreamProfile(sensor);
+                return sensor;
+            },
+            true);
+        registerSensorPortInfo(OB_SENSOR_ACCEL, imuPortInfo);
+
+        registerComponent(
+            OB_DEV_COMPONENT_GYRO_SENSOR,
+            [this, imuPortInfo]() {
+                auto port                 = getSourcePort(imuPortInfo);
+                auto imuStreamer          = getComponentT<ImuStreamer>(OB_DEV_COMPONENT_IMU_STREAMER);
+                auto imuStreamerSharedPtr = imuStreamer.get();
+                auto sensor               = std::make_shared<GyroSensor>(this, port, imuStreamerSharedPtr, true);
+
+                // [Wrist-WIP] Wrist firmware does not yet provide a reliable per-frame IMU device timestamp, which
+                // trips the anomaly detector and drops every frame. Disable it until the timestamp is fixed.
+                sensor->enableTimestampAnomalyDetection(false);
+
+                initSensorStreamProfile(sensor);
+                return sensor;
+            },
+            true);
+        registerSensorPortInfo(OB_SENSOR_GYRO, imuPortInfo);
+    }
+}
+
+void WristNetDevice::initProperties() {
+    const auto &sourcePortInfoList = enumInfo_->getSourcePortInfoList();
+    auto        vendorPortInfoIter = std::find_if(sourcePortInfoList.begin(), sourcePortInfoList.end(),
+                                                  [](const std::shared_ptr<const SourcePortInfo> &portInfo) { return portInfo->portType == SOURCE_PORT_NET_VENDOR; });
+
+    if(vendorPortInfoIter == sourcePortInfoList.end()) {
+        return;
+    }
+
+    auto propertyServer = std::make_shared<PropertyServer>(this);
+
+    auto vendorPortInfo         = *vendorPortInfoIter;
+    auto vendorPropertyAccessor = std::make_shared<LazySuperPropertyAccessor>([this, vendorPortInfo]() {
+        auto port     = getSourcePort(vendorPortInfo);
+        auto accessor = std::make_shared<VendorPropertyAccessor>(this, port);
+        return accessor;
+    });
+
+    // the main property accessor
+    registerComponent(OB_DEV_COMPONENT_MAIN_PROPERTY_ACCESSOR, [this, vendorPortInfo]() {
+        auto port     = getSourcePort(vendorPortInfo);
+        auto accessor = std::make_shared<VendorPropertyAccessor>(this, port);
+        return accessor;
+    });
+
+    registerComponent(OB_DEV_COMPONENT_DEVICE_MONITOR, [this, vendorPortInfo]() {
+        auto port       = getSourcePort(vendorPortInfo);
+        auto devMonitor = std::make_shared<DeviceMonitor>(this, port);
+        return devMonitor;
+    });
+
+    // color controls
+    propertyServer->registerProperty(OB_PROP_COLOR_AUTO_EXPOSURE_BOOL, "rw", "rw", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_PROP_COLOR_EXPOSURE_INT, "rw", "rw", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_PROP_COLOR_GAIN_INT, "rw", "rw", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_PROP_COLOR_AUTO_WHITE_BALANCE_BOOL, "rw", "rw", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_PROP_COLOR_WHITE_BALANCE_INT, "rw", "rw", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_PROP_COLOR_BRIGHTNESS_INT, "rw", "rw", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_PROP_COLOR_SATURATION_INT, "rw", "rw", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_PROP_COLOR_SHARPNESS_INT, "rw", "rw", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_PROP_COLOR_CONTRAST_INT, "rw", "rw", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_PROP_COLOR_POWER_LINE_FREQUENCY_INT, "rw", "rw", vendorPropertyAccessor);
+
+    // device / IMU controls
+    propertyServer->registerProperty(OB_STRUCT_VERSION, "", "r", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_STRUCT_DEVICE_SERIAL_NUMBER, "r", "r", vendorPropertyAccessor);
+    // propertyServer->registerProperty(OB_STRUCT_DEVICE_IP_ADDR_CONFIG, "rw", "rw", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_STRUCT_DEVICE_TIME, "rw", "rw", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_STRUCT_GET_TF_CARD_CAPACITY, "r", "r", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_STRUCT_DEVICE_TEMPERATURE, "r", "r", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_PROP_REBOOT_DEVICE_BOOL, "w", "w", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_PROP_RECORDING_PROMPT_INT, "rw", "w", vendorPropertyAccessor);
+
+    propertyServer->registerProperty(OB_PROP_GYRO_ODR_INT, "rw", "rw", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_PROP_ACCEL_ODR_INT, "rw", "rw", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_PROP_GYRO_FULL_SCALE_INT, "rw", "rw", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_PROP_ACCEL_FULL_SCALE_INT, "rw", "rw", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_STRUCT_GET_ACCEL_PRESETS_ODR_LIST, "", "r", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_STRUCT_GET_ACCEL_PRESETS_FULL_SCALE_LIST, "", "r", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_STRUCT_GET_GYRO_PRESETS_ODR_LIST, "", "r", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_STRUCT_GET_GYRO_PRESETS_FULL_SCALE_LIST, "", "r", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_PROP_ACCEL_SWITCH_BOOL, "", "rw", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_PROP_GYRO_SWITCH_BOOL, "", "rw", vendorPropertyAccessor);
+    // propertyServer->registerProperty(OB_RAW_DATA_IMU_CALIB_PARAM, "", "rw", vendorPropertyAccessor);
+    // propertyServer->registerProperty(OB_RAW_DATA_ALIGN_CALIB_PARAM, "", "r", vendorPropertyAccessor);
+
+    propertyServer->registerProperty(OB_RAW_DATA_ALIGN_CALIB_YAML, "r", "r", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_RAW_DATA_IMU_CALIB_YAML, "r", "r", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_PROP_COLOR_BITRATE_INT, "rw", "rw", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_PROP_COLOR_DYNAMIC_BITRATE_ENABLE_BOOL, "rw", "rw", vendorPropertyAccessor);
+
+    propertyServer->registerProperty(OB_RAW_DATA_STREAM_PROFILE_LIST, "r", "r", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_PROP_FW_RECORDING_STATE_BOOL, "", "r", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_PROP_FW_RECORDING_FILE_SPLIT_DURATION_MIN_INT, "rw", "rw", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_RAW_DATA_FW_RECORDING_PROFILE_LIST, "", "rw", vendorPropertyAccessor);
+
+    // propertyServer->registerProperty(OB_PROP_DEVICE_IN_RECOVERY_MODE_BOOL, "rw", "rw", vendorPropertyAccessor);
+    // propertyServer->registerProperty(OB_PROP_BOOT_INTO_RECOVERY_MODE_BOOL, "w", "w", vendorPropertyAccessor);
+
+    auto imuCorrectorFilter = getSensorFrameFilter("IMUCorrector", OB_SENSOR_ACCEL);
+    if(imuCorrectorFilter) {
+        auto filterStateProperty = std::make_shared<FilterStatePropertyAccessor>(imuCorrectorFilter);
+        propertyServer->registerProperty(OB_PROP_SDK_ACCEL_FRAME_TRANSFORMED_BOOL, "rw", "rw", filterStateProperty);
+        propertyServer->registerProperty(OB_PROP_SDK_GYRO_FRAME_TRANSFORMED_BOOL, "rw", "rw", filterStateProperty);
+    }
+
+    registerComponent(OB_DEV_COMPONENT_PROPERTY_SERVER, propertyServer, false);
+
+    // [Wrist-WIP] The following commands send to port 8090 and crash the firmware TCP service.
+    // Re-enable once firmware implements these properties.
+    // BEGIN_TRY_EXECUTE({ propertyServer->setPropertyValueT(OB_PROP_DEVICE_COMMUNICATION_TYPE_INT, OB_COMM_NET); })
+    // CATCH_EXCEPTION_AND_EXECUTE({ LOG_ERROR("Set device communication type to ethernet mode failed!"); })
+
+    // check recovery mode
+    // inRecoveryMode_ = false;
+    // BEGIN_TRY_EXECUTE({
+    //     inRecoveryMode_ = propertyServer->getPropertyValueT<bool>(OB_PROP_DEVICE_IN_RECOVERY_MODE_BOOL);
+    //     if(inRecoveryMode_) {
+    //         LOG_DEBUG("Wrist net device is in recovery mode, skip init ...");
+    //         propertyServer->unregisterAllProperties();
+    //         propertyServer->registerProperty(OB_STRUCT_VERSION, "", "r", vendorPropertyAccessor);
+    //         propertyServer->registerProperty(OB_PROP_BOOT_INTO_RECOVERY_MODE_BOOL, "w", "w", vendorPropertyAccessor);
+    //         propertyServer->registerProperty(OB_PROP_DEVICE_IN_RECOVERY_MODE_BOOL, "r", "r", vendorPropertyAccessor);
+    //         return;
+    //     }
+    // })
+    // CATCH_EXCEPTION_AND_EXECUTE({ LOG_DEBUG("Get device in recovery mode failed!"); })
+}
+
+void WristNetDevice::initSensorStreamProfile(std::shared_ptr<ISensor> sensor) {
+    auto              sensorType = sensor->getSensorType();
+    OBStreamType      streamType = utils::mapSensorTypeToStreamType(sensorType);
+    StreamProfileList profileList;
+    for(const auto &profile: allVideoStreamProfileList_) {
+        if(streamType == profile->getType()) {
+            profileList.push_back(profile);
+        }
+    }
+
+    if(profileList.empty() && streamType == OB_STREAM_COLOR) {
+        // Firmware has not yet implemented OB_RAW_DATA_STREAM_PROFILE_LIST; provide a minimal
+        // hardcoded fallback so the RTSP stream can be opened for early bring-up testing.
+        //profileList.push_back(StreamProfileFactory::createVideoStreamProfile(streamType, OB_FORMAT_MJPG, 1600, 1300, 30));
+        profileList.push_back(StreamProfileFactory::createVideoStreamProfile(streamType, OB_FORMAT_H265, 1600, 1300, 30));
+        profileList.push_back(StreamProfileFactory::createVideoStreamProfile(streamType, OB_FORMAT_H265, 1600, 1300, 60));
+        profileList.push_back(StreamProfileFactory::createVideoStreamProfile(streamType, OB_FORMAT_H265, 1600, 1200, 30));
+        profileList.push_back(StreamProfileFactory::createVideoStreamProfile(streamType, OB_FORMAT_H265, 1600, 1200, 60));
+        LOG_WARN("WristNetDevice: using hardcoded fallback stream profiles for sensor {}", sensorType);
+    }
+
+    if(!profileList.empty()) {
+        sensor->setStreamProfileList(profileList);
+    }
+
+    auto streamProfile = StreamProfileFactory::getDefaultStreamProfileFromEnvConfig(deviceInfo_->name_, sensorType);
+    if(streamProfile) {
+        sensor->updateDefaultStreamProfile(normalizeH265AliasProfile(streamProfile));
+    }
+
+    auto profiles = sensor->getStreamProfileList();
+
+    auto algParamManager = getComponentT<EGOAlgParamManager>(OB_DEV_COMPONENT_ALG_PARAM_MANAGER, false);
+    if(algParamManager) {
+        algParamManager->bindStreamProfileParams(profiles);
+    }
+
+    LOG_DEBUG("Sensor {} created! Found {} stream profiles.", sensorType, profiles.size());
+    for(auto &profile: profiles) {
+        LOG_DEBUG(" - {}", profile);
+    }
+}
+
+void WristNetDevice::fetchAllVideoStreamProfileList() {
+    auto propServer = getPropertyServer();
+
+    std::vector<uint8_t> data;
+    BEGIN_TRY_EXECUTE({
+        propServer->getRawData(
+            OB_RAW_DATA_STREAM_PROFILE_LIST,
+            [&](OBDataTranState state, OBDataChunk *dataChunk) {
+                if(state == DATA_TRAN_STAT_TRANSFERRING) {
+                    data.insert(data.end(), dataChunk->data, dataChunk->data + dataChunk->size);
+                }
+            },
+            PROP_ACCESS_INTERNAL);
+    })
+    CATCH_EXCEPTION_AND_EXECUTE({
+        LOG_ERROR("Get profile list params failed!");
+        data.clear();
+    })
+
+    if(!data.empty()) {
+        std::vector<OBInternalStreamProfile> outputProfiles;
+        uint16_t                             dataSize = static_cast<uint16_t>(data.size());
+        outputProfiles                                = parseBuffer<OBInternalStreamProfile>(data.data(), dataSize);
+        allVideoStreamProfileList_.clear();
+        for(const auto &item: outputProfiles) {
+            OBStreamType streamType = utils::mapSensorTypeToStreamType((OBSensorType)item.sensorType);
+            OBFormat     format     = normalizeH265AliasFormat(utils::uvcFourccToOBFormat(item.profile.video.formatFourcc));
+            allVideoStreamProfileList_.push_back(StreamProfileFactory::createVideoStreamProfile(streamType, format, item.profile.video.width,
+                                                                                                item.profile.video.height, item.profile.video.fps));
+        }
+    }
+    else {
+        LOG_WARN("Get stream profile list failed!");
+    }
+}
+
+std::vector<std::shared_ptr<IFilter>> WristNetDevice::createRecommendedPostProcessingFilters(OBSensorType type) {
+    utils::unusedVar(type);
+    return {};
+}
+
+}  // namespace libobsensor

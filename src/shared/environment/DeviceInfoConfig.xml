@@ -188,9 +188,15 @@
             <!-- PN2608_EGO head-mounted dual-RGB + IMU + audio device. -->
             <VID>0x2BC5</VID>
             <PID>0x1201</PID>
-            <Name>PN2608 EGO</Name>
+            <Name>EGO</Name>
             <Manufacturer>Orbbec</Manufacturer>
         </EGO>
+        <Wrist>
+            <VID>0x2BC5</VID>
+            <PID>0x1203</PID>
+            <Name>Wrist</Name>
+            <Manufacturer>Orbbec</Manufacturer>
+        </Wrist>
         <!-- More devices can be added here -->
     </DevList>
 

@@ -157,6 +157,12 @@ const std::vector<uint16_t> EGODevPids = {
     0x1201,  // PN2608_EGO
 };
 
+// Wrist: single-RGB + IMU device, no audio
+#define OB_DEVICE_WRIST_PID 0x1203
+const std::vector<uint16_t> WristDevPids = {
+    0x1203,  // Wrist
+};
+
 const uint16_t              EGO_BOOT_VID       = 0x1B20;
 const uint16_t              EGO_BOOT_ROM_PID   = 0x0300;
 const uint16_t              EGO_BOOT_UBOOT_PID = 0x0301;
