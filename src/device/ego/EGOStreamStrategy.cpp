@@ -116,11 +116,28 @@ void EGOStreamStrategy::validateRecordingProfile(const std::shared_ptr<const Str
         auto width        = vsp->getWidth();
         auto height       = vsp->getHeight();
         auto fps          = vsp->getFps();
-        auto formatFourcc = utils::obFormatToUvcFourcc(vsp->getFormat());
+        auto reqFormat    = vsp->getFormat();
+        auto formatFourcc = utils::obFormatToUvcFourcc(reqFormat);
+
+        LOG_DEBUG("requested video profile: {}x{}@{}fps, formatFourcc=0x{:08X}", width, height, fps, formatFourcc);
+        for(const auto &item: recordingProfiles) {
+            if(sameSensor(item)) {
+                LOG_DEBUG("SD recording video profile: {}x{}@{}fps, formatFourcc=0x{:08X}", item.profile.video.width, item.profile.video.height,
+                          item.profile.video.fps, item.profile.video.formatFourcc);
+            }
+        }
+
+        // H265 (0x48323635) and HEVC (0x48455643) are the same codec with different FourCC spellings.
+        // Firmware may report either; treat them as equivalent.
+        auto isSameVideoFormat = [](OBFormat a, OBFormat b) {
+            if(a == b) return true;
+            return (a == OB_FORMAT_H265 || a == OB_FORMAT_HEVC) && (b == OB_FORMAT_H265 || b == OB_FORMAT_HEVC);
+        };
 
         auto matched = std::any_of(recordingProfiles.begin(), recordingProfiles.end(), [&](const OBInternalStreamProfile &item) {
+            auto itemFormat = utils::uvcFourccToOBFormat(item.profile.video.formatFourcc);
             return sameSensor(item) && item.profile.video.width == width && item.profile.video.height == height && item.profile.video.fps == fps
-                   && item.profile.video.formatFourcc == formatFourcc;
+                   && isSameVideoFormat(reqFormat, itemFormat);
         });
         if(matched) {
             return;
