@@ -70,8 +70,9 @@ EGOBinPackage EGOBinParser::parseAndVerify(const std::vector<uint8_t> &fw) {
     p.payloadSize                  = fw.size() - 32;
     auto                    actual = egoMd5(fw.data(), static_cast<size_t>(p.payloadSize));
     std::array<uint8_t, 16> expected{};
+    const size_t            mdOffset = static_cast<size_t>(p.payloadSize);
     for(size_t i = 0; i < 16; ++i) {
-        expected[i] = uint8_t((nibble(fw[p.payloadSize + 2 * i]) << 4) | nibble(fw[p.payloadSize + 2 * i + 1]));
+        expected[i] = uint8_t((nibble(fw[mdOffset + 2 * i]) << 4) | nibble(fw[mdOffset + 2 * i + 1]));
     }
     if(actual != expected) {
         THROW_INVALID_PARAM_EXCEPTION("EGO BIN MD5 verification failed");
