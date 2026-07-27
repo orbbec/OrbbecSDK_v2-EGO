@@ -783,6 +783,16 @@ typedef enum {
     OB_PROP_RECORDING_DESTINATION_INT = 288,
 
     /**
+     * @brief Language used by device voice prompts
+     * @param value OBDeviceVoicePromptLanguage
+     *   - 0: Chinese
+     *   - 1: English
+     *
+     * @attention read and write
+     */
+    OB_PROP_DEVICE_VOICE_PROMPT_LANGUAGE_INT = 289,
+
+    /**
      * @brief Baseline calibration parameters
      */
     OB_STRUCT_BASELINE_CALIBRATION_PARAM = 1002,

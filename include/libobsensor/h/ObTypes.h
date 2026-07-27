@@ -2101,6 +2101,15 @@ typedef enum {
     ob_recording_destination;
 
 /**
+ * @brief Language used by device voice prompts.
+ */
+typedef enum {
+    OB_DEVICE_VOICE_PROMPT_LANGUAGE_CHINESE = 0, /**< Chinese voice prompts */
+    OB_DEVICE_VOICE_PROMPT_LANGUAGE_ENGLISH = 1, /**< English voice prompts */
+} OBDeviceVoicePromptLanguage,
+    ob_device_voice_prompt_language;
+
+/**
  * @brief Wrist wear side stored on the device
  */
 typedef enum {
