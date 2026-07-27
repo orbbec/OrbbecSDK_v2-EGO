@@ -2151,6 +2151,18 @@ typedef enum {
     ob_clock_type;
 
 /**
+ * @brief Timestamp time base.
+ *
+ * @attention Local mode is not a standard Unix timestamp. It is UTC epoch time plus the current local timezone offset,
+ * used for realtime timestamps when local wall-clock based timestamp values are required.
+ */
+typedef enum {
+    OB_TIMESTAMP_TIME_BASE_UTC   = 0, /**< Use UTC Unix epoch time for realtime timestamps. Default. */
+    OB_TIMESTAMP_TIME_BASE_LOCAL = 1, /**< Use local wall-clock based epoch time for realtime timestamps. */
+} OBTimestampTimeBase,
+    ob_timestamp_time_base;
+
+/**
  * @brief HID direction key type reported by the device.
  */
 typedef enum {

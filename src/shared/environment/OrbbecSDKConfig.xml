@@ -89,6 +89,14 @@
              Monotonic: Monotonic clock, not tied to epoch. -->
         <ClockSource>Realtime</ClockSource>
 
+        <!-- Realtime timestamp time base.
+             Options: UTC, Local.
+             UTC: use Unix epoch time.
+             Local: use Unix epoch time plus the current local timezone offset.
+             This affects device time synchronization, frame system timestamps,
+             global timestamps, and host-generated device timestamps. -->
+        <TimestampTimeBase>UTC</TimestampTimeBase>
+
         <!-- Gemini305 config -->
         <Gemini305>
             <!-- Default backend for Linux UVC devices. If the LinuxUVCBackend is set to "Auto,"

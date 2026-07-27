@@ -361,6 +361,7 @@ void ObLibUacDevicePort::handleIsoTransfer(struct libusb_transfer *transfer) {
                 frame->setTimeStampUsec(tsUs);
                 frame->setSystemTimeStampUsec(nowUs);
                 frame->setSteadyTimeStampUsec(steadyUs);
+                frame->setDeviceTimestampFromHost(true);
                 totalSamples_.fetch_add(sampleCount);
 
                 frameCallback_(frame);

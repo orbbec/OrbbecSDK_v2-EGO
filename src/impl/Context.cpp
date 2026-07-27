@@ -280,6 +280,22 @@ ob_clock_type ob_context_get_timestamp_clock_type(const ob_context *context, ob_
 }
 HANDLE_EXCEPTIONS_AND_RETURN(OB_CLOCK_TYPE_REALTIME, context)
 
+void ob_context_set_timestamp_time_base(ob_context *context, ob_timestamp_time_base time_base, ob_error **error) BEGIN_API_CALL {
+    VALIDATE_NOT_NULL(context);
+    auto mapper = context->context->getHostTimestampProvider();
+    VALIDATE_NOT_NULL(mapper);
+    mapper->setTimestampTimeBase(time_base);
+}
+HANDLE_EXCEPTIONS_NO_RETURN(context, time_base)
+
+ob_timestamp_time_base ob_context_get_timestamp_time_base(const ob_context *context, ob_error **error) BEGIN_API_CALL {
+    VALIDATE_NOT_NULL(context);
+    auto mapper = context->context->getHostTimestampProvider();
+    VALIDATE_NOT_NULL(mapper);
+    return mapper->getTimestampTimeBase();
+}
+HANDLE_EXCEPTIONS_AND_RETURN(OB_TIMESTAMP_TIME_BASE_UTC, context)
+
 #ifdef __cplusplus
 }
 #endif

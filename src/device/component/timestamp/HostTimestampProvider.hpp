@@ -35,6 +35,20 @@ public:
     OBClockType getClockType() const;
 
     /**
+     * @brief Set the time base used for realtime timestamps.
+     *
+     * @param timeBase Target timestamp time base.
+     */
+    void setTimestampTimeBase(OBTimestampTimeBase timeBase);
+
+    /**
+     * @brief Get the time base used for realtime timestamps.
+     *
+     * @return Current timestamp time base.
+     */
+    OBTimestampTimeBase getTimestampTimeBase() const;
+
+    /**
      * @brief Get current host time in microseconds for the selected clock type.
      *
      * @return Current time in microseconds.
@@ -60,6 +74,7 @@ private:
 
 private:
     std::atomic<OBClockType> clockType_{ OB_CLOCK_TYPE_REALTIME };
+    std::atomic<OBTimestampTimeBase> timestampTimeBase_{ OB_TIMESTAMP_TIME_BASE_UTC };
 };
 
 }  // namespace libobsensor

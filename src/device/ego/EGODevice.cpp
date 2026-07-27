@@ -311,6 +311,7 @@ void EGODevice::initSensorList() {
                 auto sensor = std::make_shared<AudioSensor>(this, port);
 
                 // USB audio timestamps are host wall-clock (UAC has no device clock); no device-time calculator.
+                sensor->enableTimestampAnomalyDetection(false);
                 initSensorStreamProfile(sensor);
                 return sensor;
             },

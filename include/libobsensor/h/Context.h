@@ -328,6 +328,28 @@ OB_EXPORT void ob_context_set_timestamp_clock_type(ob_context *context, ob_clock
  */
 OB_EXPORT ob_clock_type ob_context_get_timestamp_clock_type(const ob_context *context, ob_error **error);
 
+/**
+ * @brief Set the time base used for realtime timestamps.
+ *
+ * @attention This affects device time synchronization, frame system timestamps, global timestamps, and host-generated device timestamps.
+ * @attention This only applies when the timestamp clock type is realtime. Monotonic timestamps are not UTC/local based.
+ *
+ * @param[in] context Pointer to the context object
+ * @param[in] time_base The timestamp time base to use
+ * @param[out] error Pointer to an error object that will be populated if an error occurs
+ */
+OB_EXPORT void ob_context_set_timestamp_time_base(ob_context *context, ob_timestamp_time_base time_base, ob_error **error);
+
+/**
+ * @brief Get the time base used for realtime timestamps.
+ *
+ * @param[in] context Pointer to the context object
+ * @param[out] error Pointer to an error object that will be populated if an error occurs
+ *
+ * @return ob_timestamp_time_base The current timestamp time base
+ */
+OB_EXPORT ob_timestamp_time_base ob_context_get_timestamp_time_base(const ob_context *context, ob_error **error);
+
 // The following interfaces are deprecated and are retained here for compatibility purposes.
 #define ob_enable_multi_device_sync ob_enable_device_clock_sync
 #define ob_set_logger_callback ob_set_logger_to_callback

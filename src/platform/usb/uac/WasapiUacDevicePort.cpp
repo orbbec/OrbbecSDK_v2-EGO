@@ -314,6 +314,7 @@ void WasapiUacDevicePort::captureLoop() {
                 frame->setTimeStampUsec(tsUs);
                 frame->setSystemTimeStampUsec(nowUs);
                 frame->setSteadyTimeStampUsec(utils::getSteadyTimeUs());
+                frame->setDeviceTimestampFromHost(true);
                 totalFrames_ += numFrames;
 
                 frameCallback_(frame);

@@ -1160,3 +1160,19 @@ std::ostream &operator<<(std::ostream &os, const OBClockType &type) {
     os << "(" << static_cast<uint32_t>(type) << ")";
     return os;
 }
+
+std::ostream &operator<<(std::ostream &os, const OBTimestampTimeBase &timeBase) {
+    switch(timeBase) {
+    case OB_TIMESTAMP_TIME_BASE_UTC:
+        os << "UTC";
+        break;
+    case OB_TIMESTAMP_TIME_BASE_LOCAL:
+        os << "local";
+        break;
+    default:
+        os << "unknown time base";
+        break;
+    }
+    os << "(" << static_cast<uint32_t>(timeBase) << ")";
+    return os;
+}
