@@ -42,6 +42,8 @@ if (OB_BUILD_OPEN3D_EXAMPLES)
     add_subdirectory(5.wrapper.open3d)
 endif()
 
+    add_subdirectory(7.net.color)
+
 # cpp examples with OpenCV Requirements
 if(${OpenCV_FOUND})
     add_subdirectory(0.basic.quick_start)
@@ -67,6 +69,7 @@ if(${OpenCV_FOUND})
     add_subdirectory(3.advanced.enhanced_depth_filter)
     add_subdirectory(4.misc.save_to_disk)
     add_subdirectory(5.wrapper.opencv)
+
 endif()
 
 # lidar examples

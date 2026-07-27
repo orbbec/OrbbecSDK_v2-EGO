@@ -245,6 +245,24 @@ OB_EXPORT void ob_device_clear_license_info(ob_device *device, ob_error **error)
 OB_EXPORT void ob_device_get_raw_data(ob_device *device, ob_property_id property_id, ob_get_data_callback cb, void *user_data, ob_error **error);
 
 /**
+ * @brief Start exporting Ego firmware log files.
+ *
+ * @param[in] device The device object.
+ * @param[in] callback Callback to receive each log file packet.
+ * @param[in] user_data User-defined data that will be returned in the callback.
+ * @param[out] error Pointer to an error object that will be set if an error occurs.
+ */
+OB_EXPORT void ob_device_start_ego_firmware_log_export(ob_device *device, ob_ego_fw_log_packet_callback callback, void *user_data, ob_error **error);
+
+/**
+ * @brief Stop exporting Ego firmware log files.
+ *
+ * @param[in] device The device object.
+ * @param[out] error Pointer to an error object that will be set if an error occurs.
+ */
+OB_EXPORT void ob_device_stop_ego_firmware_log_export(ob_device *device, ob_error **error);
+
+/**
  * @brief Get the firmware recording profile list saved on the device.
  *
  * @param[in] device The device object.

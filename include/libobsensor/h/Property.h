@@ -1139,6 +1139,12 @@ typedef enum {
     OB_RAW_DATA_IMU_CALIB_YAML = 4065,
 
     /**
+     * @brief Export device log package from firmware (read only).
+     * The returned bytes follow the firmware log export package format.
+     */
+    OB_RAW_DATA_EXPORT_LOG = 4066,
+
+    /**
      * @brief Confidence degree
      */
     OB_PROP_DEBUG_ESGM_CONFIDENCE_FLOAT = 5013,

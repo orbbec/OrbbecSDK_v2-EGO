@@ -27,6 +27,7 @@
 #include "property/CommonPropertyAccessors.hpp"
 #include "property/FilterPropertyAccessors.hpp"
 #include "param/AlgParamManager.hpp"
+#include "component/fwlog/EgoFirmwareLogManager.hpp"
 #include "component/fwrecord/FwRecordProfileManager.hpp"
 
 #include "FilterFactory.hpp"
@@ -491,6 +492,7 @@ void EGODevice::initProperties() {
         //  raw bytes. The SDK does not parse the data; the application layer saves it directly to a file.
         propertyServer->registerProperty(OB_RAW_DATA_ALIGN_CALIB_YAML, "r", "r", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_RAW_DATA_IMU_CALIB_YAML, "r", "r", vendorPropertyAccessor);
+        propertyServer->registerProperty(OB_RAW_DATA_EXPORT_LOG, "r", "r", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_PROP_COLOR_BITRATE_INT, "rw", "rw", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_PROP_COLOR_DYNAMIC_BITRATE_ENABLE_BOOL, "rw", "rw", vendorPropertyAccessor);
 
@@ -499,6 +501,7 @@ void EGODevice::initProperties() {
     }
 
     registerComponent(OB_DEV_COMPONENT_PROPERTY_SERVER, propertyServer, false);
+    registerComponent(OB_DEV_COMPONENT_EGO_FW_LOG_MANAGER, [this]() { return std::make_shared<EgoFirmwareLogManager>(this); });
 
     if(propertyServer->isPropertySupported(OB_PROP_DEVICE_COMMUNICATION_TYPE_INT, PROP_OP_WRITE, PROP_ACCESS_INTERNAL)) {
         propertyServer->setPropertyValueT(OB_PROP_DEVICE_COMMUNICATION_TYPE_INT, OB_COMM_USB);

@@ -14,7 +14,11 @@
 #include "IDeviceMonitor.hpp"
 #include "utils/DeviceTypeHelper.hpp"
 #include "component/comprehensivefilter/DepthPostFilterParamsManager.hpp"
+<<<<<<< HEAD
 #include "component/recommended_post_filters/RecommendedPostFilterStrategy.hpp"
+=======
+#include "component/fwlog/EgoFirmwareLogManager.hpp"
+>>>>>>> 0d2a70d10 (Add EGO firmware log support)
 
 #ifdef __linux__
 #include "usb/uvc/UvcDevicePort.hpp"
@@ -265,6 +269,12 @@ void DeviceBase::deactivate(bool forceAbortPendingIo) {
         if(monitor) {
             monitor->disableHeartbeat();
             monitor->disableFirmwareLog();
+        }
+    });
+    TRY_EXECUTE({
+        auto egoFwLogManager = getComponentT<EgoFirmwareLogManager>(OB_DEV_COMPONENT_EGO_FW_LOG_MANAGER, false);
+        if(egoFwLogManager) {
+            egoFwLogManager->stop();
         }
     });
 

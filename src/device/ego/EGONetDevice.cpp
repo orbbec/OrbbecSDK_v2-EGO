@@ -21,6 +21,7 @@
 #include "property/PropertyServer.hpp"
 #include "property/CommonPropertyAccessors.hpp"
 #include "property/FilterPropertyAccessors.hpp"
+#include "component/fwlog/EgoFirmwareLogManager.hpp"
 #include "component/fwrecord/FwRecordProfileManager.hpp"
 
 #include "FilterFactory.hpp"
@@ -383,6 +384,7 @@ void EGONetDevice::initProperties() {
 
     propertyServer->registerProperty(OB_RAW_DATA_ALIGN_CALIB_YAML, "r", "r", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_RAW_DATA_IMU_CALIB_YAML, "r", "r", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_RAW_DATA_EXPORT_LOG, "r", "r", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_PROP_COLOR_BITRATE_INT, "rw", "rw", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_PROP_COLOR_DYNAMIC_BITRATE_ENABLE_BOOL, "rw", "rw", vendorPropertyAccessor);
 
@@ -403,6 +405,7 @@ void EGONetDevice::initProperties() {
     }
 
     registerComponent(OB_DEV_COMPONENT_PROPERTY_SERVER, propertyServer, false);
+    registerComponent(OB_DEV_COMPONENT_EGO_FW_LOG_MANAGER, [this]() { return std::make_shared<EgoFirmwareLogManager>(this); });
 
     // [EGO-WIP] The following commands send to port 8090 and crash the firmware TCP service.
     // Re-enable once firmware implements these properties.

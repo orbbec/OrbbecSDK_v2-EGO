@@ -21,6 +21,7 @@
 #include "IAlgParamManager.hpp"
 #include "IFrameTimestamp.hpp"
 #include "component/fwrecord/FwRecordProfileManager.hpp"
+#include "component/fwlog/EgoFirmwareLogManager.hpp"
 #include "hid/EgoStateService.hpp"
 #include "hid/DirectionKeyService.hpp"
 #include "utils/PublicTypeHelper.hpp"
@@ -555,6 +556,31 @@ void ob_device_get_raw_data(ob_device *device, ob_property_id property_id, ob_ge
         libobsensor::PROP_ACCESS_USER);
 }
 HANDLE_EXCEPTIONS_NO_RETURN(device, property_id, user_data)
+
+void ob_device_start_ego_firmware_log_export(ob_device *device, ob_ego_fw_log_packet_callback callback, void *user_data, ob_error **error) BEGIN_API_CALL {
+    VALIDATE_NOT_NULL(device);
+    VALIDATE_NOT_NULL(callback);
+
+    auto logManager = device->device->getComponentT<libobsensor::EgoFirmwareLogManager>(libobsensor::OB_DEV_COMPONENT_EGO_FW_LOG_MANAGER, false);
+    if(!logManager) {
+        THROW_UNSUPPORTED_OPERATION_EXCEPTION("Ego firmware log export is not supported by this device");
+    }
+    logManager->start([=](const char *fileName, OBEgoFwLogPacketState state, const uint8_t *data, uint32_t dataSize, uint32_t totalFileCount,
+                          uint32_t completedFileCount) {
+        callback(fileName, state, data, dataSize, totalFileCount, completedFileCount, user_data);
+    });
+}
+HANDLE_EXCEPTIONS_NO_RETURN(device, callback, user_data)
+
+void ob_device_stop_ego_firmware_log_export(ob_device *device, ob_error **error) BEGIN_API_CALL {
+    VALIDATE_NOT_NULL(device);
+
+    auto logManager = device->device->getComponentT<libobsensor::EgoFirmwareLogManager>(libobsensor::OB_DEV_COMPONENT_EGO_FW_LOG_MANAGER, false);
+    if(logManager) {
+        logManager->stop();
+    }
+}
+HANDLE_EXCEPTIONS_NO_RETURN(device)
 
 void ob_device_get_fw_record_profile_list(ob_device *device, ob_fw_record_stream_profile *profiles, uint32_t *profile_count,
                                           ob_error **error) BEGIN_API_CALL {

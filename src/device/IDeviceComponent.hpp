@@ -118,6 +118,7 @@ private:
     X(OB_DEV_COMPONENT_COLOR_PRESET_MANAGER, "color preset manager")                                 \
     X(OB_DEV_COMPONENT_DEVICE_LICENSE_INFO_MANAGER, "device license info manager")                   \
     X(OB_DEV_COMPONENT_AUDIO_SENSOR, "audio sensor")                                                 \
+    X(OB_DEV_COMPONENT_EGO_FW_LOG_MANAGER, "ego firmware log manager")                               \
     X(OB_DEV_COMPONENT_FW_RECORD_PROFILE_MANAGER, "firmware record profile manager")
 
 // generate enum
