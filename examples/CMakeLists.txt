@@ -42,8 +42,6 @@ if (OB_BUILD_OPEN3D_EXAMPLES)
     add_subdirectory(5.wrapper.open3d)
 endif()
 
-    add_subdirectory(7.net.color)
-
 # cpp examples with OpenCV Requirements
 if(${OpenCV_FOUND})
     add_subdirectory(0.basic.quick_start)

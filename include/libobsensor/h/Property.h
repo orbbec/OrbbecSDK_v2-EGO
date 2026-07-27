@@ -764,6 +764,15 @@ typedef enum {
     OB_PROP_FW_RECORDING_FILE_SPLIT_DURATION_MIN_INT = 283,
 
     /**
+     * @brief Wrist wear side reported by the device
+     * @param value OBWristWearSide
+     *        Ego devices report @ref OB_WRIST_WEAR_SIDE_EGO.
+     *
+     * @attention read only
+     */
+    OB_PROP_WRIST_WEAR_SIDE_INT = 285,
+
+    /**
      * @brief Recording destination
      * @param value OBRecordingDestination
      *   - 0: Record to the device SD card

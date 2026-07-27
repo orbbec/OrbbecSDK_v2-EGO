@@ -2101,6 +2101,15 @@ typedef enum {
     ob_recording_destination;
 
 /**
+ * @brief Wrist wear side stored on the device
+ */
+typedef enum {
+    OB_WRIST_WEAR_SIDE_EGO   = 0, /**< Reported by Ego devices */
+    OB_WRIST_WEAR_SIDE_LEFT  = 1, /**< Device is worn on the left wrist */
+    OB_WRIST_WEAR_SIDE_RIGHT = 2, /**< Device is worn on the right wrist */
+} OBWristWearSide,
+    ob_wrist_wear_side;
+/**
  * @brief Intra-camera Sync Reference based on the exposure start time, the exposure middle time, or the exposure end time.
  */
 typedef enum {
