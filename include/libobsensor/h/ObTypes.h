@@ -2082,6 +2082,15 @@ typedef enum {
     ob_recording_prompt;
 
 /**
+ * @brief Destination used for device recording
+ */
+typedef enum {
+    OB_RECORDING_DESTINATION_SD_CARD = 0, /**< Record to the device SD card */
+    OB_RECORDING_DESTINATION_HOST    = 1, /**< Record to the host computer */
+} OBRecordingDestination,
+    ob_recording_destination;
+
+/**
  * @brief Intra-camera Sync Reference based on the exposure start time, the exposure middle time, or the exposure end time.
  */
 typedef enum {

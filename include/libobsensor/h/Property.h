@@ -764,6 +764,16 @@ typedef enum {
     OB_PROP_FW_RECORDING_FILE_SPLIT_DURATION_MIN_INT = 283,
 
     /**
+     * @brief Recording destination
+     * @param value OBRecordingDestination
+     *   - 0: Record to the device SD card
+     *   - 1: Record to the host computer
+     *
+     * @attention read and write
+     */
+    OB_PROP_RECORDING_DESTINATION_INT = 288,
+
+    /**
      * @brief Baseline calibration parameters
      */
     OB_STRUCT_BASELINE_CALIBRATION_PARAM = 1002,
