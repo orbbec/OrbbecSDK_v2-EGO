@@ -29,7 +29,7 @@ public:
     static constexpr int kFitIntervalS = 1;   // seconds between data points
 
     void reset(uint32_t sampleRate) {
-        sampleRate_    = sampleRate ? sampleRate : 16000;
+        sampleRate_    = sampleRate ? sampleRate : 48000;
         fitInterval_   = static_cast<uint64_t>(sampleRate_) * kFitIntervalS;
         nextFitAt_     = 0;
         anchorSysUs_   = 0;
@@ -94,8 +94,8 @@ private:
         intercept_ = (sy - slope_ * sx) / n;
     }
 
-    uint32_t sampleRate_    = 16000;
-    uint64_t fitInterval_   = 16000;
+    uint32_t sampleRate_    = 48000;
+    uint64_t fitInterval_   = 48000;
     uint64_t nextFitAt_     = 0;
     uint64_t anchorSysUs_   = 0;
     uint64_t anchorSamples_ = 0;

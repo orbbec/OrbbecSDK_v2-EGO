@@ -70,8 +70,8 @@ private:
     uint16_t uacBcdVersion_     = 0x0100;
     bool     kernelDetached_    = false;
 
-    // Audio format parsed from the AS Type I FORMAT_TYPE descriptor (fallbacks keep the legacy 16 kHz mono).
-    uint32_t sampleRate_    = 16000;
+    // Audio format parsed from the AS Type I FORMAT_TYPE descriptor (fallbacks keep the Ego 48 kHz mono format).
+    uint32_t sampleRate_    = 48000;
     uint8_t  channelCount_  = 1;
     uint8_t  bitsPerSample_ = 16;
 

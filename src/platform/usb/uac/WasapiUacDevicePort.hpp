@@ -41,7 +41,7 @@ private:
     std::shared_ptr<const USBSourcePortInfo> portInfo_;
 
     // Captured device format (read from the endpoint mix format at construction).
-    uint32_t sampleRate_    = 16000;
+    uint32_t sampleRate_    = 48000;
     uint32_t channelCount_  = 1;
     uint32_t bitsPerSample_ = 16;
 

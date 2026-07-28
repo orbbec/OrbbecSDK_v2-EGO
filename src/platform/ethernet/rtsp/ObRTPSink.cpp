@@ -252,10 +252,21 @@ void ObRTPSink::outputFrameFunc() {
             }
 
             TRY_EXECUTE({
-                auto frame = FrameFactory::createFrameFromStreamProfile(streamProfile_);
-
                 uint32_t frameOffset = 0;
-                if(isOBVendorCodec(codecName)) {
+                auto     frame       = format == OB_FORMAT_PCM ? FrameFactory::createFrame(OB_FRAME_AUDIO, OB_FORMAT_PCM, output->getRecvdDataSize())
+                                                               : FrameFactory::createFrameFromStreamProfile(streamProfile_);
+                frame->setStreamProfile(streamProfile_);
+
+                if(format == OB_FORMAT_PCM) {
+                    auto     audioProfile = streamProfile_->as<AudioStreamProfile>();
+                    uint32_t sampleRate   = audioProfile->getSampleRate();
+                    uint64_t tsUsec       = sampleRate == 0 ? output->getTimestamp() : output->getTimestamp() * 1000000ULL / sampleRate;
+                    frame->setTimeStampUsec(tsUsec);
+                    frame->setSystemTimeStampUsec(utils::getNowTimesUs());
+                    frame->setSteadyTimeStampUsec(utils::getSteadyTimeUs());
+                    frame->setNumber(output->getSequenceNumber());
+                }
+                else if(isOBVendorCodec(codecName)) {
                     frameOffset = sizeof(OBNetworkFrameHeader);
                     output->setDynamicHeaderSize(sizeof(OBNetworkFrameHeader));
                     auto header = output->getDynamicHeader<OBNetworkFrameHeader>();

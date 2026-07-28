@@ -195,11 +195,11 @@ WasapiUacDevicePort::WasapiUacDevicePort(std::shared_ptr<const USBSourcePortInfo
         THROW_ITEM_NOT_FOUND_EXCEPTION("WASAPI: no matching UAC capture endpoint found for the EGO device");
     }
 
-    // Force a fixed 16-bit integer PCM format (16 kHz mono) to match the EGO firmware / network path.
+    // Force a fixed 16-bit integer PCM format (48 kHz mono) to match the EGO firmware / network path.
     // The WASAPI shared-mode mix format is typically 32-bit float @48 kHz; consuming that as OB_FORMAT_PCM
     // (16-bit) produced noise. We request the target format explicitly at stream start via
     // AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM, so the audio engine resamples/reformats for us. Keep the members
-    // at the fixed target (header defaults 16000/1/16) instead of following the endpoint mix format.
+    // at the fixed target (header defaults 48000/1/16) instead of following the endpoint mix format.
     LOG_DEBUG("WasapiUacDevicePort created: sampleRate={}, channels={}, bits={} (forced 16-bit PCM)", sampleRate_, channelCount_, bitsPerSample_);
 }
 
@@ -215,8 +215,8 @@ WasapiUacDevicePort::~WasapiUacDevicePort() noexcept {
 
 StreamProfileList WasapiUacDevicePort::getStreamProfileList() {
     StreamProfileList list;
-    // samplesPerFrame is a soft hint (~20 ms chunk) for buffer sizing; WASAPI delivers variable packet sizes.
-    uint32_t samplesPerFrame = sampleRate_ / 50;
+    // Match Ego firmware audio framing. WASAPI may still deliver variable packet sizes.
+    uint32_t samplesPerFrame = 2048;
     list.push_back(StreamProfileFactory::createAudioStreamProfile(OB_FORMAT_PCM, sampleRate_, channelCount_, bitsPerSample_, 0, samplesPerFrame));
     return list;
 }

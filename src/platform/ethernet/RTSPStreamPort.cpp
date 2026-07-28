@@ -116,7 +116,7 @@ void RTSPStreamPort::createClient(std::shared_ptr<const StreamProfile> profile, 
     if(currentStreamProfile_->is<AudioStreamProfile>()) {
         auto asp   = currentStreamProfile_->as<AudioStreamProfile>();
         streamType = asp->getType();
-        formatStr  = std::to_string(asp->getSampleRate()) + "_" + std::to_string(asp->getChannelCount()) + "_" + mapFormatToString(asp->getFormat());
+        formatStr  = "stream";
     }
     else {
         auto vsp   = currentStreamProfile_->as<VideoStreamProfile>();

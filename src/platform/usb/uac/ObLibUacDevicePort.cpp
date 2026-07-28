@@ -13,6 +13,8 @@
 
 namespace libobsensor {
 
+static constexpr uint32_t EGO_AUDIO_SAMPLE_RATE = 48000;
+
 // UAC class-specific request codes
 #define UAC_SET_CUR 0x01
 // USB Audio interface subclasses
@@ -130,8 +132,8 @@ void ObLibUacDevicePort::parseUacTopology() {
                         isoMaxPacketSize_  = ep.wMaxPacketSize;
                         foundStreaming     = true;
 
-                        // Parse the class-specific AS Type I FORMAT_TYPE descriptor for the real audio format,
-                        // instead of assuming a fixed 16 kHz mono. Each sample frequency is 3-byte little-endian.
+                        // Parse the class-specific AS Type I FORMAT_TYPE descriptor for the real audio format.
+                        // Prefer Ego's 48 kHz rate when the device advertises it. Each sample frequency is 3-byte little-endian.
                         // UAC1 only: the UAC2 FORMAT_TYPE has a different layout (rates live in the Clock Source),
                         // so leave the defaults there. bcdADC was parsed from the AC interface enumerated earlier.
                         const uint8_t *fx    = alt.extra;
@@ -160,8 +162,9 @@ void ObLibUacDevicePort::parseUacTopology() {
                                 }
                                 auto readFreq = [&](int p) -> uint32_t { return static_cast<uint32_t>(fx[p] | (fx[p + 1] << 8) | (fx[p + 2] << 16)); };
                                 if(bSamFreqType == 0 && fxOff + 14 <= fxLen) {
-                                    // Continuous range [lower, upper]; use the upper bound.
-                                    sampleRate_ = readFreq(fxOff + 11);
+                                    uint32_t lower = readFreq(fxOff + 8);
+                                    uint32_t upper = readFreq(fxOff + 11);
+                                    sampleRate_    = (lower <= EGO_AUDIO_SAMPLE_RATE && EGO_AUDIO_SAMPLE_RATE <= upper) ? EGO_AUDIO_SAMPLE_RATE : upper;
                                 }
                                 else if(bSamFreqType > 0) {
                                     // Discrete list; prefer 48 kHz if offered, else the highest listed rate.
@@ -172,7 +175,7 @@ void ObLibUacDevicePort::parseUacTopology() {
                                             break;
                                         }
                                         uint32_t f = readFreq(p);
-                                        if(f == 48000) {
+                                        if(f == EGO_AUDIO_SAMPLE_RATE) {
                                             best = f;
                                             break;
                                         }
@@ -205,9 +208,9 @@ void ObLibUacDevicePort::parseUacTopology() {
 }
 
 StreamProfileList ObLibUacDevicePort::getStreamProfileList() {
-    // Format parsed from the AS Type I FORMAT_TYPE descriptor (see parseUacTopology); falls back to 16 kHz mono.
+    // Format parsed from the AS Type I FORMAT_TYPE descriptor (see parseUacTopology); falls back to 48 kHz mono.
     StreamProfileList list;
-    uint32_t          samplesPerFrame = sampleRate_ / 50;  // ~20 ms chunk hint for buffer sizing
+    uint32_t          samplesPerFrame = 2048;
     list.push_back(StreamProfileFactory::createAudioStreamProfile(OB_FORMAT_PCM, sampleRate_, channelCount_, bitsPerSample_, 0, samplesPerFrame));
     return list;
 }

@@ -1654,6 +1654,7 @@ Boolean MediaSubsession::createSourceObjects(int useSpecialRTPoffset) {
                     || strcmp(fCodecName, "OB_FMT_Y10") == 0          // orbbec stream
                     || strcmp(fCodecName, "OB_FMT_RVL") == 0          // orbbec stream
                     || strcmp(fCodecName, "OB_FMT_MJPEG") == 0        // orbbec stream
+                    || strcmp(fCodecName, "OB_FMT_PCM") == 0          // orbbec stream
                     || strcmp(fCodecName, "YUYV") == 0
                     || strcmp(fCodecName, "I420") == 0
                     || strcmp(fCodecName, "Y12C4") == 0) {
