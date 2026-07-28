@@ -21,7 +21,7 @@
 #include "property/PropertyServer.hpp"
 #include "property/CommonPropertyAccessors.hpp"
 #include "property/FilterPropertyAccessors.hpp"
-#include "component/fwlog/EgoFirmwareLogManager.hpp"
+#include "component/fwlog/FirmwareLogManager.hpp"
 #include "component/fwrecord/FwRecordProfileManager.hpp"
 
 #include "FilterFactory.hpp"
@@ -407,7 +407,7 @@ void EGONetDevice::initProperties() {
     }
 
     registerComponent(OB_DEV_COMPONENT_PROPERTY_SERVER, propertyServer, false);
-    registerComponent(OB_DEV_COMPONENT_EGO_FW_LOG_MANAGER, [this]() { return std::make_shared<EgoFirmwareLogManager>(this); });
+    registerComponent(OB_DEV_COMPONENT_FW_LOG_MANAGER, [this]() { return std::make_shared<FirmwareLogManager>(this); });
 
     // [EGO-WIP] The following commands send to port 8090 and crash the firmware TCP service.
     // Re-enable once firmware implements these properties.

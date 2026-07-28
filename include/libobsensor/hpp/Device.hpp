@@ -67,11 +67,11 @@ public:
     typedef std::function<void(const OBEgoStateReport &state)> EgoStateCallback;
 
     /**
-     * @brief Callback function for Ego firmware log export packets.
+     * @brief Callback function for firmware log export packets.
      */
-    typedef std::function<void(const char *fileName, OBEgoFwLogPacketState state, const uint8_t *data, uint32_t dataSize, uint32_t totalFileCount,
+    typedef std::function<void(const char *fileName, OBFwLogPacketState state, const uint8_t *data, uint32_t dataSize, uint32_t totalFileCount,
                                uint32_t completedFileCount)>
-        EgoFirmwareLogPacketCallback;
+        FirmwareLogPacketCallback;
 
 protected:
     ob_device                 *impl_ = nullptr;
@@ -79,7 +79,7 @@ protected:
     DirectionKeyCallback       directionKeyCallback_;
     EgoStateCallback           egoStateCallback_;
     DeviceFwUpdateCallback     fwUpdateCallback_;
-    EgoFirmwareLogPacketCallback egoFirmwareLogCallback_;
+    FirmwareLogPacketCallback firmwareLogCallback_;
 
 public:
     /**
@@ -88,18 +88,18 @@ public:
     explicit Device(ob_device_t *impl) : impl_(impl) {}
 
     Device(Device &&other) noexcept {
-        other.stopEgoFirmwareLogExportNoThrow();
+        other.stopFirmwareLogExportNoThrow();
         impl_       = other.impl_;
         other.impl_ = nullptr;
     }
 
     Device &operator=(Device &&other) noexcept {
         if(this != &other) {
-            stopEgoFirmwareLogExportNoThrow();
+            stopFirmwareLogExportNoThrow();
             ob_error *error = nullptr;
             ob_delete_device(impl_, &error);
             Error::handle(&error);
-            other.stopEgoFirmwareLogExportNoThrow();
+            other.stopFirmwareLogExportNoThrow();
             impl_       = other.impl_;
             other.impl_ = nullptr;
         }
@@ -110,7 +110,7 @@ public:
     Device &operator=(const Device &) = delete;
 
     virtual ~Device() noexcept {
-        stopEgoFirmwareLogExportNoThrow();
+        stopFirmwareLogExportNoThrow();
         ob_error *error = nullptr;
         ob_delete_device(impl_, &error);
         Error::handle(&error, false);
@@ -393,30 +393,30 @@ public:
     }
 
     /**
-     * @brief Start exporting Ego firmware log files.
+     * @brief Start exporting firmware log files.
      *
      * @param[in] callback Callback to receive each log file packet.
      */
-    void startEgoFirmwareLogExport(EgoFirmwareLogPacketCallback callback) {
+    void startFirmwareLogExport(FirmwareLogPacketCallback callback) {
         ob_error *error = nullptr;
-        egoFirmwareLogCallback_ = std::move(callback);
-        ob_device_start_ego_firmware_log_export(impl_, &Device::egoFirmwareLogCallbackBridge, this, &error);
+        firmwareLogCallback_ = std::move(callback);
+        ob_device_start_firmware_log_export(impl_, &Device::firmwareLogCallbackBridge, this, &error);
         try {
             Error::handle(&error);
         }
         catch(...) {
-            egoFirmwareLogCallback_ = nullptr;
+            firmwareLogCallback_ = nullptr;
             throw;
         }
     }
 
     /**
-     * @brief Stop exporting Ego firmware log files.
+     * @brief Stop exporting firmware log files.
      */
-    void stopEgoFirmwareLogExport() {
+    void stopFirmwareLogExport() {
         ob_error *error = nullptr;
-        ob_device_stop_ego_firmware_log_export(impl_, &error);
-        egoFirmwareLogCallback_ = nullptr;
+        ob_device_stop_firmware_log_export(impl_, &error);
+        firmwareLogCallback_ = nullptr;
         Error::handle(&error);
     }
 
@@ -1236,15 +1236,15 @@ public:
     }
 
 private:
-    void stopEgoFirmwareLogExportNoThrow() noexcept {
+    void stopFirmwareLogExportNoThrow() noexcept {
         if(!impl_) {
-            egoFirmwareLogCallback_ = nullptr;
+            firmwareLogCallback_ = nullptr;
             return;
         }
 
         ob_error *error = nullptr;
-        ob_device_stop_ego_firmware_log_export(impl_, &error);
-        egoFirmwareLogCallback_ = nullptr;
+        ob_device_stop_firmware_log_export(impl_, &error);
+        firmwareLogCallback_ = nullptr;
         Error::handle(&error, false);
     }
 
@@ -1262,11 +1262,11 @@ private:
         }
     }
 
-    static void egoFirmwareLogCallbackBridge(const char *fileName, ob_ego_fw_log_packet_state state, const uint8_t *data, uint32_t dataSize,
+    static void firmwareLogCallbackBridge(const char *fileName, ob_fw_log_packet_state state, const uint8_t *data, uint32_t dataSize,
                                              uint32_t totalFileCount, uint32_t completedFileCount, void *userData) {
         auto device = static_cast<Device *>(userData);
-        if(device && device->egoFirmwareLogCallback_) {
-            device->egoFirmwareLogCallback_(fileName, state, data, dataSize, totalFileCount, completedFileCount);
+        if(device && device->firmwareLogCallback_) {
+            device->firmwareLogCallback_(fileName, state, data, dataSize, totalFileCount, completedFileCount);
         }
     }
 

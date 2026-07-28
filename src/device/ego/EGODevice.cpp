@@ -27,7 +27,7 @@
 #include "property/CommonPropertyAccessors.hpp"
 #include "property/FilterPropertyAccessors.hpp"
 #include "param/AlgParamManager.hpp"
-#include "component/fwlog/EgoFirmwareLogManager.hpp"
+#include "component/fwlog/FirmwareLogManager.hpp"
 #include "component/fwrecord/FwRecordProfileManager.hpp"
 
 #include "FilterFactory.hpp"
@@ -503,7 +503,7 @@ void EGODevice::initProperties() {
     }
 
     registerComponent(OB_DEV_COMPONENT_PROPERTY_SERVER, propertyServer, false);
-    registerComponent(OB_DEV_COMPONENT_EGO_FW_LOG_MANAGER, [this]() { return std::make_shared<EgoFirmwareLogManager>(this); });
+    registerComponent(OB_DEV_COMPONENT_FW_LOG_MANAGER, [this]() { return std::make_shared<FirmwareLogManager>(this); });
 
     if(propertyServer->isPropertySupported(OB_PROP_DEVICE_COMMUNICATION_TYPE_INT, PROP_OP_WRITE, PROP_ACCESS_INTERNAL)) {
         propertyServer->setPropertyValueT(OB_PROP_DEVICE_COMMUNICATION_TYPE_INT, OB_COMM_USB);

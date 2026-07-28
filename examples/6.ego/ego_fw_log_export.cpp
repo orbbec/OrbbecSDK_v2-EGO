@@ -60,12 +60,12 @@ void closeAllFiles(LogSaveContext &ctx) {
     ctx.files.clear();
 }
 
-void saveEgoFirmwareLogPacket(const char *fileName, OBEgoFwLogPacketState state, const uint8_t *data, uint32_t dataSize, uint32_t totalFileCount,
+void saveEgoFirmwareLogPacket(const char *fileName, OBFwLogPacketState state, const uint8_t *data, uint32_t dataSize, uint32_t totalFileCount,
                               uint32_t completedFileCount, LogSaveContext *ctx) {
     std::lock_guard<std::mutex> lock(ctx->mutex);
     std::string                 name(fileName);
 
-    if(state == EGO_FW_LOG_PACKET_BEGIN) {
+    if(state == OB_FW_LOG_PACKET_BEGIN) {
         auto file = std::fopen(joinPath(ctx->outputDir, name).c_str(), "wb");
         if(file == nullptr) {
             std::cerr << "Open log file failed: " << name << std::endl;
@@ -89,7 +89,7 @@ void saveEgoFirmwareLogPacket(const char *fileName, OBEgoFwLogPacketState state,
         }
     }
 
-    if(state == EGO_FW_LOG_PACKET_END) {
+    if(state == OB_FW_LOG_PACKET_END) {
         if(it != ctx->files.end()) {
             std::fclose(it->second);
             ctx->files.erase(it);
@@ -121,8 +121,8 @@ int main() try {
     auto device = deviceList->getDevice(0);
     LogSaveContext saveCtx(outputDir);
 
-    device->startEgoFirmwareLogExport([&saveCtx](const char *fileName, OBEgoFwLogPacketState state, const uint8_t *data, uint32_t dataSize,
-                                                 uint32_t totalFileCount, uint32_t completedFileCount) {
+    device->startFirmwareLogExport([&saveCtx](const char *fileName, OBFwLogPacketState state, const uint8_t *data, uint32_t dataSize,
+                                              uint32_t totalFileCount, uint32_t completedFileCount) {
         saveEgoFirmwareLogPacket(fileName, state, data, dataSize, totalFileCount, completedFileCount, &saveCtx);
     });
 
@@ -131,7 +131,7 @@ int main() try {
         saveCtx.cond.wait(lock, [&saveCtx]() { return saveCtx.done; });
     }
 
-    device->stopEgoFirmwareLogExport();
+    device->stopFirmwareLogExport();
     closeAllFiles(saveCtx);
     std::cout << "Ego firmware log export " << (saveCtx.error ? "failed" : "completed") << std::endl;
     return saveCtx.error ? EXIT_FAILURE : EXIT_SUCCESS;

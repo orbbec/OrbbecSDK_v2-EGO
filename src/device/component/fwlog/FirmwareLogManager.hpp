@@ -15,20 +15,20 @@
 
 namespace libobsensor {
 
-using EgoFirmwareLogPacketCallback = std::function<void(const char *fileName, OBEgoFwLogPacketState state, const uint8_t *data, uint32_t dataSize,
+using FirmwareLogPacketCallback = std::function<void(const char *fileName, OBFwLogPacketState state, const uint8_t *data, uint32_t dataSize,
                                                         uint32_t totalFileCount, uint32_t completedFileCount)>;
 
-class EgoFirmwareLogManager : public DeviceComponentBase {
+class FirmwareLogManager : public DeviceComponentBase {
 public:
-    explicit EgoFirmwareLogManager(IDevice *owner);
-    ~EgoFirmwareLogManager() noexcept override;
+    explicit FirmwareLogManager(IDevice *owner);
+    ~FirmwareLogManager() noexcept override;
 
-    void start(EgoFirmwareLogPacketCallback callback);
+    void start(FirmwareLogPacketCallback callback);
     void stop();
 
 private:
-    struct EgoFwLogPackageHeader;
-    struct EgoFwLogFileEntry;
+    struct FwLogPackageHeader;
+    struct FwLogFileEntry;
 
     bool        readAndDispatchPackage();
     std::string parseFileName(const char *fileName);
@@ -37,7 +37,7 @@ private:
     std::mutex                   mutex_;
     std::thread                  worker_;
     std::atomic_bool             running_{ false };
-    EgoFirmwareLogPacketCallback callback_;
+    FirmwareLogPacketCallback callback_;
 };
 
 }  // namespace libobsensor

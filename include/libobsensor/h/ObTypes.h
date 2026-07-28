@@ -428,11 +428,11 @@ typedef struct {
  * @brief Ego firmware log export packet status.
  */
 typedef enum {
-    EGO_FW_LOG_PACKET_BEGIN = 0, /**< First packet of a log file */
-    EGO_FW_LOG_PACKET_DATA  = 1, /**< Middle packet of a log file */
-    EGO_FW_LOG_PACKET_END   = 2, /**< Last packet of a log file */
-} OBEgoFwLogPacketState,
-    ob_ego_fw_log_packet_state;
+    OB_FW_LOG_PACKET_BEGIN = 0, /**< First packet of a log file */
+    OB_FW_LOG_PACKET_DATA  = 1, /**< Middle packet of a log file */
+    OB_FW_LOG_PACKET_END   = 2, /**< Last packet of a log file */
+} OBFwLogPacketState,
+    ob_fw_log_packet_state;
 
 /**
  * @brief Structure for integer range
@@ -2365,7 +2365,7 @@ typedef void (*ob_set_data_callback)(ob_data_tran_state state, uint8_t percent, 
 typedef void (*ob_get_data_callback)(ob_data_tran_state state, ob_data_chunk *dataChunk, void *user_data);
 
 /**
- * @brief Callback for exporting Ego firmware log files.
+ * @brief Callback for exporting firmware log files.
  *
  * @param[in] file_name Current log file name without path.
  * @param[in] state Current packet status.
@@ -2375,7 +2375,7 @@ typedef void (*ob_get_data_callback)(ob_data_tran_state state, ob_data_chunk *da
  * @param[in] completed_file_count Completed log file count.
  * @param[in] user_data User-defined data.
  */
-typedef void (*ob_ego_fw_log_packet_callback)(const char *file_name, ob_ego_fw_log_packet_state state, const uint8_t *data, uint32_t data_size,
+typedef void (*ob_fw_log_packet_callback)(const char *file_name, ob_fw_log_packet_state state, const uint8_t *data, uint32_t data_size,
                                               uint32_t total_file_count, uint32_t completed_file_count, void *user_data);
 
 /**
