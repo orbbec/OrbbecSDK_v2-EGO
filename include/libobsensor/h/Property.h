@@ -681,6 +681,8 @@ typedef enum {
 
     /**
      * @brief MJPEG encoding quality factor
+     *
+     * @attention Internal property. Valid range: 1-100. A higher value gives better quality and a larger bitrate.
      */
     OB_PROP_MJPEG_QUALITY_INT = 277,
 
