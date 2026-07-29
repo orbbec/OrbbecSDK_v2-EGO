@@ -779,7 +779,6 @@ typedef enum {
      * @param value OBRecordingDestination
      *   - 0: Record to the device SD card
      *   - 1: Record to the host computer
-     *   - 2: SD card and host recording operate independently
      *
      * @attention read and write
      */

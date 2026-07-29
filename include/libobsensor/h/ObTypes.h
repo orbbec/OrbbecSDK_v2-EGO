@@ -2097,7 +2097,6 @@ typedef enum {
 typedef enum {
     OB_RECORDING_DESTINATION_SD_CARD = 0, /**< Record to the device SD card */
     OB_RECORDING_DESTINATION_HOST    = 1, /**< Record to the host computer */
-    OB_RECORDING_DESTINATION_INDEPENDENT = 2, /**< SD card and host recording operate independently */
 } OBRecordingDestination,
     ob_recording_destination;
 
