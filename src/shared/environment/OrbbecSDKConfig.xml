@@ -92,7 +92,7 @@
         <!-- Realtime timestamp time base.
              Options: UTC, Local.
              UTC: use Unix epoch time.
-             Local: use Unix epoch time plus the current local timezone offset.
+             Local: use the host system local-time conversion rules.
              This affects device time synchronization, frame system timestamps,
              global timestamps, and host-generated device timestamps. -->
         <TimestampTimeBase>UTC</TimestampTimeBase>

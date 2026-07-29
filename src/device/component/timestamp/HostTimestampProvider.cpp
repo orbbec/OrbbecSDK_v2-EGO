@@ -6,32 +6,38 @@
 #include "utils/Utils.hpp"
 #include "environment/EnvConfig.hpp"
 
+#include <chrono>
 #include <ctime>
+
+#ifndef _WIN32
+extern "C" time_t timegm(struct tm *timeptr);
+#endif
 
 namespace libobsensor {
 
 namespace {
 
-int64_t getLocalTimezoneOffsetUs() {
-    std::time_t now = std::time(nullptr);
-    std::tm     utcTm{};
+uint64_t getLocalTimeUs(uint64_t utcUs) {
+    std::time_t utcTime = static_cast<std::time_t>(utcUs / 1000000);
     std::tm     localTm{};
 
 #ifdef _WIN32
-    gmtime_s(&utcTm, &now);
-    localtime_s(&localTm, &now);
+    localtime_s(&localTm, &utcTime);
 #else
-    gmtime_r(&now, &utcTm);
-    localtime_r(&now, &localTm);
+    localtime_r(&utcTime, &localTm);
 #endif
 
-    auto utcAsLocalEpoch   = std::mktime(&utcTm);
-    auto localAsLocalEpoch = std::mktime(&localTm);
-    if(utcAsLocalEpoch == static_cast<std::time_t>(-1) || localAsLocalEpoch == static_cast<std::time_t>(-1)) {
+    auto localTime =
+#ifdef _WIN32
+        _mkgmtime(&localTm);
+#else
+        timegm(&localTm);
+#endif
+    if(localTime == static_cast<std::time_t>(-1)) {
         return 0;
     }
 
-    return static_cast<int64_t>(std::difftime(localAsLocalEpoch, utcAsLocalEpoch) * 1000000.0);
+    return static_cast<uint64_t>(localTime) * 1000000 + utcUs % 1000000;
 }
 
 }  // namespace
@@ -43,7 +49,7 @@ HostTimestampProvider ::HostTimestampProvider() {
 void HostTimestampProvider::loadConfig() {
     auto        envConfig = EnvConfig::getInstance();
     std::string value;
-    auto        type = OB_CLOCK_TYPE_REALTIME;  // default
+    auto        type     = OB_CLOCK_TYPE_REALTIME;  // default
     auto        timeBase = OB_TIMESTAMP_TIME_BASE_UTC;
 
     if(envConfig->getStringValue("Device.ClockSource", value)) {
@@ -96,12 +102,12 @@ uint64_t HostTimestampProvider::getTimeUs() const {
         return utils::getSteadyTimeUs();
     }
 
-    auto utcUs = utils::getNowTimesUs();
     if(getTimestampTimeBase() == OB_TIMESTAMP_TIME_BASE_LOCAL) {
-        auto localUs = static_cast<int64_t>(utcUs) + getLocalTimezoneOffsetUs();
-        return localUs > 0 ? static_cast<uint64_t>(localUs) : 0;
+        auto tp = std::chrono::system_clock::now();
+        auto us = std::chrono::duration_cast<std::chrono::microseconds>(tp.time_since_epoch()).count();
+        return getLocalTimeUs(static_cast<uint64_t>(us));
     }
-    return utcUs;
+    return utils::getNowTimesUs();
 }
 
 uint64_t HostTimestampProvider::getTimeMs() const {
@@ -133,11 +139,11 @@ void HostTimestampProvider::applyHostTimestamp(const std::shared_ptr<Frame> &fra
             systemTime = utils::getNowTimesUs();
         }
 
-        auto localTime = static_cast<int64_t>(systemTime) + getLocalTimezoneOffsetUs();
+        auto localTime = getLocalTimeUs(systemTime);
         if(localTime > 0) {
-            frame->setSystemTimeStampUsec(static_cast<uint64_t>(localTime));
+            frame->setSystemTimeStampUsec(localTime);
             if(frame->isDeviceTimestampFromHost()) {
-                frame->setTimeStampUsec(static_cast<uint64_t>(localTime));
+                frame->setTimeStampUsec(localTime);
             }
         }
     }

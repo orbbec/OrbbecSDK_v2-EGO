@@ -835,9 +835,9 @@ typedef struct {
  * @brief TF card status and capacity information
  */
 typedef struct {
-    uint32_t tfCardStatus;   ///< 0: removed, 1: inserted
-    float    totalCapacity;  ///< TF total capacity in GB
-    float    remainCapacity; ///< TF remaining capacity in GB
+    uint32_t tfCardStatus;    ///< 0: removed, 1: inserted
+    float    totalCapacity;   ///< TF total capacity in GB
+    float    remainCapacity;  ///< TF remaining capacity in GB
 } OBTFCardCapacity, ob_tf_card_capacity, TF_CARD_CAPACITY;
 
 /**
@@ -2181,8 +2181,9 @@ typedef enum {
 /**
  * @brief Timestamp time base.
  *
- * @attention Local mode is not a standard Unix timestamp. It is UTC epoch time plus the current local timezone offset,
- * used for realtime timestamps when local wall-clock based timestamp values are required.
+ * @attention Local mode uses the host system local-time conversion rules for realtime timestamps when local wall-clock
+ * based timestamp values are required.
+
  */
 typedef enum {
     OB_TIMESTAMP_TIME_BASE_UTC   = 0, /**< Use UTC Unix epoch time for realtime timestamps. Default. */
@@ -2194,17 +2195,17 @@ typedef enum {
  * @brief HID direction key type reported by the device.
  */
 typedef enum {
-    OB_DIRECTION_KEY_NONE          = 0,
-    OB_DIRECTION_KEY_MIDDLE        = 1,
-    OB_DIRECTION_KEY_LEFT          = 2,
-    OB_DIRECTION_KEY_RIGHT         = 3,
-    OB_DIRECTION_KEY_TOP           = 4,
-    OB_DIRECTION_KEY_BOTTOM        = 5,
-    OB_KEY_POWER                   = 6,
-    OB_KEY_VOLUME_UP               = 7,
-    OB_KEY_VOLUME_DOWN             = 8,
-    OB_KEY_WIFI_HANDLE_START       = 20,
-    OB_KEY_WIFI_HANDLE_RESET       = 21,
+    OB_DIRECTION_KEY_NONE    = 0,
+    OB_DIRECTION_KEY_MIDDLE  = 1,
+    OB_DIRECTION_KEY_LEFT    = 2,
+    OB_DIRECTION_KEY_RIGHT   = 3,
+    OB_DIRECTION_KEY_TOP     = 4,
+    OB_DIRECTION_KEY_BOTTOM  = 5,
+    OB_KEY_POWER             = 6,
+    OB_KEY_VOLUME_UP         = 7,
+    OB_KEY_VOLUME_DOWN       = 8,
+    OB_KEY_WIFI_HANDLE_START = 20,
+    OB_KEY_WIFI_HANDLE_RESET = 21,
 } OBDirectionKey,
     ob_direction_key;
 
@@ -2225,8 +2226,7 @@ typedef enum {
 typedef struct {
     OBDirectionKey       key;
     OBDirectionKeyStatus status;
-} OBDirectionKeyInfomation,
-    ob_direction_key_infomation;
+} OBDirectionKeyInfomation, ob_direction_key_infomation;
 
 /**
  * @brief Ego device work state reported through HID.
@@ -2292,14 +2292,13 @@ typedef enum {
  * @brief Ego device state information reported through HID.
  */
 typedef struct {
-    uint32_t       protocol_version;    /**< Protocol version. */
-    uint32_t       sequence;            /**< State packet sequence number. */
-    OBEgoWorkState work_state;          /**< Current work state. */
-    uint32_t       state_flags;         /**< Combined value of @ref OBEgoStateFlag. */
-    uint64_t       error_flags;         /**< Combined value of @ref OBEgoErrorFlag. */
-    uint64_t       storage_free_bytes;  /**< Free storage space in bytes. */
-} OBEgoStateReport,
-    ob_ego_state_report;
+    uint32_t       protocol_version;   /**< Protocol version. */
+    uint32_t       sequence;           /**< State packet sequence number. */
+    OBEgoWorkState work_state;         /**< Current work state. */
+    uint32_t       state_flags;        /**< Combined value of @ref OBEgoStateFlag. */
+    uint64_t       error_flags;        /**< Combined value of @ref OBEgoErrorFlag. */
+    uint64_t       storage_free_bytes; /**< Free storage space in bytes. */
+} OBEgoStateReport, ob_ego_state_report;
 
 /**
  * @brief Callback for file transfer
@@ -2376,7 +2375,7 @@ typedef void (*ob_get_data_callback)(ob_data_tran_state state, ob_data_chunk *da
  * @param[in] user_data User-defined data.
  */
 typedef void (*ob_fw_log_packet_callback)(const char *file_name, ob_fw_log_packet_state state, const uint8_t *data, uint32_t data_size,
-                                              uint32_t total_file_count, uint32_t completed_file_count, void *user_data);
+                                          uint32_t total_file_count, uint32_t completed_file_count, void *user_data);
 
 /**
  * @brief Callback for media status (recording and playback)

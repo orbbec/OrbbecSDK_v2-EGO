@@ -214,7 +214,7 @@ Based on the device's timestamp and considering data transmission delays, the ti
         <ClockSource>Realtime</ClockSource>
 ```
 
-4. Set the time base used for realtime timestamps. `UTC` keeps the standard Unix epoch behavior. `Local` adds the current local timezone offset. This affects device time synchronization, frame system timestamps, global timestamps, and host-generated device timestamps. Monotonic timestamps are not UTC/local based.
+4. Set the time base used for realtime timestamps. `UTC` keeps the standard Unix epoch behavior. `Local` uses the host system local-time conversion rules. This affects device time synchronization, frame system timestamps, global timestamps, and host-generated device timestamps. Monotonic timestamps are not UTC/local based.
 ```cpp
         <TimestampTimeBase>UTC</TimestampTimeBase>
 ```
