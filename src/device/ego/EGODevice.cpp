@@ -29,6 +29,7 @@
 #include "param/AlgParamManager.hpp"
 #include "component/fwlog/FirmwareLogManager.hpp"
 #include "component/fwrecord/FwRecordProfileManager.hpp"
+#include "common/DeviceSeriesInfo.hpp"
 
 #include "FilterFactory.hpp"
 #include "publicfilters/FormatConverterProcess.hpp"
@@ -80,7 +81,6 @@ void EGODevice::init() {
     auto deviceClockSynchronizer = std::make_shared<DeviceClockSynchronizer>(this, deviceTimeFreq_, deviceTimeFreq_);
     registerComponent(OB_DEV_COMPONENT_DEVICE_CLOCK_SYNCHRONIZER, deviceClockSynchronizer);
     registerComponent(OB_DEV_COMPONENT_FW_RECORD_PROFILE_MANAGER, [this]() { return std::make_shared<FwRecordProfileManager>(this); });
-
 }
 
 void EGODevice::fetchDeviceInfo() {
@@ -116,11 +116,20 @@ void EGODevice::fetchDeviceInfo() {
     }
 #endif
 
-    // remove the prefix "Orbbec " from the device name if contained
+    std::string manufacturerName;
+    auto        vid = deviceInfo_->vid_;
+    auto        pid = deviceInfo_->pid_;
+    auto        it  = std::find_if(EGODeviceInfoList.begin(), EGODeviceInfoList.end(),
+                                   [vid, pid](const DeviceInfoEntry &entry) { return entry.vid_ == vid && entry.pid_ == pid; });
+
+    if(it != EGODeviceInfoList.end()) {
+        manufacturerName = std::string(it->manufacturer_);
+    }
+
     if(deviceInfo_->name_.find("Orbbec ") == 0) {
         deviceInfo_->name_ = deviceInfo_->name_.substr(7);
     }
-    deviceInfo_->fullName_ = "Orbbec " + deviceInfo_->name_;
+    deviceInfo_->fullName_ = manufacturerName + " " + deviceInfo_->name_;
 
 #ifdef __linux__
     // todo: net device does not have backend type

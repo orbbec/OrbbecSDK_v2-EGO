@@ -22,9 +22,13 @@ extern std::vector<DeviceIdentifier> G330LDevPids;
 extern std::vector<DeviceIdentifier> DaBaiADevPids;
 extern std::vector<DeviceIdentifier> G335LeDevPids;
 extern std::vector<DeviceIdentifier> G435LeDevPids;
+extern std::vector<DeviceIdentifier> EGODevPids;
+extern std::vector<DeviceIdentifier> WristDevPids;
 
 extern std::vector<DeviceInfoEntry> G330DeviceInfoList;
 extern std::vector<DeviceInfoEntry> G435LeDeviceInfoList;
+extern std::vector<DeviceInfoEntry> EGODeviceInfoList;
+extern std::vector<DeviceInfoEntry> WristDeviceInfoList;
 
 // List of allowed vendor IDs
 extern std::unordered_set<uint16_t>              supportedUsbVids;

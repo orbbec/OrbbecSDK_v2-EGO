@@ -5,7 +5,7 @@
 #include "WristDevice.hpp"
 #include "WristNetDevice.hpp"
 #include "DevicePids.hpp"
-#include "common/CommonFields.hpp"
+#include "common/DeviceSeriesInfo.hpp"
 #include "utils/Utils.hpp"
 #include "exception/ObException.hpp"
 
@@ -24,23 +24,25 @@ namespace libobsensor {
 static const uint16_t WRIST_COLOR_RTSP_PORT = 8888;
 static const uint16_t WRIST_IMU_TCP_PORT    = 8900;  // private TCP IMU data stream
 
-const std::map<int, std::string> WristDeviceNameMap = {
-    { OB_DEVICE_WRIST_PID, "Wrist" },
-};
+void updateWristDeviceName(uint32_t vid, uint32_t pid, std::string &name, std::string &fullName) {
+    auto iter = std::find_if(WristDeviceInfoList.begin(), WristDeviceInfoList.end(),
+                             [vid, pid](const DeviceInfoEntry &entry) { return entry.vid_ == vid && entry.pid_ == pid; });
+    if(iter != WristDeviceInfoList.end()) {
+        name     = iter->deviceName_;
+        fullName = std::string(iter->manufacturer_) + " " + name;
+    }
+    else {
+        name     = "Wrist series device";
+        fullName = name;
+    }
+}
 
 WristDeviceInfo::WristDeviceInfo(const SourcePortInfoList groupedInfoList) {
     auto firstPortInfo = groupedInfoList.front();
     if(IS_USB_PORT(firstPortInfo->portType)) {
         auto portInfo = std::dynamic_pointer_cast<const USBSourcePortInfo>(groupedInfoList.front());
 
-        auto iter = WristDeviceNameMap.find(portInfo->pid);
-        if(iter != WristDeviceNameMap.end()) {
-            name_ = iter->second;
-        }
-        else {
-            name_ = "Wrist series device";
-        }
-        fullName_           = "Orbbec " + name_;
+        updateWristDeviceName(portInfo->vid, portInfo->pid, name_, fullName_);
         pid_                = portInfo->pid;
         vid_                = portInfo->vid;
         uid_                = portInfo->uid;
@@ -51,16 +53,9 @@ WristDeviceInfo::WristDeviceInfo(const SourcePortInfoList groupedInfoList) {
     else if(IS_NET_PORT(firstPortInfo->portType)) {
         auto portInfo = std::dynamic_pointer_cast<const NetSourcePortInfo>(groupedInfoList.front());
 
-        auto iter = WristDeviceNameMap.find(portInfo->pid);
-        if(iter != WristDeviceNameMap.end()) {
-            name_ = iter->second;
-        }
-        else {
-            name_ = "Wrist series device";
-        }
-        fullName_           = "Orbbec " + name_;
+        updateWristDeviceName(portInfo->vid, portInfo->pid, name_, fullName_);
         pid_                = portInfo->pid;
-        vid_                = ORBBEC_DEVICE_VID;
+        vid_                = portInfo->vid;
         uid_                = portInfo->mac;
         deviceSn_           = portInfo->serialNumber;
         connectionType_     = "Ethernet";
@@ -88,8 +83,7 @@ std::shared_ptr<IDevice> WristDeviceInfo::createDevice(OBDeviceAccessMode access
 #if defined(BUILD_USB_PAL)
 std::vector<std::shared_ptr<IDeviceEnumInfo>> WristDeviceInfo::pickDevices(const SourcePortInfoList infoList) {
     std::vector<std::shared_ptr<IDeviceEnumInfo>> wristDeviceInfos;
-    std::vector<uint16_t>                         wristPids = WristDevPids;
-    auto                                          remainder = FilterUSBPortInfoByVidPid(infoList, ORBBEC_DEVICE_VID, wristPids);
+    auto                                          remainder = FilterUSBPortInfoByVidPid(infoList, WristDevPids);
     auto                                          groups    = utils::groupVector<std::shared_ptr<const SourcePortInfo>>(remainder, GroupUSBSourcePortByUrl);
     auto                                          iter      = groups.begin();
     while(iter != groups.end()) {
@@ -110,8 +104,7 @@ std::vector<std::shared_ptr<IDeviceEnumInfo>> WristDeviceInfo::pickDevices(const
 #if defined(BUILD_NET_PAL)
 std::vector<std::shared_ptr<IDeviceEnumInfo>> WristDeviceInfo::pickNetDevices(const SourcePortInfoList infoList) {
     std::vector<std::shared_ptr<IDeviceEnumInfo>> wristDeviceInfos;
-    std::vector<uint16_t>                         wristPids = WristDevPids;
-    auto                                          remainder = FilterNetPortInfoByVidPid(infoList, ORBBEC_DEVICE_VID, wristPids);
+    auto                                          remainder = FilterNetPortInfoByVidPid(infoList, WristDevPids);
     auto                                          groups    = utils::groupVector<std::shared_ptr<const SourcePortInfo>>(remainder, GroupNetSourcePortByMac);
     auto                                          iter      = groups.begin();
     while(iter != groups.end()) {

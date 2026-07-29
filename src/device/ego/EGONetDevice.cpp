@@ -23,6 +23,7 @@
 #include "property/FilterPropertyAccessors.hpp"
 #include "component/fwlog/FirmwareLogManager.hpp"
 #include "component/fwrecord/FwRecordProfileManager.hpp"
+#include "common/DeviceSeriesInfo.hpp"
 
 #include "FilterFactory.hpp"
 #include "publicfilters/IMUCorrector.hpp"
@@ -115,11 +116,20 @@ void EGONetDevice::fetchDeviceInfo() {
     deviceInfo_->supportedSdkVersion_ = version.sdkVersion;
     deviceInfo_->subSystemVersion_    = version.subSystemVersion;
 
-    // remove the prefix "Orbbec " from the device name if contained
+    std::string manufacturerName;
+    auto        vid = deviceInfo_->vid_;
+    auto        pid = deviceInfo_->pid_;
+    auto        it  = std::find_if(EGODeviceInfoList.begin(), EGODeviceInfoList.end(),
+                                   [vid, pid](const DeviceInfoEntry &entry) { return entry.vid_ == vid && entry.pid_ == pid; });
+
+    if(it != EGODeviceInfoList.end()) {
+        manufacturerName = std::string(it->manufacturer_);
+    }
+
     if(deviceInfo_->name_.find("Orbbec ") == 0) {
         deviceInfo_->name_ = deviceInfo_->name_.substr(7);
     }
-    deviceInfo_->fullName_ = "Orbbec " + deviceInfo_->name_;
+    deviceInfo_->fullName_ = manufacturerName + " " + deviceInfo_->name_;
 
     // mark the device as a multi-sensor device with same clock at default
     extensionInfo_["AllSensorsUsingSameClock"] = "true";
@@ -443,7 +453,7 @@ void EGONetDevice::initSensorStreamProfile(std::shared_ptr<ISensor> sensor) {
     if(profileList.empty() && (streamType == OB_STREAM_COLOR_LEFT || streamType == OB_STREAM_COLOR_RIGHT)) {
         // Firmware has not yet implemented OB_RAW_DATA_STREAM_PROFILE_LIST; provide a minimal
         // hardcoded fallback so the RTSP stream can be opened for early bring-up testing.
-        //profileList.push_back(StreamProfileFactory::createVideoStreamProfile(streamType, OB_FORMAT_MJPG, 1600, 1300, 30));
+        // profileList.push_back(StreamProfileFactory::createVideoStreamProfile(streamType, OB_FORMAT_MJPG, 1600, 1300, 30));
         profileList.push_back(StreamProfileFactory::createVideoStreamProfile(streamType, OB_FORMAT_H265, 1600, 1300, 30));
         profileList.push_back(StreamProfileFactory::createVideoStreamProfile(streamType, OB_FORMAT_H265, 1600, 1300, 60));
         profileList.push_back(StreamProfileFactory::createVideoStreamProfile(streamType, OB_FORMAT_H265, 1600, 1200, 30));

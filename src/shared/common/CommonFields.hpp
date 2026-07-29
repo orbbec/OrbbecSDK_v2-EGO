@@ -47,6 +47,8 @@ constexpr const char *CATEGORY_G330L_DEVICE  = "G330DeviceLongBaseList";
 constexpr const char *CATEGORY_DABAIA_DEVICE = "DaBaiAList";
 constexpr const char *CATEGORY_G335LE_DEVICE = "G335LeDeviceList";
 constexpr const char *CATEGORY_G435LE_DEVICE = "G435LeDeviceList";
+constexpr const char *CATEGORY_EGO_DEVICE    = "EGODeviceList";
+constexpr const char *CATEGORY_WRIST_DEVICE  = "WristDeviceList";
 
 // GVCP config
 constexpr const char *FIELD_MANUFACTURER_NAME = "name";

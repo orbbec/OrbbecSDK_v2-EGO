@@ -280,6 +280,18 @@
         <!-- More devices can be added here -->
     </DaBaiAList>
 
+    <EGODeviceList>
+        <!-- EGO series devices -->
+        <Device>EGO</Device>
+        <!-- More devices can be added here -->
+    </EGODeviceList>
+
+    <WristDeviceList>
+        <!-- Wrist series devices -->
+        <Device>Wrist</Device>
+        <!-- More devices can be added here -->
+    </WristDeviceList>
+
     <!--
         GVCPConfig: Mapping of manufacturer names to Vendor ID (VID)
         Used for network devices (GVCP protocol) to resolve the VID from the manufacturer name.

@@ -5,7 +5,7 @@
 #include "EGODevice.hpp"
 #include "EGONetDevice.hpp"
 #include "DevicePids.hpp"
-#include "common/CommonFields.hpp"
+#include "common/DeviceSeriesInfo.hpp"
 #include "utils/Utils.hpp"
 #include "exception/ObException.hpp"
 
@@ -21,28 +21,30 @@
 
 namespace libobsensor {
 
-static const uint16_t EGO_LEFT_COLOR_RTSP_PORT    = 8888;
-static const uint16_t EGO_RIGHT_COLOR_RTSP_PORT   = 8889;
-static const uint16_t EGO_RTSP_AUDIO_PORT         = 8890;
-static const uint16_t EGO_IMU_TCP_PORT            = 8900;  // private TCP IMU data stream (parallel to RTSP)
+static const uint16_t EGO_LEFT_COLOR_RTSP_PORT  = 8888;
+static const uint16_t EGO_RIGHT_COLOR_RTSP_PORT = 8889;
+static const uint16_t EGO_RTSP_AUDIO_PORT       = 8890;
+static const uint16_t EGO_IMU_TCP_PORT          = 8900;  // private TCP IMU data stream (parallel to RTSP)
 
-const std::map<int, std::string> EGODeviceNameMap = {
-    { OB_DEVICE_EGO_PID, "Ego" },
-};
+void updateEgoDeviceName(uint32_t vid, uint32_t pid, std::string &name, std::string &fullName) {
+    auto iter = std::find_if(EGODeviceInfoList.begin(), EGODeviceInfoList.end(),
+                             [vid, pid](const DeviceInfoEntry &entry) { return entry.vid_ == vid && entry.pid_ == pid; });
+    if(iter != EGODeviceInfoList.end()) {
+        name     = iter->deviceName_;
+        fullName = std::string(iter->manufacturer_) + " " + name;
+    }
+    else {
+        name     = "EGO series device";
+        fullName = name;
+    }
+}
 
 EGODeviceInfo::EGODeviceInfo(const SourcePortInfoList groupedInfoList) {
     auto firstPortInfo = groupedInfoList.front();
     if(IS_USB_PORT(firstPortInfo->portType)) {
         auto portInfo = std::dynamic_pointer_cast<const USBSourcePortInfo>(groupedInfoList.front());
 
-        auto iter = EGODeviceNameMap.find(portInfo->pid);
-        if(iter != EGODeviceNameMap.end()) {
-            name_ = iter->second;
-        }
-        else {
-            name_ = "EGO series device";
-        }
-        fullName_           = "Orbbec " + name_;
+        updateEgoDeviceName(portInfo->vid, portInfo->pid, name_, fullName_);
         pid_                = portInfo->pid;
         vid_                = portInfo->vid;
         uid_                = portInfo->uid;
@@ -53,16 +55,9 @@ EGODeviceInfo::EGODeviceInfo(const SourcePortInfoList groupedInfoList) {
     else if(IS_NET_PORT(firstPortInfo->portType)) {
         auto portInfo = std::dynamic_pointer_cast<const NetSourcePortInfo>(groupedInfoList.front());
 
-        auto iter = EGODeviceNameMap.find(portInfo->pid);
-        if(iter != EGODeviceNameMap.end()) {
-            name_ = iter->second;
-        }
-        else {
-            name_ = "EGO series device";
-        }
-        fullName_           = "Orbbec " + name_;
+        updateEgoDeviceName(portInfo->vid, portInfo->pid, name_, fullName_);
         pid_                = portInfo->pid;
-        vid_                = ORBBEC_DEVICE_VID;
+        vid_                = portInfo->vid;
         uid_                = portInfo->mac;
         deviceSn_           = portInfo->serialNumber;
         connectionType_     = "Ethernet";
@@ -90,8 +85,7 @@ std::shared_ptr<IDevice> EGODeviceInfo::createDevice(OBDeviceAccessMode accessMo
 #if defined(BUILD_USB_PAL)
 std::vector<std::shared_ptr<IDeviceEnumInfo>> EGODeviceInfo::pickDevices(const SourcePortInfoList infoList) {
     std::vector<std::shared_ptr<IDeviceEnumInfo>> egoDeviceInfos;
-    std::vector<uint16_t>                         egoPids   = EGODevPids;
-    auto                                          remainder = FilterUSBPortInfoByVidPid(infoList, ORBBEC_DEVICE_VID, egoPids);
+    auto                                          remainder = FilterUSBPortInfoByVidPid(infoList, EGODevPids);
     auto                                          groups    = utils::groupVector<std::shared_ptr<const SourcePortInfo>>(remainder, GroupUSBSourcePortByUrl);
     auto                                          iter      = groups.begin();
     while(iter != groups.end()) {
@@ -129,8 +123,7 @@ std::vector<std::shared_ptr<IDeviceEnumInfo>> EGODeviceInfo::pickDevices(const S
 #if defined(BUILD_NET_PAL)
 std::vector<std::shared_ptr<IDeviceEnumInfo>> EGODeviceInfo::pickNetDevices(const SourcePortInfoList infoList) {
     std::vector<std::shared_ptr<IDeviceEnumInfo>> egoDeviceInfos;
-    std::vector<uint16_t>                         egoPids   = EGODevPids;
-    auto                                          remainder = FilterNetPortInfoByVidPid(infoList, ORBBEC_DEVICE_VID, egoPids);
+    auto                                          remainder = FilterNetPortInfoByVidPid(infoList, EGODevPids);
     auto                                          groups    = utils::groupVector<std::shared_ptr<const SourcePortInfo>>(remainder, GroupNetSourcePortByMac);
     auto                                          iter      = groups.begin();
     while(iter != groups.end()) {
