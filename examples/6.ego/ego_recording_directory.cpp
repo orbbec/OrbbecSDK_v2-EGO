@@ -288,7 +288,7 @@ bool runFormatTests(const std::shared_ptr<ob::Device> &device) {
     passed &= expectRejected(device, "raw/../session_001", "parent-directory segment");
     passed &= setAndVerify(device, "raw/session_001/", "raw/session_001", "valid trailing slash path");
     passed &= expectRejected(device, std::string("raw/control") + '\n' + "character", "control character");
-    passed &= expectRejected(device, std::string("raw/") + static_cast<char>(0xC3) + "x", "malformed UTF-8");
+    passed &= expectRejected(device, std::string("raw/") + "\xC3" + "x", "malformed UTF-8");
     passed &= expectRejected(device, makeTooLongDirectory(), "481-byte path");
     passed &= expectRejected(device, std::string("raw/nul") + static_cast<char>(0) + "character", "embedded NUL");
     passed &= expectRejected(device, makeOversizedSegmentDirectory(), "256-byte path segment");
@@ -369,7 +369,7 @@ int main() try {
             break;
         case 'd':
         case 'D':
-            expectRejected(device, std::string("raw/") + static_cast<char>(0xC3) + "x", "malformed UTF-8");
+            expectRejected(device, std::string("raw/") + "\xC3" + "x", "malformed UTF-8");
             break;
         case 'e':
         case 'E':
