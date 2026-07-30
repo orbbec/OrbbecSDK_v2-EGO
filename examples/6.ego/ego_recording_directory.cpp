@@ -16,6 +16,7 @@ namespace {
 const OBPropertyID kDirectoryPropertyId   = OB_STRUCT_FW_RECORDING_DIRECTORY;
 const OBPropertyID kDestinationPropertyId = OB_PROP_RECORDING_DESTINATION_INT;
 const OBPropertyID kActionPropertyId      = OB_PROP_RECORDING_ACTION_INT;
+constexpr bool     kVerifyDirectoryReadback = true;
 
 const char *recordingDestinationToString(int32_t destination) {
     switch(static_cast<OBRecordingDestination>(destination)) {
@@ -29,9 +30,9 @@ const char *recordingDestinationToString(int32_t destination) {
 }
 
 std::string makeMaxLengthDirectory() {
-    // 255 + 1 + 254 + 1 + 1 = 512 bytes.
-    // Every segment is within the 255-byte limit.
-    return std::string(255, 'a') + "/" + std::string(254, 'b') + "/c";
+    // 240 + 1 + 239 = 480 bytes.
+    // Every segment is within the firmware's 243-byte limit.
+    return std::string(240, 'a') + "/" + std::string(239, 'b');
 }
 
 std::string makeTooLongDirectory() {
@@ -50,19 +51,35 @@ bool setAndVerify(const std::shared_ptr<ob::Device> &device, const std::string &
     std::cout << "\n[" << name << "] setting: " << directory << std::endl;
     try {
         device->setFwRecordingDirectory(directory);
+    }
+    catch(const ob::Error &error) {
+        std::cerr << "FAIL: set failed. ";
+        printError(error);
+        return false;
+    }
+
+    std::cout << "PASS: set succeeded" << std::endl;
+    if(!kVerifyDirectoryReadback) {
+        std::cout << "Readback disabled" << std::endl;
+        return true;
+    }
+
+    std::cout << "Reading back directory..." << std::endl;
+    try {
         const auto actual = device->getFwRecordingDirectory();
         if(actual != expectedDirectory) {
             std::cerr << "FAIL: readback mismatch\n  expected: " << expectedDirectory << "\n  actual:   " << actual << std::endl;
             return false;
         }
-        std::cout << "PASS: set and readback match" << std::endl;
-        return true;
     }
     catch(const ob::Error &error) {
-        std::cerr << "FAIL: valid directory was rejected. ";
+        std::cerr << "FAIL: readback failed. ";
         printError(error);
         return false;
     }
+
+    std::cout << "PASS: set and readback match" << std::endl;
+    return true;
 }
 
 bool setAndVerify(const std::shared_ptr<ob::Device> &device, const std::string &directory, const char *name) {
@@ -73,19 +90,35 @@ bool setAndVerifyViaStructuredData(const std::shared_ptr<ob::Device> &device, co
     std::cout << "\n[" << name << "] setting through setStructuredData: " << directory << std::endl;
     try {
         device->setStructuredData(kDirectoryPropertyId, reinterpret_cast<const uint8_t *>(directory.data()), static_cast<uint32_t>(directory.size()));
+    }
+    catch(const ob::Error &error) {
+        std::cerr << "FAIL: generic structured-data set failed. ";
+        printError(error);
+        return false;
+    }
+
+    std::cout << "PASS: generic structured-data set succeeded" << std::endl;
+    if(!kVerifyDirectoryReadback) {
+        std::cout << "Readback disabled" << std::endl;
+        return true;
+    }
+
+    std::cout << "Reading back directory..." << std::endl;
+    try {
         const auto actual = device->getFwRecordingDirectory();
         if(actual != directory) {
             std::cerr << "FAIL: readback mismatch\n  expected: " << directory << "\n  actual:   " << actual << std::endl;
             return false;
         }
-        std::cout << "PASS: generic structured-data set and readback match" << std::endl;
-        return true;
     }
     catch(const ob::Error &error) {
-        std::cerr << "FAIL: valid directory was rejected. ";
+        std::cerr << "FAIL: readback failed. ";
         printError(error);
         return false;
     }
+
+    std::cout << "PASS: generic structured-data set and readback match" << std::endl;
+    return true;
 }
 
 bool expectRejected(const std::shared_ptr<ob::Device> &device, const std::string &directory, const char *name) {
@@ -208,7 +241,7 @@ Firmware SD-card recording directory test
   1  Valid: all_raw_data/20260703/task_20260623I001Hg_/background_00/multi_session_20260703_181212/session_003_load_20260708T072925Z_0294
   2  Valid odd-byte path: raw/session_001 (15 bytes)
   3  Valid UTF-8 path: <E4 BB BB E5 8A A1>/session_001
-  4  Valid 512-byte path: 255*a/254*b/c
+  4  Valid 480-byte path: 240*a/239*b
   5  Invalid empty path: ""
   6  Valid leading slash: /leading_slash/session_001 (readback: leading_slash/session_001)
   7  Invalid backslash: windows\session_001
@@ -218,7 +251,7 @@ Firmware SD-card recording directory test
   B  Valid trailing slash: raw/session_001/ (readback: raw/session_001)
   C  Invalid control character: raw/control\ncharacter
   D  Invalid UTF-8 bytes: raw/\xC3x
-  E  Invalid 513-byte path: (key 4 path) + d
+  E  Invalid 481-byte path: (key 4 path) + d
   F  Invalid embedded NUL: raw/nul\0character
   G  Invalid oversized segment: 256*a
   H  Valid generic setStructuredData: raw/generic_structured_data
@@ -245,7 +278,7 @@ bool runFormatTests(const std::shared_ptr<ob::Device> &device) {
                            "valid customer-style path");
     passed &= setAndVerify(device, "raw/session_001", "valid odd-byte-length path");
     passed &= setAndVerify(device, std::string("\xE4\xBB\xBB\xE5\x8A\xA1") + "/session_001", "valid UTF-8 path");
-    passed &= setAndVerify(device, makeMaxLengthDirectory(), "valid 512-byte path");
+    passed &= setAndVerify(device, makeMaxLengthDirectory(), "valid 480-byte path");
 
     passed &= expectRejected(device, "", "empty path");
     passed &= setAndVerify(device, "/leading_slash/session_001", "leading_slash/session_001", "valid leading slash path");
@@ -256,7 +289,7 @@ bool runFormatTests(const std::shared_ptr<ob::Device> &device) {
     passed &= setAndVerify(device, "raw/session_001/", "raw/session_001", "valid trailing slash path");
     passed &= expectRejected(device, std::string("raw/control") + '\n' + "character", "control character");
     passed &= expectRejected(device, std::string("raw/") + static_cast<char>(0xC3) + "x", "malformed UTF-8");
-    passed &= expectRejected(device, makeTooLongDirectory(), "513-byte path");
+    passed &= expectRejected(device, makeTooLongDirectory(), "481-byte path");
     passed &= expectRejected(device, std::string("raw/nul") + static_cast<char>(0) + "character", "embedded NUL");
     passed &= expectRejected(device, makeOversizedSegmentDirectory(), "256-byte path segment");
     passed &= setAndVerifyViaStructuredData(device, "raw/generic_structured_data", "valid generic structured-data path");
@@ -305,7 +338,7 @@ int main() try {
             setAndVerify(device, std::string("\xE4\xBB\xBB\xE5\x8A\xA1") + "/session_001", "valid UTF-8 path");
             break;
         case '4':
-            setAndVerify(device, makeMaxLengthDirectory(), "valid 512-byte path");
+            setAndVerify(device, makeMaxLengthDirectory(), "valid 480-byte path");
             break;
         case '5':
             expectRejected(device, "", "empty path");
@@ -340,7 +373,7 @@ int main() try {
             break;
         case 'e':
         case 'E':
-            expectRejected(device, makeTooLongDirectory(), "513-byte path");
+            expectRejected(device, makeTooLongDirectory(), "481-byte path");
             break;
         case 'f':
         case 'F':

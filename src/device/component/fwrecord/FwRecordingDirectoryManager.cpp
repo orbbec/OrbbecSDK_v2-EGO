@@ -15,7 +15,7 @@
 namespace libobsensor {
 namespace {
 
-constexpr size_t kDirectoryMaxLength        = 512;
+constexpr size_t kDirectoryMaxLength        = 480;
 constexpr size_t kDirectorySegmentMaxLength = 255;
 constexpr size_t kWireHeaderSize            = sizeof(uint16_t);
 
@@ -61,7 +61,7 @@ void FwRecordingDirectoryManager::validateDirectory(const std::vector<uint8_t> &
         THROW_INVALID_PARAM_EXCEPTION("Invalid firmware recording directory: path must not be empty");
     }
     if(directory.size() > kDirectoryMaxLength) {
-        THROW_INVALID_PARAM_EXCEPTION("Invalid firmware recording directory: path exceeds 512 bytes");
+        THROW_INVALID_PARAM_EXCEPTION("Invalid firmware recording directory: path exceeds 480 bytes");
     }
     if(!isValidUtf8(directory)) {
         THROW_INVALID_PARAM_EXCEPTION("Invalid firmware recording directory: path must be valid UTF-8");
