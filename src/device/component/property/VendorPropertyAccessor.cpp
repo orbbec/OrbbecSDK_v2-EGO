@@ -9,13 +9,14 @@
 namespace libobsensor {
 
 const uint32_t DEFAULT_CMD_MAX_DATA_SIZE = 768;
+const size_t   DEFAULT_CMD_BUFFER_SIZE   = OB_PATH_MAX + 16;
 const int      IO_ERROR_MAX_RETRIES      = 3;  // max retries on HP_STATUS_DEVICE_RESPONSE_IO_ERROR
 
 VendorPropertyAccessor::VendorPropertyAccessor(IDevice *owner, const std::shared_ptr<ISourcePort> &backend)
     : owner_(owner),
       backend_(backend),
-      recvData_(1024),
-      sendData_(1024),
+      recvData_(DEFAULT_CMD_BUFFER_SIZE),
+      sendData_(DEFAULT_CMD_BUFFER_SIZE),
       rawdataTransferPacketSize_(DEFAULT_CMD_MAX_DATA_SIZE),
       structListDataTransferPacketSize_(DEFAULT_CMD_MAX_DATA_SIZE) {
     auto port = std::dynamic_pointer_cast<IVendorDataPort>(backend_);

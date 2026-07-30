@@ -16,6 +16,7 @@
 #include "libobsensor/hpp/Sensor.hpp"
 
 #include "Error.hpp"
+#include <array>
 #include <memory>
 #include <string>
 #include <vector>
@@ -376,6 +377,29 @@ public:
         return std::string(buf);
     }
     
+    /**
+     * @brief Set the directory used for firmware SD-card recordings.
+     *
+     * @param[in] directory UTF-8 Linux-style directory path.
+     * @throw ob::Error if the directory is invalid, firmware recording is active, or the device rejects the setting.
+     */
+    void setFwRecordingDirectory(const std::string &directory) const {
+        setStructuredData(OB_STRUCT_FW_RECORDING_DIRECTORY, reinterpret_cast<const uint8_t *>(directory.data()),
+                          static_cast<uint32_t>(directory.size()));
+    }
+
+    /**
+     * @brief Get the directory currently used for firmware SD-card recordings.
+     *
+     * @return UTF-8 Linux-style directory path.
+     */
+    std::string getFwRecordingDirectory() const {
+        std::array<uint8_t, OB_PATH_MAX> buffer{};
+        uint32_t                          dataSize = 0;
+        getStructuredData(OB_STRUCT_FW_RECORDING_DIRECTORY, buffer.data(), &dataSize);
+        return std::string(reinterpret_cast<const char *>(buffer.data()), dataSize);
+    }
+
     /**
      * @brief Get the raw data of a device property
      *

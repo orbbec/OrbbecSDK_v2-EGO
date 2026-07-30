@@ -909,6 +909,17 @@ typedef enum {
      */
     OB_STRUCT_GET_TF_CARD_CAPACITY = 1095,
 
+        /**
+     * @brief Directory used for firmware SD-card recordings
+     *
+     * @details The SDK-facing payload is a UTF-8 Linux-style directory path without a trailing '\0'.
+     *          Leading and trailing '/' characters are accepted. The firmware removes them when returning the path.
+     *
+     * @attention read and write
+     * @attention The directory can only be changed when firmware recording is stopped.
+     */
+    OB_STRUCT_FW_RECORDING_DIRECTORY = 1098,
+
     /**
      * @brief Color AWB gain parameters
      * @see OBAwbGainParams
