@@ -2083,13 +2083,21 @@ typedef enum {
     OBPlaybackStatus;
 
 /**
- * @brief Recording voice prompt played by the device
+ * @brief Action executed for the selected recording destination
+ *
+ * @details The action behavior is determined by @ref OB_PROP_RECORDING_DESTINATION_INT.
  */
 typedef enum {
-    OB_RECORDING_PROMPT_STOP  = 0, /**< Play the "stop recording" voice prompt */
-    OB_RECORDING_PROMPT_START = 1, /**< Play the "start recording" voice prompt */
-} OBRecordingPrompt,
-    ob_recording_prompt;
+    OB_RECORDING_ACTION_STOP  = 0, /**< Stop SD-card recording, or play the "stop recording" voice prompt for host destination */
+    OB_RECORDING_ACTION_START = 1, /**< Start SD-card recording, or play the "start recording" voice prompt for host destination */
+} OBRecordingAction,
+    ob_recording_action;
+
+/* Backward compatibility */
+typedef OBRecordingAction OBRecordingPrompt;
+typedef OBRecordingAction ob_recording_prompt;
+#define OB_RECORDING_PROMPT_STOP OB_RECORDING_ACTION_STOP
+#define OB_RECORDING_PROMPT_START OB_RECORDING_ACTION_START
 
 /**
  * @brief Destination used for device recording
