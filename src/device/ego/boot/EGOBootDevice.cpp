@@ -1,6 +1,7 @@
 // Copyright (c) Orbbec Inc. All Rights Reserved.
 // Licensed under the MIT License.
 #include "EGOBootDevice.hpp"
+#include "DevicePids.hpp"
 #include "exception/ObException.hpp"
 namespace libobsensor {
 EGOBootDevice::EGOBootDevice(const std::shared_ptr<const IDeviceEnumInfo> &info) : DeviceBase(info) {
@@ -16,7 +17,9 @@ void EGOBootDevice::init() {
     if(!info || info->portType != SOURCE_PORT_USB_MASS_STORAGE) {
         THROW_INVALID_PARAM_EXCEPTION("Invalid EGO boot source port");
     }
-    deviceInfo_->name_           = "EGO Boot Device";
+    // DeviceBase creates a separate public DeviceInfo, so retain the
+    // enumeration-stage name instead of collapsing ROM and U-Boot to one.
+    deviceInfo_->name_           = enumInfo_->getPid() == EGO_BOOT_ROM_PID ? "EGO Boot ROM Device" : "EGO Boot U-Boot Device";
     deviceInfo_->fullName_       = deviceInfo_->name_;
     deviceInfo_->connectionType_ = "USB";
     updater_.reset(new EGOBinFirmwareUpdater(info, static_cast<uint16_t>(enumInfo_->getPid())));

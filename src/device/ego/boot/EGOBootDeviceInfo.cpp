@@ -17,7 +17,9 @@ EGOBootDeviceInfo::EGOBootDeviceInfo(SourcePortInfoList ports) {
     deviceSn_           = p->serial;
     connectionType_     = "USB";
     sourcePortInfoList_ = std::move(ports);
-    name_               = "EGO Boot Device";
+    // Keep the two recovery stages visible to applications.  In particular,
+    // a ROM device re-enumerates as U-Boot during an EGO firmware update.
+    name_               = pid_ == EGO_BOOT_ROM_PID ? "EGO Boot ROM Device" : "EGO Boot U-Boot Device";
     fullName_           = name_;
 }
 std::shared_ptr<IDevice> EGOBootDeviceInfo::createDevice(OBDeviceAccessMode mode) const {
