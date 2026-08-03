@@ -696,11 +696,8 @@ typedef enum {
      */
     OB_PROP_COLOR_DYNAMIC_BITRATE_ENABLE_BOOL = 280,
 
+
     /**
-<<<<<<< HEAD
-     * @brief Play a recording voice prompt on the device
-     * @param value OBRecordingPrompt
-=======
      * @brief Execute an action for the selected recording destination
      * @param value OBRecordingAction
      *   - 0: Stop action
@@ -713,7 +710,6 @@ typedef enum {
      *     0 plays the device "stop recording" voice prompt.
      *
      * @attention write only
->>>>>>> 584a9d4a8 (Rename prompt property to destination-aware action)
      */
     OB_PROP_RECORDING_ACTION_INT = 281,
 
@@ -734,6 +730,13 @@ typedef enum {
      *          and the system is in a stable imaging state.
      */
     OB_PROP_COLOR_AE_AWB_STATUS_INT = 287,
+
+    /**
+     * @brief Maximum color-stream bitrate allowed when dynamic bitrate is enabled
+     *
+     * @attention Read and write. Unit: Mbps (M). Valid range is defined by firmware.
+     */
+    OB_PROP_COLOR_DYNAMIC_BITRATE_MAX_INT = 292,
 
     /**
      * @brief Number of Action Signal blocks supported by the device
@@ -1310,11 +1313,8 @@ typedef enum {
 #define OB_PROP_DEPTH_SOFT_FILTER_BOOL OB_PROP_DEPTH_NOISE_REMOVAL_FILTER_BOOL
 #define OB_PROP_DEPTH_MAX_DIFF_INT OB_PROP_DEPTH_NOISE_REMOVAL_FILTER_MAX_DIFF_INT
 #define OB_PROP_DEPTH_MAX_SPECKLE_SIZE_INT OB_PROP_DEPTH_NOISE_REMOVAL_FILTER_MAX_SPECKLE_SIZE_INT
-<<<<<<< HEAD
 #define OB_PROP_COLOR_AE_AWB_STAT_INT OB_PROP_COLOR_AE_AWB_STATUS_INT
-=======
 #define OB_PROP_RECORDING_PROMPT_INT OB_PROP_RECORDING_ACTION_INT
->>>>>>> 584a9d4a8 (Rename prompt property to destination-aware action)
 
 /**
  * @brief The data type used to describe all property settings
