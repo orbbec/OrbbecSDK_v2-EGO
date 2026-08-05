@@ -34,7 +34,7 @@ void updateEgoDeviceName(uint32_t vid, uint32_t pid, std::string &name, std::str
         fullName = std::string(iter->manufacturer_) + " " + name;
     }
     else {
-        name     = "EGO series device";
+        name     = "Ego series device";
         fullName = name;
     }
 }
