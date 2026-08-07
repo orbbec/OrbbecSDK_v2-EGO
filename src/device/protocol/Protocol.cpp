@@ -40,6 +40,10 @@ bool checkStatus(uint32_t propertyId, HpStatus stat, bool throwException) {
             errorStatus = OB_ERROR_RESOURCE_BUSY;
             retMsg += ", device is streaming or recording to SD card; stop streaming and SD card recording before configuring";
         }
+        else if(stat.respErrorCode == HP_RESP_ERROR_SD_CARD_NOT_DETECTED) {
+            errorStatus = OB_ERROR_DEVICE_SD_CARD_NOT_DETECTED;
+            retMsg += ", SD card is not detected";
+        }
         if(throwException) {
             THROW_IO_EXCEPTION_WITH_ERROR(retMsg, errorStatus);
         }

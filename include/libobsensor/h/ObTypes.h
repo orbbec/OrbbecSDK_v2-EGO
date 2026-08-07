@@ -113,6 +113,7 @@ typedef enum {
     OB_ERROR_DEVICE_RESPONSE_ERROR           = 1005, /**< Device response indicates an error */
     OB_ERROR_DEVICE_RESPONSE_WARNING         = 1006, /**< Device response indicates a warning */
     OB_ERROR_DEVICE_RESPONSE_CHANNEL_FAILURE = 1007, /**< Device response channel failure, unable to communicate with the device */
+    OB_ERROR_DEVICE_SD_CARD_NOT_DETECTED     = 1008, /**< SD card is not detected by the device */
 
 } OBStatus,
     OBErrorCode, ob_status, ob_error_code;
