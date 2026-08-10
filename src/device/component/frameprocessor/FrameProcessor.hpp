@@ -131,6 +131,18 @@ public:
     virtual void getPropertyRange(uint32_t propertyId, OBPropertyRange *range) override;
 };
 
+class ColorSideFrameProcessor : public FrameProcessor {
+public:
+    using FrameProcessor::getPropertyRange;
+
+    ColorSideFrameProcessor(IDevice *owner, std::shared_ptr<FrameProcessorContext> context, OBSensorType sensorType);
+    virtual ~ColorSideFrameProcessor() noexcept override = default;
+
+    virtual void setPropertyValue(uint32_t propertyId, const OBPropertyValue &value) override;
+    virtual void getPropertyValue(uint32_t propertyId, OBPropertyValue *value) override;
+    virtual void getPropertyRange(uint32_t propertyId, OBPropertyRange *range) override;
+};
+
 class IRFrameProcessor : public FrameProcessor {
 public:
     using FrameProcessor::getPropertyRange;

@@ -77,6 +77,14 @@ std::shared_ptr<IFrameBufferManager> FrameMemoryPool::createFrameBufferManager(O
         frameBufMgr = std::shared_ptr<FrameBufferManager<ColorRightFrame>>(new FrameBufferManager<ColorRightFrame>(frameBufferSize));
         LOG_DEBUG("ColorRightFrame bufferManager created!");
         break;
+    case OB_FRAME_COLOR_SIDE_LEFT:
+        frameBufMgr = std::shared_ptr<FrameBufferManager<ColorSideLeftFrame>>(new FrameBufferManager<ColorSideLeftFrame>(frameBufferSize));
+        LOG_DEBUG("ColorSideLeftFrame bufferManager created!");
+        break;
+    case OB_FRAME_COLOR_SIDE_RIGHT:
+        frameBufMgr = std::shared_ptr<FrameBufferManager<ColorSideRightFrame>>(new FrameBufferManager<ColorSideRightFrame>(frameBufferSize));
+        LOG_DEBUG("ColorSideRightFrame bufferManager created!");
+        break;
     case OB_FRAME_CONFIDENCE:
         frameBufMgr = std::shared_ptr<FrameBufferManager<ConfidenceFrame>>(new FrameBufferManager<ConfidenceFrame>(frameBufferSize));
         LOG_DEBUG("ConfidenceFrame bufferManager created!");

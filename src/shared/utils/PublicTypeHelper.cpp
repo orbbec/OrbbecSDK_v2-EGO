@@ -132,6 +132,10 @@ OBFrameType mapStreamTypeToFrameType(OBStreamType type) {
         return OB_FRAME_COLOR_LEFT;
     case OB_STREAM_COLOR_RIGHT:
         return OB_FRAME_COLOR_RIGHT;
+    case OB_STREAM_COLOR_SIDE_LEFT:
+        return OB_FRAME_COLOR_SIDE_LEFT;
+    case OB_STREAM_COLOR_SIDE_RIGHT:
+        return OB_FRAME_COLOR_SIDE_RIGHT;
     case OB_STREAM_DEPTH:
         return OB_FRAME_DEPTH;
     case OB_STREAM_ACCEL:
@@ -168,6 +172,10 @@ OBStreamType mapFrameTypeToStreamType(OBFrameType type) {
         return OB_STREAM_COLOR_LEFT;
     case OB_FRAME_COLOR_RIGHT:
         return OB_STREAM_COLOR_RIGHT;
+    case OB_FRAME_COLOR_SIDE_LEFT:
+        return OB_STREAM_COLOR_SIDE_LEFT;
+    case OB_FRAME_COLOR_SIDE_RIGHT:
+        return OB_STREAM_COLOR_SIDE_RIGHT;
     case OB_FRAME_DEPTH:
         return OB_STREAM_DEPTH;
     case OB_FRAME_ACCEL:
@@ -202,6 +210,10 @@ OBStreamType mapSensorTypeToStreamType(OBSensorType type) {
         return OB_STREAM_COLOR_LEFT;
     case OB_SENSOR_COLOR_RIGHT:
         return OB_STREAM_COLOR_RIGHT;
+    case OB_SENSOR_COLOR_SIDE_LEFT:
+        return OB_STREAM_COLOR_SIDE_LEFT;
+    case OB_SENSOR_COLOR_SIDE_RIGHT:
+        return OB_STREAM_COLOR_SIDE_RIGHT;
     case OB_SENSOR_DEPTH:
         return OB_STREAM_DEPTH;
     case OB_SENSOR_ACCEL:
@@ -236,6 +248,10 @@ OBSensorType mapStreamTypeToSensorType(OBStreamType type) {
         return OB_SENSOR_COLOR_LEFT;
     case OB_STREAM_COLOR_RIGHT:
         return OB_SENSOR_COLOR_RIGHT;
+    case OB_STREAM_COLOR_SIDE_LEFT:
+        return OB_SENSOR_COLOR_SIDE_LEFT;
+    case OB_STREAM_COLOR_SIDE_RIGHT:
+        return OB_SENSOR_COLOR_SIDE_RIGHT;
     case OB_STREAM_DEPTH:
         return OB_SENSOR_DEPTH;
     case OB_STREAM_ACCEL:
@@ -268,6 +284,10 @@ OBSensorType mapFrameTypeToSensorType(OBFrameType type) {
         return OB_SENSOR_COLOR_LEFT;
     case OB_FRAME_COLOR_RIGHT:
         return OB_SENSOR_COLOR_RIGHT;
+    case OB_FRAME_COLOR_SIDE_LEFT:
+        return OB_SENSOR_COLOR_SIDE_LEFT;
+    case OB_FRAME_COLOR_SIDE_RIGHT:
+        return OB_SENSOR_COLOR_SIDE_RIGHT;
     case OB_FRAME_DEPTH:
         return OB_SENSOR_DEPTH;
     case OB_FRAME_IR:
@@ -376,6 +396,8 @@ const std::map<OBSensorType, std::string> Sensor_Str_Map = {
     { OB_SENSOR_COLOR, "Color" },
     { OB_SENSOR_COLOR_LEFT, "LeftColor" },
     { OB_SENSOR_COLOR_RIGHT, "RightColor" },
+    { OB_SENSOR_COLOR_SIDE_LEFT, "SideLeftColor" },
+    { OB_SENSOR_COLOR_SIDE_RIGHT, "SideRightColor" },
     { OB_SENSOR_DEPTH, "Depth" },
     { OB_SENSOR_ACCEL, "Accel" },
     { OB_SENSOR_GYRO, "Gyro" },
@@ -394,6 +416,8 @@ const std::map<OBFrameType, std::string> Frame_Str_Map = { { OB_FRAME_UNKNOWN, "
                                                            { OB_FRAME_COLOR, "Color" },
                                                            { OB_FRAME_COLOR_LEFT, "Left Color" },
                                                            { OB_FRAME_COLOR_RIGHT, "Right Color" },
+                                                           { OB_FRAME_COLOR_SIDE_LEFT, "Side Left Color" },
+                                                           { OB_FRAME_COLOR_SIDE_RIGHT, "Side Right Color" },
                                                            { OB_FRAME_DEPTH, "Depth" },
                                                            { OB_FRAME_ACCEL, "Accel" },
                                                            { OB_FRAME_SET, "SET" },
@@ -420,6 +444,8 @@ const std::map<OBStreamType, std::string> Stream_Str_Map = { { OB_STREAM_UNKNOWN
                                                              { OB_STREAM_LIDAR, "LiDAR" },
                                                              { OB_STREAM_COLOR_LEFT, "Left Color" },
                                                              { OB_STREAM_COLOR_RIGHT, "Right Color" },
+                                                             { OB_STREAM_COLOR_SIDE_LEFT, "Side Left Color" },
+                                                             { OB_STREAM_COLOR_SIDE_RIGHT, "Side Right Color" },
                                                              { OB_STREAM_AUDIO, "Audio" } };
 
 const std::map<OBAlignMode, std::string> AlignMode_Str_Map = {

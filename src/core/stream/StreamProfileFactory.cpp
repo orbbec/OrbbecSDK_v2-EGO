@@ -31,6 +31,8 @@ std::shared_ptr<StreamProfile> createStreamProfile(OBStreamType streamType, OBFo
     case OB_STREAM_COLOR:
     case OB_STREAM_COLOR_LEFT:
     case OB_STREAM_COLOR_RIGHT:
+    case OB_STREAM_COLOR_SIDE_LEFT:
+    case OB_STREAM_COLOR_SIDE_RIGHT:
     case OB_STREAM_IR:
     case OB_STREAM_IR_LEFT:
     case OB_STREAM_IR_RIGHT:

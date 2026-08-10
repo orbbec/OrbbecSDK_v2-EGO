@@ -191,6 +191,13 @@
             <Name>Ego</Name>
             <Manufacturer>Orbbec</Manufacturer>
         </EGO>
+        <EgoPro>
+            <!-- TN2610 EgoPro four-RGB + IMU + audio device. -->
+            <VID>0x2BC5</VID>
+            <PID>0x1204</PID>
+            <Name>EgoPro</Name>
+            <Manufacturer>Orbbec</Manufacturer>
+        </EgoPro>
         <Wrist>
             <VID>0x2BC5</VID>
             <PID>0x1203</PID>
@@ -283,6 +290,7 @@
     <EGODeviceList>
         <!-- EGO series devices -->
         <Device>EGO</Device>
+        <Device>EgoPro</Device>
         <!-- More devices can be added here -->
     </EGODeviceList>
 

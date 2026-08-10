@@ -153,11 +153,12 @@ const std::vector<uint16_t> G305DevPids = {
 
 // PN2608_EGO: head-mounted dual-RGB + IMU + audio device (USB-UVC/UAC and WiFi-RTSP paths)
 #define OB_DEVICE_EGO_PID 0x1201
+#define OB_DEVICE_EGOPRO_PID 0x1204
 
 const uint16_t              EGO_BOOT_VID       = 0x1B20;
 const uint16_t              EGO_BOOT_ROM_PID   = 0x0300;
 const uint16_t              EGO_BOOT_UBOOT_PID = 0x0301;
-const std::vector<uint16_t> EGOBootDevPids = { EGO_BOOT_ROM_PID, EGO_BOOT_UBOOT_PID };
+const std::vector<uint16_t> EGOBootDevPids     = { EGO_BOOT_ROM_PID, EGO_BOOT_UBOOT_PID };
 
 #define LIDAR_PID_ME450_OLD 0x5555
 #define LIDAR_PID_ME450 0x1302

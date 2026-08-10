@@ -50,6 +50,8 @@ SUBSYSTEMS=="usb", ATTRS{idVendor}=="2bc5", ATTRS{idProduct}=="081c", MODE:="066
 SUBSYSTEMS=="usb", ATTRS{idVendor}=="2bc5", ATTRS{idProduct}=="081d", MODE:="0666",  OWNER:="root", GROUP:="video", SYMLINK+="Gemini_331L"
 SUBSYSTEMS=="usb", ATTRS{idVendor}=="2bc5", ATTRS{idProduct}=="0845", MODE:="0666",  OWNER:="root", GROUP:="video", SYMLINK+="Gemini_309g"
 SUBSYSTEMS=="usb", ATTRS{idVendor}=="2bc5", ATTRS{idProduct}=="1201", MODE:="0666",  OWNER:="root", GROUP:="video", SYMLINK+="Ego"
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="2bc5", ATTRS{idProduct}=="1203", MODE:="0666",  OWNER:="root", GROUP:="video", SYMLINK+="Wrist"
+SUBSYSTEMS=="usb", ATTRS{idVendor}=="2bc5", ATTRS{idProduct}=="1204", MODE:="0666",  OWNER:="root", GROUP:="video", SYMLINK+="Ego_Pro"
 
 # EGO recovery devices. The SigmaStar ROM (0300) and U-Boot (0301) expose a
 # USB mass-storage interface. libusb must be allowed to detach the storage

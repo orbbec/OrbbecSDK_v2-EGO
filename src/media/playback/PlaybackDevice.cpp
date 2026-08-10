@@ -525,6 +525,54 @@ void PlaybackDevice::initSensorList() {
         return frameProcessor;
     });
 
+    registerComponent(OB_DEV_COMPONENT_SIDE_LEFT_COLOR_SENSOR, [this]() {
+        auto sensor = std::make_shared<VideoSensor>(this, OB_SENSOR_COLOR_SIDE_LEFT, port_);
+        sensor->setStreamProfileList(port_->getStreamProfileList(OB_SENSOR_COLOR_SIDE_LEFT));
+
+        auto frameProcessor = getComponentT<FrameProcessor>(OB_DEV_COMPONENT_SIDE_LEFT_COLOR_FRAME_PROCESSOR, false);
+        if(frameProcessor) {
+            sensor->setFrameProcessor(frameProcessor.get());
+        }
+
+        auto colorMdParserContainer = getComponentT<IFrameMetadataParserContainer>(OB_DEV_COMPONENT_LEFT_COLOR_FRAME_METADATA_CONTAINER, false);
+        if(colorMdParserContainer) {
+            sensor->setFrameMetadataParserContainer(colorMdParserContainer.get());
+        }
+
+        sensor->enableTimestampAnomalyDetection(false);
+        return sensor;
+    });
+
+    registerComponent(OB_DEV_COMPONENT_SIDE_LEFT_COLOR_FRAME_PROCESSOR, [this]() {
+        auto factory        = getComponentT<FrameProcessorFactory>(OB_DEV_COMPONENT_FRAME_PROCESSOR_FACTORY);
+        auto frameProcessor = factory->createFrameProcessor(OB_SENSOR_COLOR_SIDE_LEFT);
+        return frameProcessor;
+    });
+
+    registerComponent(OB_DEV_COMPONENT_SIDE_RIGHT_COLOR_SENSOR, [this]() {
+        auto sensor = std::make_shared<VideoSensor>(this, OB_SENSOR_COLOR_SIDE_RIGHT, port_);
+        sensor->setStreamProfileList(port_->getStreamProfileList(OB_SENSOR_COLOR_SIDE_RIGHT));
+
+        auto frameProcessor = getComponentT<FrameProcessor>(OB_DEV_COMPONENT_SIDE_RIGHT_COLOR_FRAME_PROCESSOR, false);
+        if(frameProcessor) {
+            sensor->setFrameProcessor(frameProcessor.get());
+        }
+
+        auto colorMdParserContainer = getComponentT<IFrameMetadataParserContainer>(OB_DEV_COMPONENT_RIGHT_COLOR_FRAME_METADATA_CONTAINER, false);
+        if(colorMdParserContainer) {
+            sensor->setFrameMetadataParserContainer(colorMdParserContainer.get());
+        }
+
+        sensor->enableTimestampAnomalyDetection(false);
+        return sensor;
+    });
+
+    registerComponent(OB_DEV_COMPONENT_SIDE_RIGHT_COLOR_FRAME_PROCESSOR, [this]() {
+        auto factory        = getComponentT<FrameProcessorFactory>(OB_DEV_COMPONENT_FRAME_PROCESSOR_FACTORY);
+        auto frameProcessor = factory->createFrameProcessor(OB_SENSOR_COLOR_SIDE_RIGHT);
+        return frameProcessor;
+    });
+
     registerComponent(OB_DEV_COMPONENT_IR_SENSOR, [this]() {
         auto sensor = std::make_shared<VideoSensor>(this, OB_SENSOR_IR, port_);
         sensor->setStreamProfileList(port_->getStreamProfileList(OB_SENSOR_IR));

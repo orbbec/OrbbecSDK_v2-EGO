@@ -1321,6 +1321,8 @@ template <typename T> bool Frame::is() const {
     case OB_FRAME_COLOR:
     case OB_FRAME_COLOR_LEFT:
     case OB_FRAME_COLOR_RIGHT:
+    case OB_FRAME_COLOR_SIDE_LEFT:
+    case OB_FRAME_COLOR_SIDE_RIGHT:
         return (typeid(T) == typeid(ColorFrame) || typeid(T) == typeid(VideoFrame));
     case OB_FRAME_CONFIDENCE:
         return (typeid(T) == typeid(ConfidenceFrame) || typeid(T) == typeid(VideoFrame));

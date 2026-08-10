@@ -4,6 +4,8 @@
 #include "EGODeviceInfo.hpp"
 #include "EGODevice.hpp"
 #include "EGONetDevice.hpp"
+#include "EgoProDevice.hpp"
+#include "EgoProNetDevice.hpp"
 #include "DevicePids.hpp"
 #include "common/DeviceSeriesInfo.hpp"
 #include "utils/Utils.hpp"
@@ -21,10 +23,12 @@
 
 namespace libobsensor {
 
-static const uint16_t EGO_LEFT_COLOR_RTSP_PORT  = 8888;
-static const uint16_t EGO_RIGHT_COLOR_RTSP_PORT = 8889;
-static const uint16_t EGO_RTSP_AUDIO_PORT       = 8890;
-static const uint16_t EGO_IMU_TCP_PORT          = 8900;  // private TCP IMU data stream (parallel to RTSP)
+static const uint16_t EGO_LEFT_COLOR_RTSP_PORT          = 8888;
+static const uint16_t EGO_RIGHT_COLOR_RTSP_PORT         = 8889;
+static const uint16_t EGO_RTSP_AUDIO_PORT               = 8890;
+static const uint16_t EGO_IMU_TCP_PORT                  = 8900;  // private TCP IMU data stream (parallel to RTSP)
+static const uint16_t EGOPRO_SIDE_LEFT_COLOR_RTSP_PORT  = 8891;
+static const uint16_t EGOPRO_SIDE_RIGHT_COLOR_RTSP_PORT = 8892;
 
 void updateEgoDeviceName(uint32_t vid, uint32_t pid, std::string &name, std::string &fullName) {
     auto iter = std::find_if(EGODeviceInfoList.begin(), EGODeviceInfoList.end(),
@@ -74,10 +78,20 @@ std::shared_ptr<IDevice> EGODeviceInfo::createDevice(OBDeviceAccessMode accessMo
     (void)accessMode;  // access control is unsupported
     std::shared_ptr<IDevice> device;
     if(connectionType_ == "Ethernet") {
-        device = std::make_shared<EGONetDevice>(shared_from_this());
+        if(pid_ == OB_DEVICE_EGOPRO_PID) {
+            device = std::make_shared<EgoProNetDevice>(shared_from_this());
+        }
+        else {
+            device = std::make_shared<EGONetDevice>(shared_from_this());
+        }
     }
     else {
-        device = std::make_shared<EGODevice>(shared_from_this());
+        if(pid_ == OB_DEVICE_EGOPRO_PID) {
+            device = std::make_shared<EgoProDevice>(shared_from_this());
+        }
+        else {
+            device = std::make_shared<EGODevice>(shared_from_this());
+        }
     }
     return device;
 }
@@ -90,11 +104,13 @@ std::vector<std::shared_ptr<IDeviceEnumInfo>> EGODeviceInfo::pickDevices(const S
     auto                                          iter      = groups.begin();
     while(iter != groups.end()) {
         // EGO USB exposes 2 UVC color interfaces + 1 HID IMU interface (+ UAC audio).
-        if(iter->size() >= 2) {
+        auto firstUsb = std::dynamic_pointer_cast<const USBSourcePortInfo>(iter->front());
+        bool isEgoPro = firstUsb && firstUsb->pid == OB_DEVICE_EGOPRO_PID;
+        bool hasUvc   = std::any_of(iter->begin(), iter->end(), [](const std::shared_ptr<const SourcePortInfo> &p) { return p->portType == SOURCE_PORT_USB_UVC; });
+        if(iter->size() >= 2 || (isEgoPro && hasUvc)) {
 #if defined(_WIN32)
             // On Windows the UAC microphone is not surfaced by USB enumeration (usbaudio.sys owns it); inject a
             // synthetic UAC port so the WASAPI backend can pair the capture endpoint by USB VID/PID.
-            auto firstUsb = std::dynamic_pointer_cast<const USBSourcePortInfo>(iter->front());
             if(firstUsb) {
                 bool hasUac =
                     std::any_of(iter->begin(), iter->end(), [](const std::shared_ptr<const SourcePortInfo> &p) { return p->portType == SOURCE_PORT_USB_UAC; });
@@ -132,6 +148,12 @@ std::vector<std::shared_ptr<IDeviceEnumInfo>> EGODeviceInfo::pickNetDevices(cons
 
             iter->emplace_back(std::make_shared<RTSPStreamPortInfo>(*portInfo, EGO_LEFT_COLOR_RTSP_PORT, portInfo->port, OB_STREAM_COLOR_LEFT));
             iter->emplace_back(std::make_shared<RTSPStreamPortInfo>(*portInfo, EGO_RIGHT_COLOR_RTSP_PORT, portInfo->port, OB_STREAM_COLOR_RIGHT));
+            if(portInfo->pid == OB_DEVICE_EGOPRO_PID) {
+                iter->emplace_back(
+                    std::make_shared<RTSPStreamPortInfo>(*portInfo, EGOPRO_SIDE_LEFT_COLOR_RTSP_PORT, portInfo->port, OB_STREAM_COLOR_SIDE_LEFT));
+                iter->emplace_back(
+                    std::make_shared<RTSPStreamPortInfo>(*portInfo, EGOPRO_SIDE_RIGHT_COLOR_RTSP_PORT, portInfo->port, OB_STREAM_COLOR_SIDE_RIGHT));
+            }
 
             // Audio is an independent RTSP stream
             iter->emplace_back(std::make_shared<RTSPStreamPortInfo>(*portInfo, EGO_RTSP_AUDIO_PORT, portInfo->port, OB_STREAM_AUDIO));

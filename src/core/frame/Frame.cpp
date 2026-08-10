@@ -371,6 +371,12 @@ ColorLeftFrame::ColorLeftFrame(uint8_t *data, size_t dataBufSize, FrameBufferRec
 ColorRightFrame::ColorRightFrame(uint8_t *data, size_t dataBufSize, FrameBufferReclaimFunc bufferReclaimFunc)
     : VideoFrame(data, dataBufSize, OB_FRAME_COLOR_RIGHT, bufferReclaimFunc) {}
 
+ColorSideLeftFrame::ColorSideLeftFrame(uint8_t *data, size_t dataBufSize, FrameBufferReclaimFunc bufferReclaimFunc)
+    : VideoFrame(data, dataBufSize, OB_FRAME_COLOR_SIDE_LEFT, bufferReclaimFunc) {}
+
+ColorSideRightFrame::ColorSideRightFrame(uint8_t *data, size_t dataBufSize, FrameBufferReclaimFunc bufferReclaimFunc)
+    : VideoFrame(data, dataBufSize, OB_FRAME_COLOR_SIDE_RIGHT, bufferReclaimFunc) {}
+
 DepthFrame::DepthFrame(uint8_t *data, size_t dataBufSize, FrameBufferReclaimFunc bufferReclaimFunc)
     : VideoFrame(data, dataBufSize, OB_FRAME_DEPTH, bufferReclaimFunc), valueScale_(1.0f) {
     setPixelType(OB_PIXEL_DEPTH);  // set default pixel type to OB_PIXEL_DEPTH

@@ -26,6 +26,8 @@ bool isFwRecordVideoSensor(uint16_t sensorType) {
     case OB_SENSOR_CONFIDENCE:
     case OB_SENSOR_COLOR_LEFT:
     case OB_SENSOR_COLOR_RIGHT:
+    case OB_SENSOR_COLOR_SIDE_LEFT:
+    case OB_SENSOR_COLOR_SIDE_RIGHT:
         return true;
     default:
         return false;
@@ -62,10 +64,10 @@ ob_fw_record_stream_profile fromInternalFwRecordProfile(const OBInternalStreamPr
     profile.sensorType = internalProfile.sensorType;
 
     if(isFwRecordVideoSensor(internalProfile.sensorType)) {
-        profile.profile.video.width      = internalProfile.profile.video.width;
-        profile.profile.video.height     = internalProfile.profile.video.height;
-        profile.profile.video.fps        = internalProfile.profile.video.fps;
-        auto format = utils::uvcFourccToOBFormat(internalProfile.profile.video.formatFourcc);
+        profile.profile.video.width  = internalProfile.profile.video.width;
+        profile.profile.video.height = internalProfile.profile.video.height;
+        profile.profile.video.fps    = internalProfile.profile.video.fps;
+        auto format                  = utils::uvcFourccToOBFormat(internalProfile.profile.video.formatFourcc);
         if(format == OB_FORMAT_HEVC) {
             format = OB_FORMAT_H265;
         }

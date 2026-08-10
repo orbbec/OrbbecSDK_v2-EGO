@@ -93,6 +93,10 @@ std::shared_ptr<FrameProcessor> FrameProcessorFactory::createFrameProcessor(OBSe
         case OB_SENSOR_COLOR_RIGHT: {
             processor = std::make_shared<ColorRightFrameProcessor>(owner, context_);
         } break;
+        case OB_SENSOR_COLOR_SIDE_LEFT:
+        case OB_SENSOR_COLOR_SIDE_RIGHT: {
+            processor = std::make_shared<ColorSideFrameProcessor>(owner, context_, sensorType);
+        } break;
         case OB_SENSOR_IR:
         case OB_SENSOR_IR_LEFT: {
             processor = std::make_shared<IRFrameProcessor>(owner, context_, sensorType);
@@ -719,6 +723,27 @@ void ColorRightFrameProcessor::getPropertyRange(uint32_t propertyId, OBPropertyR
     }
 
     FrameProcessor::getPropertyRange(configName, range);
+}
+
+ColorSideFrameProcessor::ColorSideFrameProcessor(IDevice *owner, std::shared_ptr<FrameProcessorContext> context, OBSensorType sensorType)
+    : FrameProcessor(owner, context, sensorType) {}
+
+void ColorSideFrameProcessor::setPropertyValue(uint32_t propertyId, const OBPropertyValue &value) {
+    (void)propertyId;
+    (void)value;
+    THROW_INVALID_PARAM_EXCEPTION("Invalid property id");
+}
+
+void ColorSideFrameProcessor::getPropertyValue(uint32_t propertyId, OBPropertyValue *value) {
+    (void)propertyId;
+    (void)value;
+    THROW_INVALID_PARAM_EXCEPTION("Invalid property id");
+}
+
+void ColorSideFrameProcessor::getPropertyRange(uint32_t propertyId, OBPropertyRange *range) {
+    (void)propertyId;
+    (void)range;
+    THROW_INVALID_PARAM_EXCEPTION("Invalid property id");
 }
 
 IRFrameProcessor::IRFrameProcessor(IDevice *owner, std::shared_ptr<FrameProcessorContext> context, OBSensorType sensorType)

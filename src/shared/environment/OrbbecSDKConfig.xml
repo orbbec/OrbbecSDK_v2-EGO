@@ -3424,23 +3424,68 @@
                 <!-- The width of the default resolution, int type -->
                 <Width>1600</Width>
                 <!-- The height of the default resolution, int type -->
-                <Height>1300</Height>
+                <Height>1200</Height>
                 <!-- Default frame rate, int type -->
                 <FPS>30</FPS>
                 <!-- Default frame format -->
-                <Format>MJPG</Format>
+                <Format>H264</Format>
             </LeftColor>
 
             <RightColor>
                 <!-- The width of the default resolution, int type -->
                 <Width>1600</Width>
                 <!-- The height of the default resolution, int type -->
-                <Height>1300</Height>
+                <Height>1200</Height>
                 <!-- Default frame rate, int type -->
                 <FPS>30</FPS>
                 <!-- Default frame format -->
-                <Format>MJPG</Format>
+                <Format>H264</Format>
             </RightColor>
         </Ego>
+        <EgoPro>
+            <!-- Default backend for Linux UVC devices. If the LinuxUVCBackend is set to "Auto,"
+            this item will determine the device's speciality. Optional values: V4L2, LibUVC -->
+            <LinuxUVCDefaultBackend>LibUVC</LinuxUVCDefaultBackend>
+
+            <LeftColor>
+                <Width>1600</Width>
+                <Height>1200</Height>
+                <FPS>30</FPS>
+                <Format>H264</Format>
+            </LeftColor>
+
+            <RightColor>
+                <Width>1600</Width>
+                <Height>1200</Height>
+                <FPS>30</FPS>
+                <Format>H264</Format>
+            </RightColor>
+
+            <SideLeftColor>
+                <Width>1600</Width>
+                <Height>1200</Height>
+                <FPS>30</FPS>
+                <Format>H264</Format>
+            </SideLeftColor>
+
+            <SideRightColor>
+                <Width>1600</Width>
+                <Height>1200</Height>
+                <FPS>30</FPS>
+                <Format>H264</Format>
+            </SideRightColor>
+        </EgoPro>
+        <Wrist>
+            <!-- Default backend for Linux UVC devices. If the LinuxUVCBackend is set to "Auto,"
+            this item will determine the device's speciality. Optional values: V4L2, LibUVC -->
+            <LinuxUVCDefaultBackend>LibUVC</LinuxUVCDefaultBackend>
+
+            <Color>
+                <Width>1600</Width>
+                <Height>1200</Height>
+                <FPS>30</FPS>
+                <Format>H264</Format>
+            </Color>
+        </Wrist>
     </Device>
 </Config>

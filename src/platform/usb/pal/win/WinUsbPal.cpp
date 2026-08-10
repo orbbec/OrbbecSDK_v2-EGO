@@ -251,24 +251,30 @@ SourcePortInfoList WinUsbPal::querySourcePortInfos() {
     SourcePortInfoList portInfoList;
 
     auto action = [&](const UsbInterfaceInfo &info, IMFActivate *) {
-        UsbSpec     usbSpec;
+        UsbSpec     usbSpec = usb_undefined;
         std::string hubId, serial, url;
-        if(getUsbDescriptors(info.vid, info.pid, info.uid, hubId, usbSpec, serial, url)) {
-            auto portInfo      = std::make_shared<USBSourcePortInfo>();
-            portInfo->portType = SOURCE_PORT_USB_UVC;
-            portInfo->url      = url;
-            portInfo->uid      = info.uid;
-            portInfo->vid      = info.vid;
-            portInfo->pid      = info.pid;
-            portInfo->serial   = serial;
-            portInfo->connSpec = usbSpecToString(static_cast<UsbSpec>(usbSpec));
-            portInfo->infUrl   = info.infUrl;
-            portInfo->infIndex = info.infIndex;
-            portInfo->infName  = info.infName;
-            portInfo->hubId    = hubId;
-
-            portInfoList.push_back(portInfo);
+        if(!getUsbDescriptors(info.vid, info.pid, info.uid, hubId, usbSpec, serial, url)) {
+            // Some composite UVC devices can be visible to Media Foundation while libusb cannot open the
+            // device node to read descriptors. Keep the WMF UVC port so device matching can still proceed.
+            url = info.uid.empty() ? info.infUrl : info.uid;
+            LOG_WARN("Failed to read USB descriptors for UVC device, use WMF interface info as fallback. vid=0x{:04x}, pid=0x{:04x}, interface index={}",
+                     info.vid, info.pid, static_cast<uint32_t>(info.infIndex));
         }
+
+        auto portInfo      = std::make_shared<USBSourcePortInfo>();
+        portInfo->portType = SOURCE_PORT_USB_UVC;
+        portInfo->url      = url;
+        portInfo->uid      = info.uid;
+        portInfo->vid      = info.vid;
+        portInfo->pid      = info.pid;
+        portInfo->serial   = serial;
+        portInfo->connSpec = usbSpecToString(static_cast<UsbSpec>(usbSpec));
+        portInfo->infUrl   = info.infUrl;
+        portInfo->infIndex = info.infIndex;
+        portInfo->infName  = info.infName;
+        portInfo->hubId    = hubId;
+
+        portInfoList.push_back(portInfo);
     };
 
     WmfUvcDevicePort::foreachUvcDevice(action);

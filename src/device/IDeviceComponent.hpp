@@ -88,7 +88,7 @@ private:
     X(OB_DEV_COMPONENT_IMU_STREAMER, "imu sensor")                                                   \
     X(OB_DEV_COMPONENT_SHARED_HID_STREAM, "shared hid stream")                                       \
     X(OB_DEV_COMPONENT_DIRECTION_KEY_SERVICE, "direction key service")                               \
-    X(OB_DEV_COMPONENT_EGO_STATE_SERVICE, "ego state service")                                      \
+    X(OB_DEV_COMPONENT_EGO_STATE_SERVICE, "ego state service")                                       \
     X(OB_DEV_COMPONENT_SENSOR_STREAM_STRATEGY, "sensor stream strategy")                             \
     X(OB_DEV_COMPONENT_STREAM_PROFILE_FILTER, "stream profile filter")                               \
     X(OB_DEV_COMPONENT_COLOR_FRAME_METADATA_CONTAINER, "color frame metadata container")             \
@@ -114,11 +114,16 @@ private:
     X(OB_DEV_COMPONENT_RIGHT_COLOR_SENSOR, "right color sensor")                                     \
     X(OB_DEV_COMPONENT_RIGHT_COLOR_FRAME_PROCESSOR, "right color frame processor")                   \
     X(OB_DEV_COMPONENT_RIGHT_COLOR_FRAME_METADATA_CONTAINER, "right color frame metadata container") \
+    X(OB_DEV_COMPONENT_SIDE_LEFT_COLOR_SENSOR, "side left color sensor")                             \
+    X(OB_DEV_COMPONENT_SIDE_LEFT_COLOR_FRAME_PROCESSOR, "side left color frame processor")           \
+    X(OB_DEV_COMPONENT_SIDE_RIGHT_COLOR_SENSOR, "side right color sensor")                           \
+    X(OB_DEV_COMPONENT_SIDE_RIGHT_COLOR_FRAME_PROCESSOR, "side right color frame processor")         \
+    X(OB_DEV_COMPONENT_EGOPRO_COLOR_DEMUXER, "egopro color demuxer")                                 \
     X(OB_DEV_COMPONENT_DEPTH_POST_FILTER_PARAMS_MANAGER, "post filter params manager")               \
     X(OB_DEV_COMPONENT_COLOR_PRESET_MANAGER, "color preset manager")                                 \
     X(OB_DEV_COMPONENT_DEVICE_LICENSE_INFO_MANAGER, "device license info manager")                   \
     X(OB_DEV_COMPONENT_AUDIO_SENSOR, "audio sensor")                                                 \
-    X(OB_DEV_COMPONENT_FW_LOG_MANAGER, "firmware log manager")                                   \
+    X(OB_DEV_COMPONENT_FW_LOG_MANAGER, "firmware log manager")                                       \
     X(OB_DEV_COMPONENT_FW_RECORD_PROFILE_MANAGER, "firmware record profile manager")
 
 // generate enum
