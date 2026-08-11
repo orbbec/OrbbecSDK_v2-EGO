@@ -113,6 +113,10 @@ private:
     void setPowerStateD3();  // release device source and source reader
     void reloadSourceAndReader();
 
+    // Toggle the source reader's advanced video processing (needed only for BGR/BGRA conversion).
+    // Rebuilds the reader when the mode changes so uncompressed formats are configured natively.
+    void ensureAdvancedVideoProcessing(bool enable);
+
     void queryXuNodeId(const CComPtr<IKsTopologyInfo> &topologyInfo);
 
 private:
@@ -129,6 +133,11 @@ private:
     CComPtr<IMFAttributes>                  deviceAttrs_ = nullptr;
     Microsoft::WRL::ComPtr<IMFSourceReader> streamReader_;
     CComPtr<IMFAttributes>                  readerAttrs_ = nullptr;
+
+    // Whether the source reader currently has advanced video processing enabled. Kept off by
+    // default so uncompressed formats (e.g. NV12) are negotiated natively instead of being decoded
+    // from a compressed source (e.g. MJPG); turned on only while streaming BGR/BGRA.
+    bool advancedVideoProcessingEnabled_ = false;
 
     CComPtr<IAMCameraControl> cameraControl_ = nullptr;
     CComPtr<IAMVideoProcAmp>  videoProc_     = nullptr;

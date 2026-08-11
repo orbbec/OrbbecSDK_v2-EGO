@@ -727,12 +727,39 @@ CComPtr<IMFAttributes> WmfUvcDevicePort::createReaderAttrs() {
     CHECK_HR(MFCreateAttributes(&reader_attrs, 3));
     CHECK_HR(reader_attrs->SetUINT32(MF_SOURCE_READER_DISCONNECT_MEDIASOURCE_ON_SHUTDOWN, FALSE));
     CHECK_HR(reader_attrs->SetUINT32(MF_READWRITE_ENABLE_HARDWARE_TRANSFORMS, TRUE));
-    // for convert to rgb or rgba
-    CHECK_HR(reader_attrs->SetUINT32(MF_SOURCE_READER_ENABLE_ADVANCED_VIDEO_PROCESSING, TRUE));
-    CHECK_HR(reader_attrs->SetUINT32(MF_XVP_DISABLE_FRC, TRUE));
+    // Advanced video processing is required to convert NV12 to BGR/BGRA, but when it is enabled the
+    // source reader is free to pick a compressed native format (e.g. MJPG) and decode it in software
+    // even when an uncompressed format like NV12 is requested. Only enable it for BGR/BGRA streams so
+    // uncompressed formats are negotiated natively with the firmware.
+    if(advancedVideoProcessingEnabled_) {
+        CHECK_HR(reader_attrs->SetUINT32(MF_SOURCE_READER_ENABLE_ADVANCED_VIDEO_PROCESSING, TRUE));
+        CHECK_HR(reader_attrs->SetUINT32(MF_XVP_DISABLE_FRC, TRUE));
+    }
 
     CHECK_HR(reader_attrs->SetUnknown(MF_SOURCE_READER_ASYNC_CALLBACK, static_cast<IUnknown *>(this)));
     return reader_attrs;
+}
+
+void WmfUvcDevicePort::ensureAdvancedVideoProcessing(bool enable) {
+    std::lock_guard<std::recursive_mutex> lock(deviceMutex_);
+    if(advancedVideoProcessingEnabled_ == enable) {
+        return;
+    }
+    // Rebuilding the reader tears down the media source and clears streams_, so it is only safe when no
+    // other stream is running on this port. Refuse a cross-mode switch while a stream is active instead
+    // of silently dropping it (which would stall the running stream and race its callbacks).
+    {
+        std::lock_guard<std::mutex> streamsLock(streamsMutex_);
+        for(const auto &item: streams_) {
+            if(item.second.streaming) {
+                THROW_WRONG_API_CALL_SEQUENCE_EXCEPTION("Cannot switch video processing mode while another stream is running on this port!");
+            }
+        }
+    }
+    advancedVideoProcessingEnabled_ = enable;
+    // Drop the cached attributes so they are rebuilt with the new mode, then recreate the reader.
+    safe_release(readerAttrs_);
+    reloadSourceAndReader();
 }
 
 void WmfUvcDevicePort::setPowerStateD0() {
@@ -928,7 +955,38 @@ void WmfUvcDevicePort::foreachProfile(std::function<void(const MFProfile &profil
 
 void WmfUvcDevicePort::playProfile(std::shared_ptr<const VideoStreamProfile> profile, MutableFrameCallback callback) {
     std::lock_guard<std::recursive_mutex> lock(deviceMutex_);
-    bool                                  found = false;
+    // Advanced video processing is only needed to convert NV12 to BGR/BGRA. Enabling it for other
+    // formats lets the source reader decode from a compressed native format (e.g. MJPG), so the
+    // firmware would be configured for MJPG instead of the requested uncompressed format. Rebuild
+    // the reader in the matching mode before negotiating the media type.
+    const bool needAdvancedVideoProcessing = (profile->getFormat() == OB_FORMAT_BGR || profile->getFormat() == OB_FORMAT_BGRA);
+    ensureAdvancedVideoProcessing(needAdvancedVideoProcessing);
+
+    // On Windows the Frame Server can expose two native media types with the same format/resolution/fps
+    // for an uncompressed format: the genuine UVC one (carrying a real MF_MT_SAMPLE_SIZE) and a
+    // synthesized one decoded from a compressed transport (e.g. MJPG) whose sample size is left at zero.
+    // Selecting the synthesized type makes the firmware stream the compressed transport, which loses
+    // calibration fidelity. Pre-scan for a genuine native type so the selection loop can skip the
+    // synthesized duplicate and pin the real one.
+    bool hasNativeSampleSize = false;
+    foreachProfile([&](const MFProfile &mfp, CComPtr<IMFMediaType> mediaType, bool & /*quit*/) {
+        if(mfp.profile->getFormat() != profile->getFormat() || mfp.profile->getWidth() != profile->getWidth()
+           || mfp.profile->getHeight() != profile->getHeight() || mfp.profile->getFps() != profile->getFps()) {
+            return;
+        }
+        UINT32 sampleSize = 0;
+        UINT32 stride     = 0;
+        mediaType->GetUINT32(MF_MT_DEFAULT_STRIDE, &stride);
+        GUID subtype = GUID_NULL;
+        mediaType->GetGUID(MF_MT_SUBTYPE, &subtype);
+        if(SUCCEEDED(mediaType->GetUINT32(MF_MT_SAMPLE_SIZE, &sampleSize)) && sampleSize != 0) {
+            hasNativeSampleSize = true;
+        }
+        LOG_DEBUG("Candidate native media type: index={}, format={}, sampleSize={}, stride={}, subtype={:08x}", mfp.index, mfp.profile->getFormat(), sampleSize,
+                  stride, subtype.Data1);
+    });
+
+    bool found = false;
     foreachProfile([&](const MFProfile &mfp, CComPtr<IMFMediaType> media_type, bool &quit) {
         if(mfp.profile->getWidth() != profile->getWidth() || mfp.profile->getHeight() != profile->getHeight() || mfp.profile->getFps() != profile->getFps()) {
             return;
@@ -955,6 +1013,39 @@ void WmfUvcDevicePort::playProfile(std::shared_ptr<const VideoStreamProfile> pro
         }
         else if(mfp.profile->getFormat() != profile->getFormat()) {
             return;
+        }
+        else {
+            // Same format, no conversion needed. The synthesized-duplicate problem only affects
+            // uncompressed (fixed-size) formats (e.g. NV12): the Frame Server may expose a genuine native
+            // type (real MF_MT_SAMPLE_SIZE) alongside one synthesized from a compressed transport whose
+            // sample size is left at zero. Skip the synthesized one and pin the camera's native media type
+            // so the firmware is configured for exactly this format. Compressed / variable-length formats
+            // (MJPG, H264/265, RLE, RVL) legitimately carry a zero sample size, so restrict this to
+            // fixed-size formats to avoid rejecting their only native type.
+            const OBFormat format = profile->getFormat();
+            if(IS_FIXED_SIZE_FORMAT(format)) {
+                if(hasNativeSampleSize) {
+                    UINT32 sampleSize = 0;
+                    if(FAILED(media_type->GetUINT32(MF_MT_SAMPLE_SIZE, &sampleSize)) || sampleSize == 0) {
+                        return;
+                    }
+                }
+                Microsoft::WRL::ComPtr<IMFSourceReaderEx> spSourceReaderEx;
+                CHECK_HR(streamReader_.As(&spSourceReaderEx));
+                DWORD   dwStreamFlags = 0;
+                HRESULT hrNative      = spSourceReaderEx->SetNativeMediaType(mfp.index, media_type, &dwStreamFlags);
+                if(FAILED(hrNative)) {
+                    // For uncompressed formats the native type must be pinned. Falling back to
+                    // SetCurrentMediaType below could let Media Foundation select a compressed native
+                    // format (e.g. MJPG) and decode it, silently degrading data quality for
+                    // calibration-sensitive uses. Fail loudly instead of streaming a decoded transport.
+                    check("spSourceReaderEx->SetNativeMediaType(...)", hrNative, false);  // log the HRESULT
+                    THROW_UNSUPPORTED_OPERATION_EXCEPTION(utils::string::to_string()
+                                                          << "Failed to pin native media type for uncompressed format " << static_cast<int>(format)
+                                                          << " (stream index " << mfp.index << "); refusing to fall back to a decoded compressed transport.");
+                }
+                LOG_DEBUG("Selected native media type: index={}, format={}", mfp.index, format);
+            }
         }
 
         auto hr = streamReader_->SetCurrentMediaType(mfp.index, nullptr, media_type);
