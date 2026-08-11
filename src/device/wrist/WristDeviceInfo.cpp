@@ -29,7 +29,7 @@ void updateWristDeviceName(uint32_t vid, uint32_t pid, std::string &name, std::s
                              [vid, pid](const DeviceInfoEntry &entry) { return entry.vid_ == vid && entry.pid_ == pid; });
     if(iter != WristDeviceInfoList.end()) {
         name     = iter->deviceName_;
-        fullName = std::string(iter->manufacturer_) + " " + name;
+        fullName = name;
     }
     else {
         name     = "Wrist series device";

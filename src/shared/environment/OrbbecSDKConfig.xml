@@ -3415,7 +3415,7 @@
                 <Format>MJPG</Format>
             </Color>
         </GeminiEW>
-        <Ego>
+        <EGO>
             <!-- Default backend for Linux UVC devices. If the LinuxUVCBackend is set to "Auto,"
             this item will determine the device's speciality. Optional values: V4L2, LibUVC -->
             <LinuxUVCDefaultBackend>LibUVC</LinuxUVCDefaultBackend>
@@ -3441,8 +3441,8 @@
                 <!-- Default frame format -->
                 <Format>H264</Format>
             </RightColor>
-        </Ego>
-        <EgoPro>
+        </EGO>
+        <EGOPro>
             <!-- Default backend for Linux UVC devices. If the LinuxUVCBackend is set to "Auto,"
             this item will determine the device's speciality. Optional values: V4L2, LibUVC -->
             <LinuxUVCDefaultBackend>LibUVC</LinuxUVCDefaultBackend>
@@ -3474,8 +3474,8 @@
                 <FPS>30</FPS>
                 <Format>H264</Format>
             </SideRightColor>
-        </EgoPro>
-        <Wrist>
+        </EGOPro>
+        <WristCam>
             <!-- Default backend for Linux UVC devices. If the LinuxUVCBackend is set to "Auto,"
             this item will determine the device's speciality. Optional values: V4L2, LibUVC -->
             <LinuxUVCDefaultBackend>LibUVC</LinuxUVCDefaultBackend>
@@ -3486,6 +3486,6 @@
                 <FPS>30</FPS>
                 <Format>H264</Format>
             </Color>
-        </Wrist>
+        </WristCam>
     </Device>
 </Config>

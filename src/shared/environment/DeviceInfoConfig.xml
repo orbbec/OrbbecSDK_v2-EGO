@@ -188,22 +188,22 @@
             <!-- PN2608_EGO head-mounted dual-RGB + IMU + audio device. -->
             <VID>0x2BC5</VID>
             <PID>0x1201</PID>
-            <Name>Ego</Name>
+            <Name>EGO</Name>
             <Manufacturer>Orbbec</Manufacturer>
         </EGO>
-        <EgoPro>
-            <!-- TN2610 EgoPro four-RGB + IMU + audio device. -->
+        <EGOPro>
+            <!-- TN2610 EGOPro four-RGB + IMU + audio device. -->
             <VID>0x2BC5</VID>
             <PID>0x1204</PID>
-            <Name>EgoPro</Name>
+            <Name>EGOPro</Name>
             <Manufacturer>Orbbec</Manufacturer>
-        </EgoPro>
-        <Wrist>
+        </EGOPro>
+        <WristCam>
             <VID>0x2BC5</VID>
             <PID>0x1203</PID>
-            <Name>Wrist</Name>
+            <Name>WristCam</Name>
             <Manufacturer>Orbbec</Manufacturer>
-        </Wrist>
+        </WristCam>
         <!-- More devices can be added here -->
     </DevList>
 
@@ -290,13 +290,13 @@
     <EGODeviceList>
         <!-- EGO series devices -->
         <Device>EGO</Device>
-        <Device>EgoPro</Device>
+        <Device>EGOPro</Device>
         <!-- More devices can be added here -->
     </EGODeviceList>
 
     <WristDeviceList>
         <!-- Wrist series devices -->
-        <Device>Wrist</Device>
+        <Device>WristCam</Device>
         <!-- More devices can be added here -->
     </WristDeviceList>
 

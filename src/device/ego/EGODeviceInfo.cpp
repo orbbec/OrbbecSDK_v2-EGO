@@ -35,7 +35,7 @@ void updateEgoDeviceName(uint32_t vid, uint32_t pid, std::string &name, std::str
                              [vid, pid](const DeviceInfoEntry &entry) { return entry.vid_ == vid && entry.pid_ == pid; });
     if(iter != EGODeviceInfoList.end()) {
         name     = iter->deviceName_;
-        fullName = std::string(iter->manufacturer_) + " " + name;
+        fullName = name;
     }
     else {
         name     = "Ego series device";

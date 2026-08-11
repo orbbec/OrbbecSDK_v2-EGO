@@ -111,7 +111,7 @@ void WristDevice::fetchDeviceInfo() {
     if(deviceInfo_->name_.find("Orbbec ") == 0) {
         deviceInfo_->name_ = deviceInfo_->name_.substr(7);
     }
-    deviceInfo_->fullName_ = "Orbbec " + deviceInfo_->name_;
+    deviceInfo_->fullName_ = deviceInfo_->name_;
 
 #ifdef __linux__
     // todo: net device does not have backend type
