@@ -36,8 +36,20 @@ namespace {
 static_assert(sizeof(ob_fw_recording_mcap_topic) == 130, "MCAP topic protocol item must occupy 130 bytes");
 static_assert(sizeof(ob_fw_recording_mcap_topic) % 2 == 0, "MCAP topic protocol item must have an even byte length");
 
-bool isValidMcapTopicStreamType(uint16_t streamType) {
-    return streamType < static_cast<uint16_t>(OB_STREAM_TYPE_COUNT);
+bool isValidMcapTopicType(uint16_t topicType) {
+    switch(topicType) {
+    case OB_FW_MCAP_TOPIC_COLOR:
+    case OB_FW_MCAP_TOPIC_COLOR_LEFT:
+    case OB_FW_MCAP_TOPIC_COLOR_RIGHT:
+    case OB_FW_MCAP_TOPIC_COLOR_SIDE_LEFT:
+    case OB_FW_MCAP_TOPIC_COLOR_SIDE_RIGHT:
+    case OB_FW_MCAP_TOPIC_ACCEL:
+    case OB_FW_MCAP_TOPIC_GYRO:
+    case OB_FW_MCAP_TOPIC_AUDIO:
+        return true;
+    default:
+        return false;
+    }
 }
 
 void validateMcapTopicList(const ob_fw_recording_mcap_topic *topics, uint32_t topicCount) {
@@ -49,11 +61,11 @@ void validateMcapTopicList(const ob_fw_recording_mcap_topic *topics, uint32_t to
         THROW_INVALID_PARAM_EXCEPTION("MCAP topic list is too large");
     }
 
-    std::set<uint16_t> streamTypes;
+    std::set<uint16_t> topicTypes;
     for(uint32_t i = 0; i < topicCount; ++i) {
         const auto &topic = topics[i];
-        if(!isValidMcapTopicStreamType(topic.streamType)) {
-            THROW_INVALID_PARAM_EXCEPTION("MCAP topic has an invalid stream type");
+        if(!isValidMcapTopicType(topic.topicType)) {
+            THROW_INVALID_PARAM_EXCEPTION("MCAP topic has an invalid topic type");
         }
         if(std::memchr(topic.topic, '\0', sizeof(topic.topic)) == nullptr) {
             THROW_INVALID_PARAM_EXCEPTION("MCAP topic is not NUL-terminated");
@@ -61,8 +73,8 @@ void validateMcapTopicList(const ob_fw_recording_mcap_topic *topics, uint32_t to
         if(topic.topic[0] == '\0') {
             THROW_INVALID_PARAM_EXCEPTION("MCAP topic is empty");
         }
-        if(!streamTypes.insert(topic.streamType).second) {
-            THROW_INVALID_PARAM_EXCEPTION("MCAP topic list has duplicate stream types");
+        if(!topicTypes.insert(topic.topicType).second) {
+            THROW_INVALID_PARAM_EXCEPTION("MCAP topic list has duplicate topic types");
         }
     }
 }

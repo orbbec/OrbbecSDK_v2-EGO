@@ -355,15 +355,33 @@ typedef enum {
 #define OB_FW_RECORDING_MCAP_TOPIC_MAX_LENGTH 128
 
 /**
+ * @brief Firmware recording MCAP topic source type.
+ *
+ * This type is independent of @ref ob_stream_type and is used only by the
+ * firmware recording MCAP topic-list protocol.
+ */
+typedef enum {
+    OB_FW_MCAP_TOPIC_COLOR            = 0, /**< Single Color stream. */
+    OB_FW_MCAP_TOPIC_COLOR_LEFT       = 1, /**< Left front Color stream. */
+    OB_FW_MCAP_TOPIC_COLOR_RIGHT      = 2, /**< Right front Color stream. */
+    OB_FW_MCAP_TOPIC_COLOR_SIDE_LEFT  = 3, /**< Left side Color stream. */
+    OB_FW_MCAP_TOPIC_COLOR_SIDE_RIGHT = 4, /**< Right side Color stream. */
+    OB_FW_MCAP_TOPIC_ACCEL            = 5, /**< Accelerometer stream. */
+    OB_FW_MCAP_TOPIC_GYRO             = 6, /**< Gyroscope stream. */
+    OB_FW_MCAP_TOPIC_AUDIO            = 7, /**< Audio stream. */
+} OBFwRecordingMcapTopicType,
+    ob_fw_recording_mcap_topic_type;
+
+/**
  * @brief Custom MCAP topic assigned to one firmware-recorded stream.
  *
  * A topic list is a contiguous array of this fixed-size structure. The
  * structure is 130 bytes, so every topic-list payload has an even length.
- * @ref streamType stores an @ref ob_stream_type enum value in the firmware's
- * fixed 16-bit wire representation.
+ * @ref topicType stores an @ref ob_fw_recording_mcap_topic_type enum value in
+ * the firmware's fixed 16-bit wire representation.
  */
 typedef struct {
-    uint16_t streamType; /**< enum value of @ref ob_stream_type */
+    uint16_t topicType; /**< enum value of @ref ob_fw_recording_mcap_topic_type */
     char     topic[OB_FW_RECORDING_MCAP_TOPIC_MAX_LENGTH]; /**< UTF-8, NUL-terminated MCAP topic */
 } OBFwRecordingMcapTopic,
     ob_fw_recording_mcap_topic;

@@ -496,7 +496,7 @@ public:
     /**
      * @brief Get the custom MCAP topic list used by firmware SD-card recording.
      *
-     * @return A snapshot of stream-type to custom-topic mappings configured in firmware.
+     * @return A snapshot of MCAP topic-type to custom-topic mappings configured in firmware.
      */
     std::vector<OBFwRecordingMcapTopic> getFwRecordMcapTopicList() const {
         ob_error *error = nullptr;
@@ -516,7 +516,7 @@ public:
     /**
      * @brief Replace the custom MCAP topic list used by firmware SD-card recording.
      *
-     * @param[in] topics Complete stream-type to custom-topic mapping. An empty vector clears the list.
+     * @param[in] topics Complete MCAP topic-type to custom-topic mapping. An empty vector clears the list.
      *
      */
     void setFwRecordMcapTopicList(const std::vector<OBFwRecordingMcapTopic> &topics) const {
