@@ -347,7 +347,8 @@ void EGODevice::initSensorList() {
             // the gyro and accel are both on the same port; no correction filter applied
             auto sharedHidPort  = getComponentT<SharedDataStreamPort>(OB_DEV_COMPONENT_SHARED_HID_STREAM);
             auto dataStreamPort = sharedHidPort->createClientPort();
-            auto imuStreamer    = std::make_shared<ImuStreamer>(this, dataStreamPort, std::vector<std::shared_ptr<IFilter>>{});
+            auto imuStreamer = std::make_shared<ImuStreamer>(this, dataStreamPort, std::vector<std::shared_ptr<IFilter>>{},
+                                                              std::make_shared<ImuCalculatorBMI088>());
             return imuStreamer;
         });
 
