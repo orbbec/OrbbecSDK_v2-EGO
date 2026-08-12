@@ -44,7 +44,8 @@ void validateMcapTopicList(const ob_fw_recording_mcap_topic *topics, uint32_t to
     if(topicCount > 0 && topics == nullptr) {
         THROW_INVALID_PARAM_EXCEPTION("MCAP topic list is null");
     }
-    if(topicCount > (std::numeric_limits<size_t>::max)() / sizeof(ob_fw_recording_mcap_topic)) {
+    if(static_cast<uint64_t>(topicCount)
+       > static_cast<uint64_t>((std::numeric_limits<size_t>::max)()) / sizeof(ob_fw_recording_mcap_topic)) {
         THROW_INVALID_PARAM_EXCEPTION("MCAP topic list is too large");
     }
 
