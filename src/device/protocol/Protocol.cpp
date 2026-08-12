@@ -4,6 +4,7 @@
 #include "Protocol.hpp"
 #include "logger/Logger.hpp"
 #include "exception/ObException.hpp"
+#include <cstring>
 #include <map>
 #include <sstream>
 #include <atomic>
@@ -482,6 +483,41 @@ ReadRawDataReq *initReadRawDataReq(uint8_t *dataBuf, uint32_t propertyId, uint32
     req->propertyId = propertyId;
     req->offset     = offset;
     req->size       = size;
+    return req;
+}
+
+SetPropertyReq *initWriteRawDataLengthReq(uint8_t *dataBuf, uint32_t propertyId, uint32_t dataSize) {
+    auto *req                   = reinterpret_cast<SetPropertyReq *>(dataBuf);
+    req->header.magic           = HP_REQUEST_MAGIC;
+    req->header.sizeInHalfWords = 4;
+    req->header.opcode          = OPCODE_INIT_WRITE_RAW_DATA;
+    req->header.requestId       = generateRequestId();
+    req->propertyId             = propertyId;
+    req->value                  = static_cast<int32_t>(dataSize);
+    return req;
+}
+
+SetRawDataReq *initWriteRawDataReq(uint8_t *dataBuf, uint32_t propertyId, uint32_t offset, const uint8_t *data, uint32_t dataSize) {
+    auto *req                   = reinterpret_cast<SetRawDataReq *>(dataBuf);
+    req->header.magic           = HP_REQUEST_MAGIC;
+    req->header.sizeInHalfWords = static_cast<uint16_t>(4 + (dataSize + 1) / 2);
+    req->header.opcode          = OPCODE_WRITE_RAW_DATA;
+    req->header.requestId       = generateRequestId();
+    req->propertyId             = propertyId;
+    req->value                  = static_cast<int32_t>(offset);
+    if(dataSize > 0) {
+        memcpy(req->data, data, dataSize);
+    }
+    return req;
+}
+
+FinishWriteRawDataReq *initFinishWriteRawDataReq(uint8_t *dataBuf, uint32_t propertyId) {
+    auto *req                   = reinterpret_cast<FinishWriteRawDataReq *>(dataBuf);
+    req->header.magic           = HP_REQUEST_MAGIC;
+    req->header.sizeInHalfWords = 2;
+    req->header.opcode          = OPCODE_FINISH_WRITE_RAW_DATA;
+    req->header.requestId       = generateRequestId();
+    req->propertyId             = propertyId;
     return req;
 }
 

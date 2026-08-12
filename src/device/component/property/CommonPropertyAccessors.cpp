@@ -108,6 +108,15 @@ void LazySuperPropertyAccessor::getRawData(uint32_t propertyId, GetDataCallback 
     superAccessor->getRawData(propertyId, callback);
 }
 
+void LazySuperPropertyAccessor::setRawData(uint32_t propertyId, const std::vector<uint8_t> &data) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if(!accessor_) {
+        accessor_ = accessorCreator_();
+    }
+    auto superAccessor = std::dynamic_pointer_cast<IRawDataAccessor>(accessor_);
+    superAccessor->setRawData(propertyId, data);
+}
+
 uint16_t LazySuperPropertyAccessor::getCmdVersionProtoV1_1(uint32_t propertyId) {
     std::lock_guard<std::mutex> lock(mutex_);
     if(!accessor_) {

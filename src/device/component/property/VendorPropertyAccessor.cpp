@@ -6,6 +6,9 @@
 #include "protocol/Protocol.hpp"
 #include "property/InternalProperty.hpp"  // OB_PROP_DEVICE_RESET_BOOL
 
+#include <algorithm>
+#include <limits>
+
 namespace libobsensor {
 
 const uint32_t DEFAULT_CMD_MAX_DATA_SIZE = 768;
@@ -156,6 +159,48 @@ void VendorPropertyAccessor::getRawData(uint32_t propertyId, GetDataCallback cal
     dataChunk.offset       = dataSize;
     dataChunk.fullDataSize = dataSize;
     callback(DATA_TRAN_STAT_DONE, &dataChunk);
+}
+
+void VendorPropertyAccessor::setRawData(uint32_t propertyId, const std::vector<uint8_t> &data) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    if(data.size() > static_cast<size_t>((std::numeric_limits<int32_t>::max)())) {
+        THROW_INVALID_PARAM_EXCEPTION("Raw data is too large");
+    }
+    if(data.size() % 2 != 0) {
+        THROW_INVALID_PARAM_EXCEPTION("Raw data size must be even");
+    }
+
+    constexpr size_t rawDataRequestHeaderSize = sizeof(protocol::SetRawDataReq) - 1;
+    if(sendData_.size() <= rawDataRequestHeaderSize) {
+        THROW_INVALID_DATA_EXCEPTION("Raw data request buffer is too small");
+    }
+    const auto maxPacketSize = sendData_.size() - rawDataRequestHeaderSize;
+    const auto packetSize = std::min<size_t>(std::min<size_t>(rawdataTransferPacketSize_, DEFAULT_CMD_MAX_DATA_SIZE), maxPacketSize) & ~size_t(1);
+    if(packetSize == 0) {
+        THROW_INVALID_DATA_EXCEPTION("Raw data packet size must be at least two bytes");
+    }
+    const auto dataSize   = static_cast<uint32_t>(data.size());
+    auto       port       = std::dynamic_pointer_cast<IVendorDataPort>(backend_);
+
+    clearBuffers();
+    auto     initReq      = protocol::initWriteRawDataLengthReq(sendData_.data(), propertyId, dataSize);
+    uint16_t respDataSize = 0;
+    executeAndCheck(port, sendData_.data(), sizeof(*initReq), recvData_.data(), &respDataSize, propertyId);
+
+    for(size_t offset = 0; offset < data.size(); offset += packetSize) {
+        const auto chunkSize = std::min(packetSize, data.size() - offset);
+        clearBuffers();
+        auto req = protocol::initWriteRawDataReq(sendData_.data(), propertyId, static_cast<uint32_t>(offset), data.data() + offset,
+                                                 static_cast<uint32_t>(chunkSize));
+        respDataSize = 0;
+        const auto reqDataSize = static_cast<uint16_t>(sizeof(*req) + chunkSize - 1);
+        executeAndCheck(port, sendData_.data(), reqDataSize, recvData_.data(), &respDataSize, propertyId);
+    }
+
+    clearBuffers();
+    auto finishReq = protocol::initFinishWriteRawDataReq(sendData_.data(), propertyId);
+    respDataSize   = 0;
+    executeAndCheck(port, sendData_.data(), sizeof(*finishReq), recvData_.data(), &respDataSize, propertyId);
 }
 
 uint16_t VendorPropertyAccessor::getCmdVersionProtoV1_1(uint32_t propertyId) {

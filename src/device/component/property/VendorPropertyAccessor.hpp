@@ -34,6 +34,7 @@ public:
     std::vector<uint8_t> getStructureData(uint32_t propertyId, utils::TransferTiming *timing) override;
 
     void getRawData(uint32_t propertyId, GetDataCallback callback) override;
+    void setRawData(uint32_t propertyId, const std::vector<uint8_t> &data) override;
 
     uint16_t             getCmdVersionProtoV1_1(uint32_t propertyId) override;
     std::vector<uint8_t> getStructureDataProtoV1_1(uint32_t propertyId, uint16_t cmdVersion) override;

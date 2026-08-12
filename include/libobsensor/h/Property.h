@@ -813,6 +813,25 @@ typedef enum {
     OB_PROP_DEVICE_VOICE_PROMPT_LANGUAGE_INT = 289,
 
     /**
+     * @brief Firmware SD-card recording container format.
+     * @param value OBFwRecordingFormat
+     *
+     * @attention Read and write. Configure before starting firmware recording.
+     */
+    OB_PROP_FW_RECORDING_FORMAT_INT = 293,
+
+    /**
+     * @brief GOP size for H.264/H.265 video encoding.
+     *
+     * This setting affects both streamed video output and firmware SD-card
+     * recording. Read the property range before setting a value; the value
+     * must satisfy the firmware-provided minimum, maximum and step.
+     *
+     * @attention Read and write.
+     */
+    OB_PROP_VIDEO_GOP_INT = 294,
+
+    /**
      * @brief Baseline calibration parameters
      */
     OB_STRUCT_BASELINE_CALIBRATION_PARAM = 1002,
@@ -943,6 +962,17 @@ typedef enum {
      * @see OBAwbGainParams
      */
     OB_STRUCT_COLOR_AWB_GAIN = 1097,
+    
+    /**
+     * @brief Custom MCAP topics for firmware SD-card recording.
+     *
+     * The payload is a contiguous array of @ref OBFwRecordingMcapTopic. This
+     * property can be written only when @ref OB_PROP_FW_RECORDING_FORMAT_INT
+     * is @ref OB_FW_RECORDING_FORMAT_MCAP.
+     *
+     * @attention Read and write.
+     */
+    OB_RAW_DATA_FW_RECORDING_MCAP_TOPIC_LIST = 1099,
 
     /**
      * @brief Color camera auto exposure

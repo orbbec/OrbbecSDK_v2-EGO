@@ -29,6 +29,9 @@ enum HpOpCodes {
     OPCODE_INIT_READ_RAW_DATA   = 17,
     OPCODE_READ_RAW_DATA        = 18,
     OPCODE_FINISH_READ_RAW_DATA = 19,
+    OPCODE_INIT_WRITE_RAW_DATA   = 20,
+    OPCODE_WRITE_RAW_DATA        = 21,
+    OPCODE_FINISH_WRITE_RAW_DATA = 22,
 
     // v1.1 protocol introduction
     OPCODE_GET_COMMAND_VERSION_V1_1 = 26,  // v1.1 control command version number, determines how the control command parses data content
@@ -243,6 +246,18 @@ typedef struct {
 
 typedef struct {
     ReqHeader header;
+    uint32_t  propertyId;
+    int32_t   value;
+    uint8_t   data[1];
+} SetRawDataReq;
+
+typedef struct {
+    ReqHeader header;
+    uint32_t  propertyId;
+} FinishWriteRawDataReq;
+
+typedef struct {
+    ReqHeader header;
 } HeartbeatAndStateReq;
 
 typedef struct {
@@ -267,6 +282,9 @@ GetStructureDataListReq       *initGetStructureDataListReq(uint8_t *dataBuf, uin
 FinishGetStructureDataListReq *initFinishGetStructureDataListReq(uint8_t *dataBuf, uint32_t propertyId);
 GetPropertyReq                *initGetRawDataLengthReq(uint8_t *dataBuf, uint32_t propertyId, uint32_t cmd);
 ReadRawDataReq                *initReadRawDataReq(uint8_t *dataBuf, uint32_t propertyId, uint32_t offset, uint32_t size);
+SetPropertyReq                *initWriteRawDataLengthReq(uint8_t *dataBuf, uint32_t propertyId, uint32_t dataSize);
+SetRawDataReq                 *initWriteRawDataReq(uint8_t *dataBuf, uint32_t propertyId, uint32_t offset, const uint8_t *data, uint32_t dataSize);
+FinishWriteRawDataReq         *initFinishWriteRawDataReq(uint8_t *dataBuf, uint32_t propertyId);
 
 HeartbeatAndStateReq *initHeartbeatAndStateReq(uint8_t *dataBuf);
 

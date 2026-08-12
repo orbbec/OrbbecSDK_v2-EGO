@@ -74,8 +74,9 @@ public:
 
 class IRawDataAccessor : virtual public IPropertyAccessor {
 public:
-    virtual ~IRawDataAccessor() noexcept override                          = default;
-    virtual void getRawData(uint32_t propertyId, GetDataCallback callback) = 0;
+    virtual ~IRawDataAccessor() noexcept override                                   = default;
+    virtual void getRawData(uint32_t propertyId, GetDataCallback callback)          = 0;
+    virtual void setRawData(uint32_t propertyId, const std::vector<uint8_t> &data)  = 0;
 };
 
 enum PropertyAccessType {
@@ -122,6 +123,7 @@ public:
     virtual std::vector<uint8_t> getStructureData(uint32_t propertyId, PropertyAccessType accessType, utils::TransferTiming *timing)    = 0;
 
     virtual void getRawData(uint32_t propertyId, GetDataCallback callback, PropertyAccessType accessType) = 0;
+    virtual void setRawData(uint32_t propertyId, const std::vector<uint8_t> &data, PropertyAccessType accessType) = 0;
 
     virtual uint16_t getCmdVersionProtoV1_1(uint32_t propertyId, PropertyAccessType accessType) = 0;
 

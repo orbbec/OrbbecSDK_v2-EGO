@@ -245,6 +245,18 @@ OB_EXPORT void ob_device_clear_license_info(ob_device *device, ob_error **error)
 OB_EXPORT void ob_device_get_raw_data(ob_device *device, ob_property_id property_id, ob_get_data_callback cb, void *user_data, ob_error **error);
 
 /**
+ * @brief Set raw data of a device property through the firmware's chunked RawData protocol.
+ *
+ * @param[in] device The device object.
+ * @param[in] property_id The ID of the property to write.
+ * @param[in] data Raw property data. May be NULL only when data_size is zero.
+ * @param[in] data_size Number of bytes to write. The device RawData protocol requires an even value.
+ * @param[out] error Pointer to an error object that will be set if the property is unsupported, not writable, or the transfer fails.
+ */
+OB_EXPORT void ob_device_set_raw_data(ob_device *device, ob_property_id property_id, const uint8_t *data, uint32_t data_size,
+                                      ob_error **error);
+
+/**
  * @brief Start exporting firmware log files.
  *
  * @param[in] device The device object.
@@ -281,6 +293,34 @@ OB_EXPORT void ob_device_get_fw_record_profile_list(ob_device *device, ob_fw_rec
  * @param[out] error Pointer to an error object that will be set if an error occurs.
  */
 OB_EXPORT void ob_device_set_fw_record_profile_list(ob_device *device, const ob_fw_record_stream_profile *profiles, uint32_t profile_count, ob_error **error);
+
+/**
+ * @brief Get the custom MCAP topic list used by firmware SD-card recording.
+ *
+ * @param[in] device The device object.
+ * @param[out] topics Output topic buffer. Set to NULL to query the required topic count.
+ * @param[in,out] topic_count Input buffer capacity when topics is not NULL; output actual topic count.
+ * @param[out] error Pointer to an error object that will be set if an error occurs.
+ *
+ * @details Each entry maps one @ref ob_stream_type value to a custom UTF-8 MCAP topic.
+ */
+OB_EXPORT void ob_device_get_fw_record_mcap_topic_list(ob_device *device, ob_fw_recording_mcap_topic *topics, uint32_t *topic_count,
+                                                        ob_error **error);
+
+/**
+ * @brief Set the complete custom MCAP topic list used by firmware SD-card recording.
+ *
+ * @param[in] device The device object.
+ * @param[in] topics Topic entries keyed by stream type. Set to NULL only when topic_count is zero.
+ * @param[in] topic_count Number of topic entries. A zero count clears the custom topic list.
+ * @param[out] error Pointer to an error object that will be set if an error occurs.
+ *
+ * @details This operation replaces the complete list. Each stream type must occur once at most;
+ *          every topic must be non-empty and NUL-terminated within its 128-byte field.
+ * @attention The recording format must be @ref OB_FW_RECORDING_FORMAT_MCAP.
+ */
+OB_EXPORT void ob_device_set_fw_record_mcap_topic_list(ob_device *device, const ob_fw_recording_mcap_topic *topics, uint32_t topic_count,
+                                                        ob_error **error);
 
 /**
  * @brief Set customer data.

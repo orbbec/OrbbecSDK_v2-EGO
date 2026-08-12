@@ -17,7 +17,10 @@
 
 #include "Error.hpp"
 #include <array>
+#include <cstdint>
+#include <limits>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <vector>
 #include <thread>
@@ -472,6 +475,57 @@ public:
     void setFwRecordProfileList(const std::vector<OBFwRecordStreamProfile> &profiles) const {
         ob_error *error = nullptr;
         ob_device_set_fw_record_profile_list(impl_, profiles.data(), static_cast<uint32_t>(profiles.size()), &error);
+        Error::handle(&error);
+    }
+
+    /**
+     * @brief Set raw data of a device property through the firmware's chunked RawData protocol.
+     *
+     * @param[in] propertyId The ID of the writable RawData property.
+     * @param[in] data Raw property data. The device protocol requires an even byte count.
+     */
+    void setRawData(OBPropertyID propertyId, const std::vector<uint8_t> &data) const {
+        if(data.size() > static_cast<size_t>((std::numeric_limits<int32_t>::max)())) {
+            throw std::length_error("Raw data is too large for the device protocol");
+        }
+        ob_error *error = nullptr;
+        ob_device_set_raw_data(impl_, propertyId, data.data(), static_cast<uint32_t>(data.size()), &error);
+        Error::handle(&error);
+    }
+
+    /**
+     * @brief Get the custom MCAP topic list used by firmware SD-card recording.
+     *
+     * @return A snapshot of stream-type to custom-topic mappings configured in firmware.
+     */
+    std::vector<OBFwRecordingMcapTopic> getFwRecordMcapTopicList() const {
+        ob_error *error = nullptr;
+        uint32_t  count = 0;
+        ob_device_get_fw_record_mcap_topic_list(impl_, nullptr, &count, &error);
+        Error::handle(&error);
+
+        std::vector<OBFwRecordingMcapTopic> topics(count);
+        if(count > 0) {
+            ob_device_get_fw_record_mcap_topic_list(impl_, topics.data(), &count, &error);
+            Error::handle(&error);
+            topics.resize(count);
+        }
+        return topics;
+    }
+
+    /**
+     * @brief Replace the custom MCAP topic list used by firmware SD-card recording.
+     *
+     * @param[in] topics Complete stream-type to custom-topic mapping. An empty vector clears the list.
+     *
+     * @attention Firmware recording format must be @ref OB_FW_RECORDING_FORMAT_MCAP.
+     */
+    void setFwRecordMcapTopicList(const std::vector<OBFwRecordingMcapTopic> &topics) const {
+        if(topics.size() > static_cast<size_t>((std::numeric_limits<int32_t>::max)()) / sizeof(OBFwRecordingMcapTopic)) {
+            throw std::length_error("MCAP topic list is too large for the device protocol");
+        }
+        ob_error *error = nullptr;
+        ob_device_set_fw_record_mcap_topic_list(impl_, topics.data(), static_cast<uint32_t>(topics.size()), &error);
         Error::handle(&error);
     }
 

@@ -27,6 +27,60 @@
 #include "utils/PublicTypeHelper.hpp"
 
 #include <cstring>
+#include <limits>
+#include <set>
+#include <vector>
+
+namespace {
+
+static_assert(sizeof(ob_fw_recording_mcap_topic) == 130, "MCAP topic protocol item must occupy 130 bytes");
+static_assert(sizeof(ob_fw_recording_mcap_topic) % 2 == 0, "MCAP topic protocol item must have an even byte length");
+
+bool isValidMcapTopicStreamType(uint16_t streamType) {
+    return streamType < static_cast<uint16_t>(OB_STREAM_TYPE_COUNT);
+}
+
+void validateMcapTopicList(const ob_fw_recording_mcap_topic *topics, uint32_t topicCount) {
+    if(topicCount > 0 && topics == nullptr) {
+        THROW_INVALID_PARAM_EXCEPTION("MCAP topic list is null");
+    }
+    if(topicCount > (std::numeric_limits<size_t>::max)() / sizeof(ob_fw_recording_mcap_topic)) {
+        THROW_INVALID_PARAM_EXCEPTION("MCAP topic list is too large");
+    }
+
+    std::set<uint16_t> streamTypes;
+    for(uint32_t i = 0; i < topicCount; ++i) {
+        const auto &topic = topics[i];
+        if(!isValidMcapTopicStreamType(topic.streamType)) {
+            THROW_INVALID_PARAM_EXCEPTION("MCAP topic has an invalid stream type");
+        }
+        if(std::memchr(topic.topic, '\0', sizeof(topic.topic)) == nullptr) {
+            THROW_INVALID_PARAM_EXCEPTION("MCAP topic is not NUL-terminated");
+        }
+        if(topic.topic[0] == '\0') {
+            THROW_INVALID_PARAM_EXCEPTION("MCAP topic is empty");
+        }
+        if(!streamTypes.insert(topic.streamType).second) {
+            THROW_INVALID_PARAM_EXCEPTION("MCAP topic list has duplicate stream types");
+        }
+    }
+}
+
+std::vector<uint8_t> getMcapTopicListData(libobsensor::IDevice *device) {
+    std::vector<uint8_t> data;
+    auto                 propertyServer = device->getPropertyServer();
+    propertyServer->getRawData(
+        OB_RAW_DATA_FW_RECORDING_MCAP_TOPIC_LIST,
+        [&data](OBDataTranState state, OBDataChunk *dataChunk) {
+            if(state == DATA_TRAN_STAT_TRANSFERRING && dataChunk && dataChunk->data && dataChunk->size > 0) {
+                data.insert(data.end(), dataChunk->data, dataChunk->data + dataChunk->size);
+            }
+        },
+        libobsensor::PROP_ACCESS_USER);
+    return data;
+}
+
+}  // namespace
 
 #ifdef __cplusplus
 extern "C" {
@@ -557,6 +611,25 @@ void ob_device_get_raw_data(ob_device *device, ob_property_id property_id, ob_ge
 }
 HANDLE_EXCEPTIONS_NO_RETURN(device, property_id, user_data)
 
+void ob_device_set_raw_data(ob_device *device, ob_property_id property_id, const uint8_t *data, uint32_t data_size,
+                            ob_error **error) BEGIN_API_CALL {
+    VALIDATE_NOT_NULL(device);
+    if(data_size > 0) {
+        VALIDATE_NOT_NULL(data);
+    }
+    if(data_size % 2 != 0) {
+        THROW_INVALID_PARAM_EXCEPTION("Raw data size must be even");
+    }
+
+    std::vector<uint8_t> rawData;
+    if(data_size > 0) {
+        rawData.assign(data, data + data_size);
+    }
+    auto propertyServer = device->device->getPropertyServer();
+    propertyServer->setRawData(property_id, rawData, libobsensor::PROP_ACCESS_USER);
+}
+HANDLE_EXCEPTIONS_NO_RETURN(device, property_id, data, data_size)
+
 void ob_device_start_firmware_log_export(ob_device *device, ob_fw_log_packet_callback callback, void *user_data, ob_error **error) BEGIN_API_CALL {
     VALIDATE_NOT_NULL(device);
     VALIDATE_NOT_NULL(callback);
@@ -609,6 +682,55 @@ void ob_device_set_fw_record_profile_list(ob_device *device, const ob_fw_record_
     fwRecordProfileManager->setProfileList(profiles, profile_count);
 }
 HANDLE_EXCEPTIONS_NO_RETURN(device, profiles, profile_count)
+
+void ob_device_get_fw_record_mcap_topic_list(ob_device *device, ob_fw_recording_mcap_topic *topics, uint32_t *topic_count,
+                                             ob_error **error) BEGIN_API_CALL {
+    VALIDATE_NOT_NULL(device);
+    VALIDATE_NOT_NULL(topic_count);
+
+    auto data = getMcapTopicListData(device->device.get());
+    if(data.size() % sizeof(ob_fw_recording_mcap_topic) != 0) {
+        THROW_INVALID_DATA_EXCEPTION("Invalid firmware MCAP topic list size");
+    }
+
+    const auto actualCount = static_cast<uint32_t>(data.size() / sizeof(ob_fw_recording_mcap_topic));
+    auto       topicList   = reinterpret_cast<const ob_fw_recording_mcap_topic *>(data.data());
+    validateMcapTopicList(topicList, actualCount);
+
+    if(topics == nullptr) {
+        *topic_count = actualCount;
+        return;
+    }
+    if(*topic_count < actualCount) {
+        *topic_count = actualCount;
+        THROW_INVALID_PARAM_EXCEPTION("MCAP topic output buffer is too small");
+    }
+
+    if(actualCount > 0) {
+        memcpy(topics, data.data(), data.size());
+    }
+    *topic_count = actualCount;
+}
+HANDLE_EXCEPTIONS_NO_RETURN(device, topics, topic_count)
+
+void ob_device_set_fw_record_mcap_topic_list(ob_device *device, const ob_fw_recording_mcap_topic *topics, uint32_t topic_count,
+                                             ob_error **error) BEGIN_API_CALL {
+    VALIDATE_NOT_NULL(device);
+    validateMcapTopicList(topics, topic_count);
+
+    auto propertyServer = device->device->getPropertyServer();
+    auto recordingFormat = propertyServer->getPropertyValueT<int>(OB_PROP_FW_RECORDING_FORMAT_INT, libobsensor::PROP_ACCESS_USER);
+    if(recordingFormat != OB_FW_RECORDING_FORMAT_MCAP) {
+        THROW_WRONG_API_CALL_SEQUENCE_EXCEPTION("Custom MCAP topics require MCAP recording format");
+    }
+
+    std::vector<uint8_t> data(static_cast<size_t>(topic_count) * sizeof(ob_fw_recording_mcap_topic));
+    if(topic_count > 0) {
+        memcpy(data.data(), topics, data.size());
+    }
+    propertyServer->setRawData(OB_RAW_DATA_FW_RECORDING_MCAP_TOPIC_LIST, data, libobsensor::PROP_ACCESS_USER);
+}
+HANDLE_EXCEPTIONS_NO_RETURN(device, topics, topic_count)
 
 void ob_device_write_customer_data(ob_device *device, const void *data, uint32_t data_size, ob_error **error) BEGIN_API_CALL {
     VALIDATE_NOT_NULL(device);

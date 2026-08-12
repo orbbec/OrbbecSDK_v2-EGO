@@ -340,6 +340,34 @@ typedef struct {
     } profile;
 } OBFwRecordStreamProfile, ob_fw_record_stream_profile;
 
+/**
+ * @brief Container format used by firmware SD-card recording.
+ *
+ * The value is configured through @ref OB_PROP_FW_RECORDING_FORMAT_INT.
+ */
+typedef enum {
+    OB_FW_RECORDING_FORMAT_MCAP = 0, /**< MCAP container format. */
+    OB_FW_RECORDING_FORMAT_MP4  = 1, /**< MP4 container format. */
+} OBFwRecordingFormat,
+    ob_fw_recording_format;
+
+/** Maximum UTF-8 MCAP topic size, including the terminating NUL character. */
+#define OB_FW_RECORDING_MCAP_TOPIC_MAX_LENGTH 128
+
+/**
+ * @brief Custom MCAP topic assigned to one firmware-recorded stream.
+ *
+ * A topic list is a contiguous array of this fixed-size structure. The
+ * structure is 130 bytes, so every topic-list payload has an even length.
+ * @ref streamType stores an @ref ob_stream_type enum value in the firmware's
+ * fixed 16-bit wire representation.
+ */
+typedef struct {
+    uint16_t streamType; /**< enum value of @ref ob_stream_type */
+    char     topic[OB_FW_RECORDING_MCAP_TOPIC_MAX_LENGTH]; /**< UTF-8, NUL-terminated MCAP topic */
+} OBFwRecordingMcapTopic,
+    ob_fw_recording_mcap_topic;
+
 #define OB_FORMAT_RGB888 OB_FORMAT_RGB  // Alias of OB_FORMAT_RGB for compatibility
 #define OB_FORMAT_MJPEG OB_FORMAT_MJPG  // Alias of OB_FORMAT_MJPG for compatibility
 

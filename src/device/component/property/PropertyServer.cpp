@@ -372,6 +372,33 @@ void PropertyServer::getRawData(uint32_t propertyId, GetDataCallback callback, P
     LOG_DEBUG("[delta: {}us] Property {} get raw data successfully", delta, propId);
 }
 
+void PropertyServer::setRawData(uint32_t propertyId, const std::vector<uint8_t> &data, PropertyAccessType accessType) {
+    std::unique_lock<std::recursive_mutex> lock(mutex_);
+    if(!isPropertySupported(propertyId, PROP_OP_WRITE, accessType)) {
+        THROW_UNSUPPORTED_OPERATION_EXCEPTION("Property not writable");
+    }
+    checkAccessMode(PROP_OP_WRITE);
+    auto it              = properties_.find(propertyId);
+    auto propId          = it->second.propertyId;
+    auto accessCallbacks = it->second.accessCallbacks;
+    auto rawDataAccessor = std::dynamic_pointer_cast<IRawDataAccessor>(it->second.accessor);
+    if(propId != propertyId) {
+        LOG_DEBUG("Property {} alias to {}", propId, propertyId);
+    }
+    lock.unlock();
+
+    if(rawDataAccessor == nullptr) {
+        THROW_INVALID_DATA_EXCEPTION(utils::string::to_string() << "Property " << propId << " does not support raw data setting");
+    }
+    utils::Timer timer;
+    rawDataAccessor->setRawData(propId, data);
+    for(auto &accessCallback: accessCallbacks) {
+        accessCallback(propertyId, data.data(), data.size(), PROP_OP_WRITE);
+    }
+    auto delta = timer.touchUs();
+    LOG_DEBUG("[delta: {}us] Property {} set raw data successfully, size {}", delta, propId, data.size());
+}
+
 uint16_t PropertyServer::getCmdVersionProtoV1_1(uint32_t propertyId, PropertyAccessType accessType) {
     std::unique_lock<std::recursive_mutex> lock(mutex_);
     if(!isPropertySupported(propertyId, PROP_OP_READ, accessType)) {
