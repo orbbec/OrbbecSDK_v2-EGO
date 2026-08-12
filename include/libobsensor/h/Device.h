@@ -317,7 +317,6 @@ OB_EXPORT void ob_device_get_fw_record_mcap_topic_list(ob_device *device, ob_fw_
  *
  * @details This operation replaces the complete list. Each stream type must occur once at most;
  *          every topic must be non-empty and NUL-terminated within its 128-byte field.
- * @attention The recording format must be @ref OB_FW_RECORDING_FORMAT_MCAP.
  */
 OB_EXPORT void ob_device_set_fw_record_mcap_topic_list(ob_device *device, const ob_fw_recording_mcap_topic *topics, uint32_t topic_count,
                                                         ob_error **error);

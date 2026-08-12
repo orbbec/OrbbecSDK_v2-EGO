@@ -518,7 +518,6 @@ public:
      *
      * @param[in] topics Complete stream-type to custom-topic mapping. An empty vector clears the list.
      *
-     * @attention Firmware recording format must be @ref OB_FW_RECORDING_FORMAT_MCAP.
      */
     void setFwRecordMcapTopicList(const std::vector<OBFwRecordingMcapTopic> &topics) const {
         if(topics.size() > static_cast<size_t>((std::numeric_limits<int32_t>::max)()) / sizeof(OBFwRecordingMcapTopic)) {

@@ -719,11 +719,6 @@ void ob_device_set_fw_record_mcap_topic_list(ob_device *device, const ob_fw_reco
     validateMcapTopicList(topics, topic_count);
 
     auto propertyServer = device->device->getPropertyServer();
-    auto recordingFormat = propertyServer->getPropertyValueT<int>(OB_PROP_FW_RECORDING_FORMAT_INT, libobsensor::PROP_ACCESS_USER);
-    if(recordingFormat != OB_FW_RECORDING_FORMAT_MCAP) {
-        THROW_WRONG_API_CALL_SEQUENCE_EXCEPTION("Custom MCAP topics require MCAP recording format");
-    }
-
     std::vector<uint8_t> data(static_cast<size_t>(topic_count) * sizeof(ob_fw_recording_mcap_topic));
     if(topic_count > 0) {
         memcpy(data.data(), topics, data.size());
