@@ -30,6 +30,7 @@
 #include "param/AlgParamManager.hpp"
 #include "component/fwlog/FirmwareLogManager.hpp"
 #include "component/fwrecord/FwRecordProfileManager.hpp"
+#include "component/custommetadata/CustomMetadataManager.hpp"
 #include "common/DeviceSeriesInfo.hpp"
 
 #include "FilterFactory.hpp"
@@ -508,6 +509,9 @@ void EgoProDevice::initProperties() {
         propertyServer->registerProperty(OB_PROP_RECORDING_DESTINATION_INT, "rw", "rw", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_PROP_FW_RECORDING_FORMAT_INT, "rw", "rw", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_PROP_VIDEO_GOP_INT, "rw", "rw", vendorPropertyAccessor);
+        auto customMetadataManager = std::make_shared<CustomMetadataManager>(this, vendorPropertyAccessor);
+        propertyServer->registerProperty(OB_STRUCT_CUSTOM_METADATA_JSON, "w", "w", customMetadataManager);
+        registerComponent(OB_DEV_COMPONENT_CUSTOM_METADATA_MANAGER, customMetadataManager);
         propertyServer->registerProperty(OB_PROP_DEVICE_VOICE_PROMPT_LANGUAGE_INT, "rw", "rw", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_PROP_WRIST_WEAR_SIDE_INT, "r", "r", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_RAW_DATA_FW_RECORDING_PROFILE_LIST, "", "rw", vendorPropertyAccessor);

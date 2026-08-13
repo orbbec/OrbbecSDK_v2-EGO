@@ -479,6 +479,18 @@ public:
     }
 
     /**
+     * @brief Set custom device metadata from a JSON file.
+     *
+     * The SDK parses and compactly serializes the JSON before sending it to
+     * the device. The serialized JSON must not exceed 1000 bytes.
+     */
+    void setCustomMetadataFromJsonFile(const std::string &jsonFilePath) const {
+        ob_error *error = nullptr;
+        ob_device_set_custom_metadata_from_json_file(impl_, jsonFilePath.c_str(), &error);
+        Error::handle(&error);
+    }
+
+    /**
      * @brief Set raw data of a device property through the firmware's chunked RawData protocol.
      *
      * @param[in] propertyId The ID of the writable RawData property.

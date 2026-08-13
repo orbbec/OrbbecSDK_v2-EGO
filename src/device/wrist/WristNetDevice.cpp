@@ -22,6 +22,8 @@
 #include "property/FilterPropertyAccessors.hpp"
 #include "component/fwrecord/FwRecordProfileManager.hpp"
 #include "component/fwrecord/FwRecordingDirectoryManager.hpp"
+#include "component/fwlog/FirmwareLogManager.hpp"
+#include "component/custommetadata/CustomMetadataManager.hpp"
 
 #include "FilterFactory.hpp"
 #include "publicfilters/IMUCorrector.hpp"
@@ -308,6 +310,7 @@ void WristNetDevice::initProperties() {
 
     propertyServer->registerProperty(OB_RAW_DATA_ALIGN_CALIB_YAML, "r", "r", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_RAW_DATA_IMU_CALIB_YAML, "r", "r", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_RAW_DATA_EXPORT_LOG, "r", "r", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_PROP_COLOR_BITRATE_INT, "rw", "rw", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_PROP_COLOR_DYNAMIC_BITRATE_ENABLE_BOOL, "rw", "rw", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_PROP_COLOR_DYNAMIC_BITRATE_MAX_INT, "rw", "rw", vendorPropertyAccessor);
@@ -321,6 +324,9 @@ void WristNetDevice::initProperties() {
     propertyServer->registerProperty(OB_PROP_VIDEO_GOP_INT, "rw", "rw", vendorPropertyAccessor);
     auto recordingDirectoryAccessor = std::make_shared<FwRecordingDirectoryManager>(this, vendorPropertyAccessor);
     propertyServer->registerProperty(OB_STRUCT_FW_RECORDING_DIRECTORY, "rw", "rw", recordingDirectoryAccessor);
+    auto customMetadataManager = std::make_shared<CustomMetadataManager>(this, vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_STRUCT_CUSTOM_METADATA_JSON, "w", "w", customMetadataManager);
+    registerComponent(OB_DEV_COMPONENT_CUSTOM_METADATA_MANAGER, customMetadataManager);
     propertyServer->registerProperty(OB_PROP_DEVICE_VOICE_PROMPT_LANGUAGE_INT, "rw", "rw", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_PROP_WRIST_WEAR_SIDE_INT, "r", "r", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_RAW_DATA_FW_RECORDING_PROFILE_LIST, "", "rw", vendorPropertyAccessor);
@@ -337,6 +343,7 @@ void WristNetDevice::initProperties() {
     }
 
     registerComponent(OB_DEV_COMPONENT_PROPERTY_SERVER, propertyServer, false);
+    registerComponent(OB_DEV_COMPONENT_FW_LOG_MANAGER, [this]() { return std::make_shared<FirmwareLogManager>(this); });
 
     // [Wrist-WIP] The following commands send to port 8090 and crash the firmware TCP service.
     // Re-enable once firmware implements these properties.

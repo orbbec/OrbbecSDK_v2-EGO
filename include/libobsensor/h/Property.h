@@ -975,6 +975,16 @@ typedef enum {
     OB_RAW_DATA_FW_RECORDING_MCAP_TOPIC_LIST = 1099,
 
     /**
+     * @brief Custom device metadata JSON.
+     *
+     * @details Write-only. The SDK sends a uint16 little-endian JSON byte
+     *          length followed by compact UTF-8 JSON bytes. A trailing zero
+     *          byte may be present only for Vendor Protocol halfword alignment;
+     *          it is not part of the JSON content.
+     */
+    OB_STRUCT_CUSTOM_METADATA_JSON = 1100,
+
+    /**
      * @brief Color camera auto exposure
      */
     OB_PROP_COLOR_AUTO_EXPOSURE_BOOL = 2000,

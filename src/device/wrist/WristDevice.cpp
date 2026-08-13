@@ -27,6 +27,8 @@
 #include "param/AlgParamManager.hpp"
 #include "component/fwrecord/FwRecordProfileManager.hpp"
 #include "component/fwrecord/FwRecordingDirectoryManager.hpp"
+#include "component/fwlog/FirmwareLogManager.hpp"
+#include "component/custommetadata/CustomMetadataManager.hpp"
 
 #include "FilterFactory.hpp"
 #include "publicfilters/FormatConverterProcess.hpp"
@@ -408,6 +410,9 @@ void WristDevice::initProperties() {
         propertyServer->registerProperty(OB_PROP_VIDEO_GOP_INT, "rw", "rw", vendorPropertyAccessor);
         auto recordingDirectoryAccessor = std::make_shared<FwRecordingDirectoryManager>(this, vendorPropertyAccessor);
         propertyServer->registerProperty(OB_STRUCT_FW_RECORDING_DIRECTORY, "rw", "rw", recordingDirectoryAccessor);
+        auto customMetadataManager = std::make_shared<CustomMetadataManager>(this, vendorPropertyAccessor);
+        propertyServer->registerProperty(OB_STRUCT_CUSTOM_METADATA_JSON, "w", "w", customMetadataManager);
+        registerComponent(OB_DEV_COMPONENT_CUSTOM_METADATA_MANAGER, customMetadataManager);
         propertyServer->registerProperty(OB_PROP_DEVICE_VOICE_PROMPT_LANGUAGE_INT, "rw", "rw", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_PROP_WRIST_WEAR_SIDE_INT, "r", "r", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_RAW_DATA_FW_RECORDING_PROFILE_LIST, "", "rw", vendorPropertyAccessor);
@@ -419,6 +424,7 @@ void WristDevice::initProperties() {
         //  raw bytes. The SDK does not parse the data; the application layer saves it directly to a file.
         propertyServer->registerProperty(OB_RAW_DATA_ALIGN_CALIB_YAML, "r", "r", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_RAW_DATA_IMU_CALIB_YAML, "r", "r", vendorPropertyAccessor);
+        propertyServer->registerProperty(OB_RAW_DATA_EXPORT_LOG, "r", "r", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_PROP_COLOR_BITRATE_INT, "rw", "rw", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_PROP_COLOR_DYNAMIC_BITRATE_ENABLE_BOOL, "rw", "rw", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_PROP_COLOR_DYNAMIC_BITRATE_MAX_INT, "rw", "rw", vendorPropertyAccessor);
@@ -427,6 +433,7 @@ void WristDevice::initProperties() {
     }
 
     registerComponent(OB_DEV_COMPONENT_PROPERTY_SERVER, propertyServer, false);
+    registerComponent(OB_DEV_COMPONENT_FW_LOG_MANAGER, [this]() { return std::make_shared<FirmwareLogManager>(this); });
 
     if(propertyServer->isPropertySupported(OB_PROP_DEVICE_COMMUNICATION_TYPE_INT, PROP_OP_WRITE, PROP_ACCESS_INTERNAL)) {
         propertyServer->setPropertyValueT(OB_PROP_DEVICE_COMMUNICATION_TYPE_INT, OB_COMM_USB);

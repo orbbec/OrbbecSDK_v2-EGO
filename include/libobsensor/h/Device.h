@@ -295,6 +295,19 @@ OB_EXPORT void ob_device_get_fw_record_profile_list(ob_device *device, ob_fw_rec
 OB_EXPORT void ob_device_set_fw_record_profile_list(ob_device *device, const ob_fw_record_stream_profile *profiles, uint32_t profile_count, ob_error **error);
 
 /**
+ * @brief Set custom device metadata from a JSON file.
+ *
+ * @details The SDK parses the file and sends compact UTF-8 JSON to the
+ *          device. The serialized JSON content must not exceed 1000 bytes.
+ *          Supported only by Ego, EgoPro, and Wrist series devices.
+ *
+ * @param[in] device Device object.
+ * @param[in] json_file_path JSON file path.
+ * @param[out] error Pointer to an error object that will be set if an error occurs.
+ */
+OB_EXPORT void ob_device_set_custom_metadata_from_json_file(ob_device *device, const char *json_file_path, ob_error **error);
+
+/**
  * @brief Get the custom MCAP topic list used by firmware SD-card recording.
  *
  * @param[in] device The device object.

@@ -21,6 +21,7 @@
 #include "IAlgParamManager.hpp"
 #include "IFrameTimestamp.hpp"
 #include "component/fwrecord/FwRecordProfileManager.hpp"
+#include "ICustomMetadataManager.hpp"
 #include "component/fwlog/FirmwareLogManager.hpp"
 #include "hid/EgoStateService.hpp"
 #include "hid/DirectionKeyService.hpp"
@@ -695,6 +696,18 @@ void ob_device_set_fw_record_profile_list(ob_device *device, const ob_fw_record_
     fwRecordProfileManager->setProfileList(profiles, profile_count);
 }
 HANDLE_EXCEPTIONS_NO_RETURN(device, profiles, profile_count)
+
+void ob_device_set_custom_metadata_from_json_file(ob_device *device, const char *json_file_path, ob_error **error) BEGIN_API_CALL {
+    VALIDATE_NOT_NULL(device);
+    VALIDATE_NOT_NULL(json_file_path);
+
+    auto manager = device->device->getComponentT<libobsensor::ICustomMetadataManager>(libobsensor::OB_DEV_COMPONENT_CUSTOM_METADATA_MANAGER, false);
+    if(!manager) {
+        THROW_UNSUPPORTED_OPERATION_EXCEPTION("Custom metadata is not supported by this device");
+    }
+    manager->setFromJsonFile(json_file_path);
+}
+HANDLE_EXCEPTIONS_NO_RETURN(device, json_file_path)
 
 void ob_device_get_fw_record_mcap_topic_list(ob_device *device, ob_fw_recording_mcap_topic *topics, uint32_t *topic_count,
                                              ob_error **error) BEGIN_API_CALL {
