@@ -31,6 +31,7 @@
 #include "component/fwrecord/FwRecordProfileManager.hpp"
 #include "component/fwrecord/FwRecordingDirectoryManager.hpp"
 #include "component/custommetadata/CustomMetadataManager.hpp"
+#include "component/timezone/UtcOffsetManager.hpp"
 #include "common/DeviceSeriesInfo.hpp"
 
 #include "FilterFactory.hpp"
@@ -85,6 +86,11 @@ void EGODevice::init() {
     auto deviceClockSynchronizer = std::make_shared<DeviceClockSynchronizer>(this, deviceTimeFreq_, deviceTimeFreq_);
     registerComponent(OB_DEV_COMPONENT_DEVICE_CLOCK_SYNCHRONIZER, deviceClockSynchronizer);
     registerComponent(OB_DEV_COMPONENT_FW_RECORD_PROFILE_MANAGER, [this]() { return std::make_shared<FwRecordProfileManager>(this); });
+
+    auto utcOffsetManager = std::make_shared<UtcOffsetManager>(this);
+    registerComponent(OB_DEV_COMPONENT_UTC_OFFSET_MANAGER, utcOffsetManager);
+    BEGIN_TRY_EXECUTE({ utcOffsetManager->syncFromSystem(); })
+    CATCH_EXCEPTION_AND_EXECUTE({ LOG_WARN("Failed to initialize local UTC offset for EGO device"); })
 }
 
 void EGODevice::fetchDeviceInfo() {
@@ -483,6 +489,7 @@ void EGODevice::initProperties() {
         });
 
         propertyServer->registerProperty(OB_PROP_COLOR_EXPOSURE_INT, "rw", "rw", vendorPropertyAccessor);
+        propertyServer->registerProperty(OB_PROP_LOCAL_UTC_OFFSET_MINUTES_INT, "", "w", vendorPropertyAccessor);
         // Stop-color is per-eye: EGOColorVideoSensor sends OB_PROP_STOP_COLOR_STREAM_BOOL on each color
         // sensor's own interface XU, so it is intentionally NOT registered on this device-global accessor.
         // TODO:

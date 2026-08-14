@@ -24,6 +24,7 @@
 #include "component/fwrecord/FwRecordingDirectoryManager.hpp"
 #include "component/fwlog/FirmwareLogManager.hpp"
 #include "component/custommetadata/CustomMetadataManager.hpp"
+#include "component/timezone/UtcOffsetManager.hpp"
 
 #include "FilterFactory.hpp"
 #include "publicfilters/IMUCorrector.hpp"
@@ -88,6 +89,11 @@ void WristNetDevice::init() {
         TRY_EXECUTE({ firmwareUpdater = std::make_shared<FirmwareUpdater>(this); })
         return firmwareUpdater;
     });
+
+    auto utcOffsetManager = std::make_shared<UtcOffsetManager>(this);
+    registerComponent(OB_DEV_COMPONENT_UTC_OFFSET_MANAGER, utcOffsetManager);
+    BEGIN_TRY_EXECUTE({ utcOffsetManager->syncFromSystem(); })
+    CATCH_EXCEPTION_AND_EXECUTE({ LOG_WARN("Failed to initialize local UTC offset for Wrist network device"); })
 }
 
 void WristNetDevice::fetchDeviceInfo() {
@@ -293,6 +299,7 @@ void WristNetDevice::initProperties() {
     // color controls
     propertyServer->registerProperty(OB_PROP_COLOR_AUTO_EXPOSURE_BOOL, "rw", "rw", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_PROP_COLOR_EXPOSURE_INT, "rw", "rw", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_PROP_LOCAL_UTC_OFFSET_MINUTES_INT, "", "w", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_PROP_COLOR_GAIN_INT, "rw", "rw", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_PROP_COLOR_AUTO_WHITE_BALANCE_BOOL, "rw", "rw", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_PROP_COLOR_WHITE_BALANCE_INT, "rw", "rw", vendorPropertyAccessor);

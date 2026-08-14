@@ -125,6 +125,7 @@ private:
     X(OB_DEV_COMPONENT_AUDIO_SENSOR, "audio sensor")                                                 \
     X(OB_DEV_COMPONENT_FW_LOG_MANAGER, "firmware log manager")                                       \
     X(OB_DEV_COMPONENT_FW_RECORD_PROFILE_MANAGER, "firmware record profile manager") \
+    X(OB_DEV_COMPONENT_UTC_OFFSET_MANAGER, "utc offset manager")                       \
     X(OB_DEV_COMPONENT_CUSTOM_METADATA_MANAGER, "custom metadata manager")
 
 // generate enum

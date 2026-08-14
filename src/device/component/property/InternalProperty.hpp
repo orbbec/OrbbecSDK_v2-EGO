@@ -101,6 +101,9 @@ typedef enum {
     OB_RAW_DATA_LIDAR_MEMS_VERSION               = 8034, /**< LiDAR: get mems version*/
 
     OB_PROP_FW_RECORDING_STATE_BOOL       = 282,  /**< Whether firmware is recording to storage */
+    // Current local-time offset from UTC, in minutes. value = local time - UTC time; UTC+8 is 480.
+    // SDK internal write-only property.
+    OB_PROP_LOCAL_UTC_OFFSET_MINUTES_INT  = 295,
     OB_RAW_DATA_FW_RECORDING_PROFILE_LIST = 1096, /**< Current firmware recording profile list, OBInternalStreamProfile[] */
 } OBInternalPropertyID;
 
