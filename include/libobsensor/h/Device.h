@@ -234,6 +234,26 @@ OB_EXPORT void ob_device_read_license_info(const ob_device *device, char *licens
 OB_EXPORT void ob_device_clear_license_info(ob_device *device, ob_error **error);
 
 /**
+ * @brief Set the persistent user-defined device name.
+ *
+ * @param[in] device The device object.
+ * @param[in] name The null-terminated string containing the new device name.
+ * @param[out] error Pointer to an error object that will be set if an error occurs.
+ */
+OB_EXPORT void ob_device_set_device_user_name(ob_device *device, const char *name, ob_error **error);
+
+/**
+ * @brief Get the persistent user-defined device name.
+ *
+ * @param[in] device The device object.
+ * @param[out] name The output buffer for the device name, null-terminated on success.
+ * @param[in] name_capacity Size of the output buffer in bytes. Must be large enough to hold the device name and a trailing null terminator; 32 bytes is sufficient for the current schema.
+ * @param[out] error Pointer to an error object that will be set if an error occurs.
+ * @return The length of the device name excluding the trailing null character.
+ */
+OB_EXPORT uint32_t ob_device_get_device_user_name(const ob_device *device, char *name, uint32_t name_capacity, ob_error **error);
+
+/**
  * @brief Get raw data of a device property.
  *
  * @param[in] device The device object.

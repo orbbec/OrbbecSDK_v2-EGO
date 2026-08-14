@@ -404,6 +404,26 @@ public:
     }
 
     /**
+     * @brief Set the persistent user-defined device name.
+     */
+    void setDeviceUserName(const std::string &name) const {
+        ob_error *error = nullptr;
+        ob_device_set_device_user_name(impl_, name.c_str(), &error);
+        Error::handle(&error);
+    }
+
+    /**
+     * @brief Get the persistent user-defined device name.
+     */
+    std::string getDeviceUserName() const {
+        std::array<char, 33> name{};
+        ob_error            *error = nullptr;
+        const auto length = ob_device_get_device_user_name(impl_, name.data(), static_cast<uint32_t>(name.size()), &error);
+        Error::handle(&error);
+        return std::string(name.data(), length);
+    }
+
+    /**
      * @brief Get the raw data of a device property
      *
      * @param[in] propertyId The ID of the property

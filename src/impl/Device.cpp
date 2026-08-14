@@ -27,6 +27,7 @@
 #include "hid/DirectionKeyService.hpp"
 #include "utils/PublicTypeHelper.hpp"
 
+#include <algorithm>
 #include <cstring>
 #include <limits>
 #include <set>
@@ -36,6 +37,8 @@ namespace {
 
 static_assert(sizeof(ob_fw_recording_mcap_topic) == 130, "MCAP topic protocol item must occupy 130 bytes");
 static_assert(sizeof(ob_fw_recording_mcap_topic) % 2 == 0, "MCAP topic protocol item must have an even byte length");
+
+constexpr size_t kDeviceUserNameBufferSize = 32;
 
 bool isValidMcapTopicType(uint16_t topicType) {
     switch(topicType) {
@@ -564,6 +567,7 @@ void ob_device_get_structured_data(ob_device *device, ob_property_id property_id
 }
 HANDLE_EXCEPTIONS_NO_RETURN(device, property_id, data, data_size)
 
+<<<<<<< HEAD
 bool ob_device_is_license_authorization_supported(const ob_device *device, ob_error **error) BEGIN_API_CALL {
     VALIDATE_NOT_NULL(device);
     auto devInner = device->device;
@@ -610,6 +614,54 @@ void ob_device_clear_license_info(ob_device *device, ob_error **error) BEGIN_API
     manager->clearLicenseInfo();
 }
 HANDLE_EXCEPTIONS_NO_RETURN(device)
+=======
+void ob_device_set_device_user_name(ob_device *device, const char *name, ob_error **error) BEGIN_API_CALL {
+    VALIDATE_NOT_NULL(device);
+    VALIDATE_NOT_NULL(name);
+
+    const auto nameLength = std::strlen(name);
+    if(nameLength >= kDeviceUserNameBufferSize) {
+        THROW_INVALID_PARAM_EXCEPTION("Device user name exceeds 31 bytes");
+    }
+
+    std::vector<uint8_t> nameData(kDeviceUserNameBufferSize, 0);
+    std::memcpy(nameData.data(), name, nameLength);
+
+    auto propertyServer = device->device->getPropertyServer();
+    propertyServer->setStructureData(OB_STRUCT_DEVICE_USER_NAME, nameData, libobsensor::PROP_ACCESS_USER);
+}
+HANDLE_EXCEPTIONS_NO_RETURN(device, name)
+
+uint32_t ob_device_get_device_user_name(const ob_device *device, char *name, uint32_t name_capacity, ob_error **error) BEGIN_API_CALL {
+    VALIDATE_NOT_NULL(device);
+
+    auto propertyServer = device->device->getPropertyServer();
+    auto nameData       = propertyServer->getStructureData(OB_STRUCT_DEVICE_USER_NAME, libobsensor::PROP_ACCESS_USER);
+    if(nameData.size() != kDeviceUserNameBufferSize) {
+        THROW_INVALID_DATA_EXCEPTION("Invalid device user name payload size");
+    }
+
+    const auto terminator = std::find(nameData.begin(), nameData.end(), static_cast<uint8_t>(0));
+    if(terminator == nameData.end()) {
+        THROW_INVALID_DATA_EXCEPTION("Device user name is not null terminated");
+    }
+    const auto nameLength = static_cast<uint32_t>(std::distance(nameData.begin(), terminator));
+
+    if(name == nullptr && name_capacity == 0) {
+        return nameLength;
+    }
+
+    VALIDATE_NOT_NULL(name);
+    if(name_capacity < nameLength + 1) {
+        THROW_INVALID_PARAM_EXCEPTION("Device user name output buffer is too small");
+    }
+
+    std::memcpy(name, nameData.data(), nameLength);
+    name[nameLength] = '\0';
+    return nameLength;
+}
+HANDLE_EXCEPTIONS_AND_RETURN(0, device, name, name_capacity)
+>>>>>>> e580c1a10 (Add an API for setting a user-defined device name.)
 
 void ob_device_get_raw_data(ob_device *device, ob_property_id property_id, ob_get_data_callback cb, void *user_data, ob_error **error) BEGIN_API_CALL {
     VALIDATE_NOT_NULL(device);

@@ -41,6 +41,8 @@
 #include "ethernet/RTSPStreamPort.hpp"
 #endif
 
+#include <algorithm>
+
 namespace libobsensor {
 
 namespace {
@@ -132,6 +134,20 @@ void EGONetDevice::fetchDeviceInfo() {
         deviceInfo_->name_ = deviceInfo_->name_.substr(7);
     }
     deviceInfo_->fullName_ = deviceInfo_->name_;
+
+    const size_t deviceUserNameBufferSize = 32;
+    std::vector<uint8_t> userNameData;
+    BEGIN_TRY_EXECUTE({ userNameData = propServer->getStructureData(OB_STRUCT_DEVICE_USER_NAME, PROP_ACCESS_INTERNAL); })
+    CATCH_EXCEPTION_AND_EXECUTE({ userNameData.clear(); })
+
+    if(userNameData.size() == deviceUserNameBufferSize) {
+        const auto terminator = std::find(userNameData.begin(), userNameData.end(), static_cast<uint8_t>(0));
+        if(terminator != userNameData.begin() && terminator != userNameData.end()) {
+            const std::string userName(userNameData.begin(), terminator);
+            deviceInfo_->name_     = userName;
+            deviceInfo_->fullName_ = userName;
+        }
+    }
 
     // mark the device as a multi-sensor device with same clock at default
     extensionInfo_["AllSensorsUsingSameClock"] = "true";
@@ -412,6 +428,7 @@ void EGONetDevice::initProperties() {
     propertyServer->registerProperty(OB_PROP_VIDEO_GOP_INT, "rw", "rw", vendorPropertyAccessor);
     auto recordingDirectoryAccessor = std::make_shared<FwRecordingDirectoryManager>(this, vendorPropertyAccessor);
     propertyServer->registerProperty(OB_STRUCT_FW_RECORDING_DIRECTORY, "rw", "rw", recordingDirectoryAccessor);
+    propertyServer->registerProperty(OB_STRUCT_DEVICE_USER_NAME, "rw", "rw", vendorPropertyAccessor);
     auto customMetadataManager = std::make_shared<CustomMetadataManager>(this, vendorPropertyAccessor);
     propertyServer->registerProperty(OB_STRUCT_CUSTOM_METADATA_JSON, "w", "w", customMetadataManager);
     registerComponent(OB_DEV_COMPONENT_CUSTOM_METADATA_MANAGER, customMetadataManager);

@@ -985,6 +985,14 @@ typedef enum {
     OB_STRUCT_CUSTOM_METADATA_JSON = 1100,
 
     /**
+     * @brief Persistent user-defined device name.
+     *
+     * Payload is a null-terminated 32-byte character buffer. Firmware
+     * validates and persists the name. This does not change the product name.
+     */
+    OB_STRUCT_DEVICE_USER_NAME = 1101,
+
+    /**
      * @brief Color camera auto exposure
      */
     OB_PROP_COLOR_AUTO_EXPOSURE_BOOL = 2000,
