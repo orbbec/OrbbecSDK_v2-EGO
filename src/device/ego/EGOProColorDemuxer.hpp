@@ -6,6 +6,7 @@
 #include "IDeviceComponent.hpp"
 #include "ISourcePort.hpp"
 
+#include <array>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -35,6 +36,9 @@ private:
     std::shared_ptr<IVideoStreamPort>       realPort_;
     mutable std::mutex                      mutex_;
     std::map<uint8_t, MutableFrameCallback> callbacks_;
+    // The physical UVC endpoint alternates frames from all four cameras.  Keep
+    // an independent sequence for every virtual color stream instead.
+    std::array<uint64_t, 4>                 frameIndexes_{};
     std::shared_ptr<const StreamProfile>    activeProfile_;
 };
 
