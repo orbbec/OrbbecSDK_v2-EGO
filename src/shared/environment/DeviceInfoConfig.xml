@@ -306,6 +306,7 @@
     -->
     <GVCPConfigList>
         <Manufacturer name="Orbbec" vid="0x2BC5"></Manufacturer>
+        <Manufacturer name="EGO" vid="0x2BC5"></Manufacturer>
         <!-- More manufacturers can be added here -->
     </GVCPConfigList>
 </DeviceConfig>
