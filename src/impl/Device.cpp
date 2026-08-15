@@ -567,7 +567,6 @@ void ob_device_get_structured_data(ob_device *device, ob_property_id property_id
 }
 HANDLE_EXCEPTIONS_NO_RETURN(device, property_id, data, data_size)
 
-<<<<<<< HEAD
 bool ob_device_is_license_authorization_supported(const ob_device *device, ob_error **error) BEGIN_API_CALL {
     VALIDATE_NOT_NULL(device);
     auto devInner = device->device;
@@ -614,7 +613,6 @@ void ob_device_clear_license_info(ob_device *device, ob_error **error) BEGIN_API
     manager->clearLicenseInfo();
 }
 HANDLE_EXCEPTIONS_NO_RETURN(device)
-=======
 void ob_device_set_device_user_name(ob_device *device, const char *name, ob_error **error) BEGIN_API_CALL {
     VALIDATE_NOT_NULL(device);
     VALIDATE_NOT_NULL(name);
@@ -661,7 +659,6 @@ uint32_t ob_device_get_device_user_name(const ob_device *device, char *name, uin
     return nameLength;
 }
 HANDLE_EXCEPTIONS_AND_RETURN(0, device, name, name_capacity)
->>>>>>> e580c1a10 (Add an API for setting a user-defined device name.)
 
 void ob_device_get_raw_data(ob_device *device, ob_property_id property_id, ob_get_data_callback cb, void *user_data, ob_error **error) BEGIN_API_CALL {
     VALIDATE_NOT_NULL(device);
