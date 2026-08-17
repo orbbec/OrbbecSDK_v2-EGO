@@ -353,10 +353,10 @@ void EgoProNetDevice::initSensorList() {
                 auto port   = getSourcePort(audioPortInfo);
                 auto sensor = std::make_shared<AudioSensor>(this, port);
 
-                // RTSP backend does not expose audio profiles; Ego network audio is PCM16 mono,
+                // RTSP backend does not expose audio profiles; EgoPro network audio is PCM16 stereo,
                 // 48 kHz, delivered in 2048-sample chunks.
                 StreamProfileList audioProfiles;
-                audioProfiles.push_back(StreamProfileFactory::createAudioStreamProfile(OB_FORMAT_PCM, 48000, 1, 16, 0, 2048));
+                audioProfiles.push_back(StreamProfileFactory::createAudioStreamProfile(OB_FORMAT_PCM, 48000, 2, 16, 0, 2048));
                 sensor->setStreamProfileList(audioProfiles);
 
                 // WiFi audio carries OBNetworkFrameHeader.timestamp (device clock, same source as video/IMU).

@@ -288,11 +288,16 @@
     </DaBaiAList>
 
     <EGODeviceList>
-        <!-- EGO series devices -->
+        <!-- EGO series devices (dual-RGB, per-interface UVC endpoints) -->
         <Device>EGO</Device>
-        <Device>EGOPro</Device>
         <!-- More devices can be added here -->
     </EGODeviceList>
+
+    <EGOProDeviceList>
+        <!-- EGOPro series devices (four-RGB multiplexed on a single shared UVC endpoint) -->
+        <Device>EGOPro</Device>
+        <!-- More devices can be added here -->
+    </EGOProDeviceList>
 
     <WristDeviceList>
         <!-- Wrist series devices -->

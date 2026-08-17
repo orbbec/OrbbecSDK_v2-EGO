@@ -23,6 +23,7 @@ extern std::vector<DeviceIdentifier> DaBaiADevPids;
 extern std::vector<DeviceIdentifier> G335LeDevPids;
 extern std::vector<DeviceIdentifier> G435LeDevPids;
 extern std::vector<DeviceIdentifier> EGODevPids;
+extern std::vector<DeviceIdentifier> EGOProDevPids;
 extern std::vector<DeviceIdentifier> WristDevPids;
 
 extern std::vector<DeviceInfoEntry> G330DeviceInfoList;
@@ -36,6 +37,18 @@ extern std::unordered_map<std::string, uint16_t> manufacturerVidMap;
 
 bool isDeviceInContainer(const std::vector<DeviceIdentifier> &deviceContainer, const uint32_t &vid, const uint32_t &pid);
 bool isDeviceInOrbbecSeries(const std::vector<uint16_t> &deviceContainer, const uint32_t &vid, const uint32_t &pid);
+
+/**
+ * @brief Check if the device is an EGOPro series device (four-RGB shared UVC endpoint).
+ *
+ * Membership is driven by the EGOProDeviceList category in DeviceInfoConfig.xml, so a new
+ * EGOPro-based ODM only needs an XML entry instead of a hardcoded PID branch in code.
+ *
+ * @param[in] vid Vendor ID
+ * @param[in] pid Product ID
+ * @return true if the device belongs to the EGOPro series
+ */
+bool isEgoProDevice(uint32_t vid, uint32_t pid);
 
 /**
  * @brief Check if the device is supported by the library, used for platform enumeration

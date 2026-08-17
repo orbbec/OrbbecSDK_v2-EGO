@@ -30,6 +30,15 @@ static const uint16_t EGO_IMU_TCP_PORT                  = 8900;  // private TCP 
 static const uint16_t EGOPRO_SIDE_LEFT_COLOR_RTSP_PORT  = 8891;
 static const uint16_t EGOPRO_SIDE_RIGHT_COLOR_RTSP_PORT = 8892;
 
+// EGO and EGOPro are split into separate series lists (EGODevPids / EGOProDevPids) so that
+// device-class selection is driven by list membership instead of a hardcoded PID. Enumeration
+// still filters by the union of both lists.
+static std::vector<DeviceIdentifier> getEgoSeriesPids() {
+    std::vector<DeviceIdentifier> pids = EGODevPids;
+    pids.insert(pids.end(), EGOProDevPids.begin(), EGOProDevPids.end());
+    return pids;
+}
+
 void updateEgoDeviceName(uint32_t vid, uint32_t pid, std::string &name, std::string &fullName) {
     auto iter = std::find_if(EGODeviceInfoList.begin(), EGODeviceInfoList.end(),
                              [vid, pid](const DeviceInfoEntry &entry) { return entry.vid_ == vid && entry.pid_ == pid; });
@@ -78,7 +87,7 @@ std::shared_ptr<IDevice> EGODeviceInfo::createDevice(OBDeviceAccessMode accessMo
     (void)accessMode;  // access control is unsupported
     std::shared_ptr<IDevice> device;
     if(connectionType_ == "Ethernet") {
-        if(pid_ == OB_DEVICE_EGOPRO_PID) {
+        if(isEgoProDevice(vid_, pid_)) {
             device = std::make_shared<EgoProNetDevice>(shared_from_this());
         }
         else {
@@ -86,7 +95,7 @@ std::shared_ptr<IDevice> EGODeviceInfo::createDevice(OBDeviceAccessMode accessMo
         }
     }
     else {
-        if(pid_ == OB_DEVICE_EGOPRO_PID) {
+        if(isEgoProDevice(vid_, pid_)) {
             device = std::make_shared<EgoProDevice>(shared_from_this());
         }
         else {
@@ -99,14 +108,15 @@ std::shared_ptr<IDevice> EGODeviceInfo::createDevice(OBDeviceAccessMode accessMo
 #if defined(BUILD_USB_PAL)
 std::vector<std::shared_ptr<IDeviceEnumInfo>> EGODeviceInfo::pickDevices(const SourcePortInfoList infoList) {
     std::vector<std::shared_ptr<IDeviceEnumInfo>> egoDeviceInfos;
-    auto                                          remainder = FilterUSBPortInfoByVidPid(infoList, EGODevPids);
+    auto                                          remainder = FilterUSBPortInfoByVidPid(infoList, getEgoSeriesPids());
     auto                                          groups    = utils::groupVector<std::shared_ptr<const SourcePortInfo>>(remainder, GroupUSBSourcePortByUrl);
     auto                                          iter      = groups.begin();
     while(iter != groups.end()) {
         // EGO USB exposes 2 UVC color interfaces + 1 HID IMU interface (+ UAC audio).
         auto firstUsb = std::dynamic_pointer_cast<const USBSourcePortInfo>(iter->front());
-        bool isEgoPro = firstUsb && firstUsb->pid == OB_DEVICE_EGOPRO_PID;
-        bool hasUvc   = std::any_of(iter->begin(), iter->end(), [](const std::shared_ptr<const SourcePortInfo> &p) { return p->portType == SOURCE_PORT_USB_UVC; });
+        bool isEgoPro = firstUsb && isEgoProDevice(firstUsb->vid, firstUsb->pid);
+        bool hasUvc =
+            std::any_of(iter->begin(), iter->end(), [](const std::shared_ptr<const SourcePortInfo> &p) { return p->portType == SOURCE_PORT_USB_UVC; });
         if(iter->size() >= 2 || (isEgoPro && hasUvc)) {
 #if defined(_WIN32)
             // On Windows the UAC microphone is not surfaced by USB enumeration (usbaudio.sys owns it); inject a
@@ -139,7 +149,7 @@ std::vector<std::shared_ptr<IDeviceEnumInfo>> EGODeviceInfo::pickDevices(const S
 #if defined(BUILD_NET_PAL)
 std::vector<std::shared_ptr<IDeviceEnumInfo>> EGODeviceInfo::pickNetDevices(const SourcePortInfoList infoList) {
     std::vector<std::shared_ptr<IDeviceEnumInfo>> egoDeviceInfos;
-    auto                                          remainder = FilterNetPortInfoByVidPid(infoList, EGODevPids);
+    auto                                          remainder = FilterNetPortInfoByVidPid(infoList, getEgoSeriesPids());
     auto                                          groups    = utils::groupVector<std::shared_ptr<const SourcePortInfo>>(remainder, GroupNetSourcePortByMac);
     auto                                          iter      = groups.begin();
     while(iter != groups.end()) {
@@ -148,7 +158,7 @@ std::vector<std::shared_ptr<IDeviceEnumInfo>> EGODeviceInfo::pickNetDevices(cons
 
             iter->emplace_back(std::make_shared<RTSPStreamPortInfo>(*portInfo, EGO_LEFT_COLOR_RTSP_PORT, portInfo->port, OB_STREAM_COLOR_LEFT));
             iter->emplace_back(std::make_shared<RTSPStreamPortInfo>(*portInfo, EGO_RIGHT_COLOR_RTSP_PORT, portInfo->port, OB_STREAM_COLOR_RIGHT));
-            if(portInfo->pid == OB_DEVICE_EGOPRO_PID) {
+            if(isEgoProDevice(portInfo->vid, portInfo->pid)) {
                 iter->emplace_back(
                     std::make_shared<RTSPStreamPortInfo>(*portInfo, EGOPRO_SIDE_LEFT_COLOR_RTSP_PORT, portInfo->port, OB_STREAM_COLOR_SIDE_LEFT));
                 iter->emplace_back(

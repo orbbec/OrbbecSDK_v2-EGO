@@ -48,6 +48,7 @@ constexpr const char *CATEGORY_DABAIA_DEVICE = "DaBaiAList";
 constexpr const char *CATEGORY_G335LE_DEVICE = "G335LeDeviceList";
 constexpr const char *CATEGORY_G435LE_DEVICE = "G435LeDeviceList";
 constexpr const char *CATEGORY_EGO_DEVICE    = "EGODeviceList";
+constexpr const char *CATEGORY_EGOPRO_DEVICE = "EGOProDeviceList";
 constexpr const char *CATEGORY_WRIST_DEVICE  = "WristDeviceList";
 
 // GVCP config
