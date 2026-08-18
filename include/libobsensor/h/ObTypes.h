@@ -2303,6 +2303,7 @@ typedef enum {
     OB_EGO_WORK_STATE_FW_UPGRADING     = 7, /**< Firmware upgrade is in progress. */
     OB_EGO_WORK_STATE_SHUTTING_DOWN    = 8, /**< Device is shutting down. */
     OB_EGO_WORK_STATE_FAULT            = 9, /**< Device is in a severe fault state. */
+    OB_EGO_WORK_STATE_RECORD_SAVED     = 10, /**< Recording file has been saved successfully. */
 } OBEgoWorkState,
     ob_ego_work_state;
 
