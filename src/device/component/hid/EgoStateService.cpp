@@ -10,12 +10,14 @@
 #include "utils/alg_write_flash_crc.h"
 
 #include <cstddef>
+#include <cstring>
 
 namespace libobsensor {
 
 namespace {
 
 constexpr uint32_t EGO_STATE_MAGIC_CODE = 0x4321;
+constexpr uint32_t EGO_STATE_PROTOCOL_VERSION_V2 = 2;
 
 #pragma pack(push, 1)
 typedef struct {
@@ -27,16 +29,24 @@ typedef struct {
     uint64_t errorFlags;
     uint64_t storageFreeBytes;
     uint32_t crc32;
-} OBEgoStateReportRaw;
+} OBEgoStateReportRawV1;
+
+typedef struct {
+    OBEgoStateReportRawV1 v1;
+    uint64_t              recordingDurationMs;
+} OBEgoStateReportRawV2;
 #pragma pack(pop)
+
+static_assert(sizeof(OBEgoStateReportRawV1) == 40, "Ego HID state v1 group must be 40 bytes");
+static_assert(sizeof(OBEgoStateReportRawV2) == 48, "Ego HID state v2 group must be 48 bytes");
 
 uint32_t calcCrc32(uint32_t seed, const uint8_t *dataBuf, uint32_t length) {
     return alg_write_flash::CRC32(seed, const_cast<uint8_t *>(dataBuf), length);
 }
 
-uint32_t calcEgoStateChecksum(const OBHidHeader *header, const OBEgoStateReportRaw *stateData) {
+uint32_t calcEgoStateChecksum(const OBHidHeader *header, const OBEgoStateReportRawV1 *stateData) {
     auto checksum = calcCrc32(0, reinterpret_cast<const uint8_t *>(header), sizeof(OBHidHeader));
-    return calcCrc32(checksum, reinterpret_cast<const uint8_t *>(stateData), static_cast<uint32_t>(offsetof(OBEgoStateReportRaw, crc32)));
+    return calcCrc32(checksum, reinterpret_cast<const uint8_t *>(stateData), static_cast<uint32_t>(offsetof(OBEgoStateReportRawV1, crc32)));
 }
 
 }  // namespace
@@ -131,12 +141,12 @@ void EgoStateService::onFrame(std::shared_ptr<Frame> frame) {
         return;
     }
 
-    if(header->groupLen < sizeof(OBEgoStateReportRaw)) {
-        LOG_WARN_INTVL("Ego state packet is invalid, drop package! groupLen={}, minRequired={}", header->groupLen, sizeof(OBEgoStateReportRaw));
+    if(header->groupLen < sizeof(OBEgoStateReportRawV1)) {
+        LOG_WARN_INTVL("Ego state packet is invalid, drop package! groupLen={}, minRequired={}", header->groupLen, sizeof(OBEgoStateReportRawV1));
         return;
     }
 
-    const auto expectedByStruct = sizeof(OBHidHeader) + sizeof(OBEgoStateReportRaw) * header->groupCount;
+    const auto expectedByStruct = sizeof(OBHidHeader) + sizeof(OBEgoStateReportRawV1) * header->groupCount;
     if(dataSize < expectedByStruct) {
         LOG_WARN_INTVL("Ego state packet is invalid, drop package! dataSize={}, expectedByStruct={}, groupCount={}", dataSize, expectedByStruct,
                        header->groupCount);
@@ -162,7 +172,7 @@ void EgoStateService::onFrame(std::shared_ptr<Frame> frame) {
     const auto *groupBase = data + sizeof(OBHidHeader);
     for(uint8_t groupIndex = 0; groupIndex < header->groupCount; ++groupIndex) {
         const auto groupOffset = static_cast<size_t>(header->groupLen) * groupIndex;
-        const auto *rawState = reinterpret_cast<const OBEgoStateReportRaw *>(groupBase + groupOffset);
+        const auto *rawState = reinterpret_cast<const OBEgoStateReportRawV1 *>(groupBase + groupOffset);
 
         if(rawState->magicCode != EGO_STATE_MAGIC_CODE) {
             LOG_WARN_INTVL("Ego state group is invalid, drop group! groupIndex={}, magicCode={}", groupIndex, rawState->magicCode);
@@ -183,6 +193,16 @@ void EgoStateService::onFrame(std::shared_ptr<Frame> frame) {
         state.state_flags        = rawState->stateFlags;
         state.error_flags        = rawState->errorFlags;
         state.storage_free_bytes = rawState->storageFreeBytes;
+
+        if(header->groupLen >= sizeof(OBEgoStateReportRawV2) && state.protocol_version >= EGO_STATE_PROTOCOL_VERSION_V2) {
+            uint64_t recordingDurationMs = 0;
+            std::memcpy(&recordingDurationMs, groupBase + groupOffset + sizeof(OBEgoStateReportRawV1), sizeof(recordingDurationMs));
+            if(recordingDurationMs != 0) {
+                state.recording_duration_ms    = recordingDurationMs;
+                state.recording_duration_valid = true;
+            }
+        }
+
         callback(state);
     }
 }

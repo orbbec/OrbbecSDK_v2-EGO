@@ -2359,6 +2359,9 @@ typedef struct {
     uint32_t       state_flags;        /**< Combined value of @ref OBEgoStateFlag. */
     uint64_t       error_flags;        /**< Combined value of @ref OBEgoErrorFlag. */
     uint64_t       storage_free_bytes; /**< Free storage space in bytes. */
+    uint64_t       recording_duration_ms;    /**< Duration of the most recent recording result in milliseconds. Valid only when recording_duration_valid is true. */
+    bool           recording_duration_valid; /**< Whether recording_duration_ms is valid. */
+    uint8_t        reserved[7];              /**< Reserved for future use. */
 } OBEgoStateReport, ob_ego_state_report;
 
 /**
