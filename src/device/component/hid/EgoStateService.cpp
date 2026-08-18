@@ -242,7 +242,8 @@ void EgoStateService::onFrame(std::shared_ptr<Frame> frame) {
             }
 
             const bool recordingResultReady = state.recording_duration_valid
-                                              && (state.work_state == OB_EGO_WORK_STATE_SAVING || state.work_state == OB_EGO_WORK_STATE_FAULT
+                                              && (state.work_state == OB_EGO_WORK_STATE_SAVING || state.work_state == OB_EGO_WORK_STATE_RECORD_SAVED
+                                                  || state.work_state == OB_EGO_WORK_STATE_FAULT
                                                   || (state.error_flags & OB_EGO_ERROR_RECORD_ABORTED) != 0);
             if(recordingResultReady && recordingResultCallback_ && processedResultSequences_.insert(state.sequence).second) {
                 scheduleRecordingResult = true;
