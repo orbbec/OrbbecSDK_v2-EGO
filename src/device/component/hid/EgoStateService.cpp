@@ -3,6 +3,9 @@
 
 #include "EgoStateService.hpp"
 
+#include "IDevice.hpp"
+#include "IProperty.hpp"
+#include "component/fwrecord/FwRecordingPartListParser.hpp"
 #include "frame/Frame.hpp"
 #include "hid/HidTypes.hpp"
 #include "logger/Logger.hpp"
@@ -11,6 +14,7 @@
 
 #include <cstddef>
 #include <cstring>
+#include <utility>
 
 namespace libobsensor {
 
@@ -51,19 +55,23 @@ uint32_t calcEgoStateChecksum(const OBHidHeader *header, const OBEgoStateReportR
 
 }  // namespace
 
-EgoStateService::EgoStateService(IDevice *owner, const std::shared_ptr<IDataStreamPort> &backend) : owner_(owner), backend_(backend) {}
+EgoStateService::EgoStateService(IDevice *owner, const std::shared_ptr<IDataStreamPort> &backend) : owner_(owner), backend_(backend) {
+    workerThread_ = std::thread(&EgoStateService::recordingResultWorkerLoop, this);
+}
 
 EgoStateService::~EgoStateService() noexcept {
     bool needStop = false;
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        callback_ = nullptr;
-        needStop  = running_;
-        running_  = false;
+        callback_                = nullptr;
+        recordingResultCallback_ = nullptr;
+        needStop                 = running_;
+        running_                 = false;
     }
 
     if(needStop) {
         try {
+            std::lock_guard<std::mutex> backendLock(backendMutex_);
             backend_->stopStream();
         }
         catch(const std::exception &e) {
@@ -73,22 +81,57 @@ EgoStateService::~EgoStateService() noexcept {
             LOG_WARN("Failed to stop Ego state backend while destroying EgoStateService");
         }
     }
+
+    {
+        std::lock_guard<std::mutex> lock(workerMutex_);
+        workerExit_ = true;
+        pendingRecordingResultTasks_.clear();
+    }
+    workerCv_.notify_one();
+    if(workerThread_.joinable()) {
+        workerThread_.join();
+    }
 }
 
 void EgoStateService::setCallback(EgoStateCallback callback) {
-    bool needStart = false;
     {
         std::lock_guard<std::mutex> lock(mutex_);
         callback_ = callback;
-        if(running_) {
+    }
+    startBackendIfNeeded();
+}
+
+void EgoStateService::clearCallback() {
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        callback_ = nullptr;
+    }
+    stopBackendIfUnused();
+}
+
+void EgoStateService::setRecordingResultCallback(EgoRecordingResultCallback callback) {
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        recordingResultCallback_ = callback;
+    }
+    startBackendIfNeeded();
+}
+
+void EgoStateService::clearRecordingResultCallback() {
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        recordingResultCallback_ = nullptr;
+    }
+    stopBackendIfUnused();
+}
+
+void EgoStateService::startBackendIfNeeded() {
+    std::lock_guard<std::mutex> backendLock(backendMutex_);
+    {
+        std::lock_guard<std::mutex> lock(mutex_);
+        if(running_ || (!callback_ && !recordingResultCallback_)) {
             return;
         }
-
-        needStart = true;
-    }
-
-    if(!needStart) {
-        return;
     }
 
     backend_->startStream([this](std::shared_ptr<Frame> frame) { onFrame(std::move(frame)); });
@@ -97,19 +140,13 @@ void EgoStateService::setCallback(EgoStateCallback callback) {
     running_ = true;
 }
 
-void EgoStateService::clearCallback() {
-    bool needStop = false;
+void EgoStateService::stopBackendIfUnused() {
+    std::lock_guard<std::mutex> backendLock(backendMutex_);
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        callback_ = nullptr;
-        if(!running_) {
+        if(!running_ || callback_ || recordingResultCallback_) {
             return;
         }
-        needStop = true;
-    }
-
-    if(!needStop) {
-        return;
     }
 
     backend_->stopStream();
@@ -160,15 +197,6 @@ void EgoStateService::onFrame(std::shared_ptr<Frame> frame) {
         return;
     }
 
-    EgoStateCallback callback;
-    {
-        std::lock_guard<std::mutex> lock(mutex_);
-        if(!callback_) {
-            return;
-        }
-        callback = callback_;
-    }
-
     const auto *groupBase = data + sizeof(OBHidHeader);
     for(uint8_t groupIndex = 0; groupIndex < header->groupCount; ++groupIndex) {
         const auto groupOffset = static_cast<size_t>(header->groupLen) * groupIndex;
@@ -203,7 +231,93 @@ void EgoStateService::onFrame(std::shared_ptr<Frame> frame) {
             }
         }
 
-        callback(state);
+        EgoStateCallback callback;
+        bool             scheduleRecordingResult = false;
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            callback = callback_;
+
+            if(state.work_state == OB_EGO_WORK_STATE_RECORD_COUNTDOWN || state.work_state == OB_EGO_WORK_STATE_RECORDING) {
+                processedResultSequences_.clear();
+            }
+
+            const bool recordingResultReady = state.recording_duration_valid
+                                              && (state.work_state == OB_EGO_WORK_STATE_SAVING || state.work_state == OB_EGO_WORK_STATE_FAULT
+                                                  || (state.error_flags & OB_EGO_ERROR_RECORD_ABORTED) != 0);
+            if(recordingResultReady && recordingResultCallback_ && processedResultSequences_.insert(state.sequence).second) {
+                scheduleRecordingResult = true;
+            }
+        }
+
+        if(callback) {
+            callback(state);
+        }
+        if(scheduleRecordingResult) {
+            enqueueRecordingResultTask(state);
+        }
+    }
+}
+
+void EgoStateService::enqueueRecordingResultTask(const OBEgoStateReport &state) {
+    {
+        std::lock_guard<std::mutex> lock(workerMutex_);
+        if(workerExit_) {
+            return;
+        }
+        pendingRecordingResultTasks_.push_back(state);
+    }
+    workerCv_.notify_one();
+}
+
+void EgoStateService::recordingResultWorkerLoop() {
+    while(true) {
+        OBEgoStateReport state{};
+        {
+            std::unique_lock<std::mutex> lock(workerMutex_);
+            workerCv_.wait(lock, [this]() { return workerExit_ || !pendingRecordingResultTasks_.empty(); });
+            if(workerExit_) {
+                return;
+            }
+            state = pendingRecordingResultTasks_.front();
+            pendingRecordingResultTasks_.pop_front();
+        }
+
+        EgoRecordingResult result{};
+        result.state = state;
+        auto propertyServer = owner_->getPropertyServer();
+        try {
+            auto directory = propertyServer->getStructureData(OB_STRUCT_FW_RECORDING_DIRECTORY, PROP_ACCESS_INTERNAL);
+            result.recordingDirectory.assign(reinterpret_cast<const char *>(directory.data()), directory.size());
+            result.directoryValid = true;
+        }
+        catch(const std::exception &e) {
+            LOG_WARN("Failed to get firmware recording result directory: {}", e.what());
+        }
+
+        try {
+            auto entries = getFwRecordingPartList(owner_, PROP_ACCESS_INTERNAL);
+            result.partNames.reserve(entries.size());
+            for(const auto &entry : entries) {
+                size_t length = 0;
+                while(length < sizeof(entry.name) && entry.name[length] != '\0') {
+                    ++length;
+                }
+                result.partNames.emplace_back(entry.name, length);
+            }
+            result.partListValid = true;
+        }
+        catch(const std::exception &e) {
+            LOG_WARN("Failed to get firmware recording part list: {}", e.what());
+        }
+
+        EgoRecordingResultCallback callback;
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            callback = recordingResultCallback_;
+        }
+        if(callback) {
+            callback(result);
+        }
     }
 }
 

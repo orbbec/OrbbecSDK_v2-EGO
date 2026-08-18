@@ -355,6 +355,17 @@ OB_EXPORT void ob_device_set_fw_record_mcap_topic_list(ob_device *device, const 
                                                         ob_error **error);
 
 /**
+ * @brief Get the part-name list of the most recent firmware recording result.
+ *
+ * @param[in] device The device object.
+ * @param[out] part_entries Output buffer. Set to NULL to query the required count.
+ * @param[in,out] part_count Input buffer capacity when part_entries is not NULL; output actual count.
+ * @param[out] error Pointer to an error object that will be set if the property is unsupported, the transfer fails, or the payload is invalid.
+ */
+OB_EXPORT void ob_device_get_fw_recording_part_list(ob_device *device, ob_fw_recording_part_entry *part_entries, uint32_t *part_count,
+                                                     ob_error **error);
+
+/**
  * @brief Set customer data.
  *
  * @param[in] device The device object.
@@ -544,6 +555,17 @@ OB_EXPORT void ob_device_set_ego_state_callback(ob_device *device, ob_ego_state_
  * @param[out] error Pointer to an error object that will be set if an error occurs.
  */
 OB_EXPORT void ob_device_clear_ego_state_callback(ob_device *device, ob_error **error);
+
+/**
+ * @brief Set the callback invoked when an Ego firmware recording result is ready.
+ */
+OB_EXPORT void ob_device_set_ego_recording_result_callback(ob_device *device, ob_ego_recording_result_callback callback, void *user_data,
+                                                            ob_error **error);
+
+/**
+ * @brief Clear the Ego firmware recording result callback.
+ */
+OB_EXPORT void ob_device_clear_ego_recording_result_callback(ob_device *device, ob_error **error);
 
 /**
  * @brief Enable or disable the device heartbeat.

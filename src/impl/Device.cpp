@@ -21,6 +21,7 @@
 #include "IAlgParamManager.hpp"
 #include "IFrameTimestamp.hpp"
 #include "component/fwrecord/FwRecordProfileManager.hpp"
+#include "component/fwrecord/FwRecordingPartListParser.hpp"
 #include "ICustomMetadataManager.hpp"
 #include "component/fwlog/FirmwareLogManager.hpp"
 #include "hid/EgoStateService.hpp"
@@ -28,6 +29,7 @@
 #include "utils/PublicTypeHelper.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cstring>
 #include <limits>
 #include <set>
@@ -802,6 +804,28 @@ void ob_device_set_fw_record_mcap_topic_list(ob_device *device, const ob_fw_reco
 }
 HANDLE_EXCEPTIONS_NO_RETURN(device, topics, topic_count)
 
+void ob_device_get_fw_recording_part_list(ob_device *device, ob_fw_recording_part_entry *part_entries, uint32_t *part_count,
+                                          ob_error **error) BEGIN_API_CALL {
+    VALIDATE_NOT_NULL(device);
+    VALIDATE_NOT_NULL(part_count);
+
+    auto entries = libobsensor::getFwRecordingPartList(device->device.get(), libobsensor::PROP_ACCESS_USER);
+    const auto actualCount = static_cast<uint32_t>(entries.size());
+    if(part_entries == nullptr) {
+        *part_count = actualCount;
+        return;
+    }
+    if(*part_count < actualCount) {
+        *part_count = actualCount;
+        THROW_INVALID_PARAM_EXCEPTION("Firmware recording part list output buffer is too small");
+    }
+    if(actualCount > 0) {
+        memcpy(part_entries, entries.data(), entries.size() * sizeof(entries.front()));
+    }
+    *part_count = actualCount;
+}
+HANDLE_EXCEPTIONS_NO_RETURN(device, part_entries, part_count)
+
 void ob_device_write_customer_data(ob_device *device, const void *data, uint32_t data_size, ob_error **error) BEGIN_API_CALL {
     VALIDATE_NOT_NULL(device);
     VALIDATE_NOT_NULL(data);
@@ -970,6 +994,41 @@ void ob_device_clear_ego_state_callback(ob_device *device, ob_error **error) BEG
     VALIDATE_NOT_NULL(device);
     auto egoStateService = device->device->getComponentT<libobsensor::EgoStateService>(libobsensor::OB_DEV_COMPONENT_EGO_STATE_SERVICE);
     egoStateService->clearCallback();
+}
+HANDLE_EXCEPTIONS_NO_RETURN(device)
+
+void ob_device_set_ego_recording_result_callback(ob_device *device, ob_ego_recording_result_callback callback, void *user_data,
+                                                  ob_error **error) BEGIN_API_CALL {
+    VALIDATE_NOT_NULL(device);
+    VALIDATE_NOT_NULL(callback);
+    auto egoStateService = device->device->getComponentT<libobsensor::EgoStateService>(libobsensor::OB_DEV_COMPONENT_EGO_STATE_SERVICE);
+    egoStateService->setRecordingResultCallback([callback, user_data](const libobsensor::EgoStateService::EgoRecordingResult &result) {
+        std::vector<std::array<char, OB_FW_RECORDING_PART_NAME_SIZE>> partNames(result.partNames.size());
+        for(size_t index = 0; index < result.partNames.size(); ++index) {
+            const auto &name = result.partNames[index];
+            const auto copySize = (std::min)(name.size(), static_cast<size_t>(OB_FW_RECORDING_PART_NAME_SIZE - 1));
+            if(copySize > 0) {
+                memcpy(partNames[index].data(), name.data(), copySize);
+            }
+        }
+
+        OBEgoRecordingResult cResult{};
+        cResult.state               = result.state;
+        cResult.recording_directory = result.recordingDirectory.c_str();
+        cResult.directory_size      = static_cast<uint32_t>(result.recordingDirectory.size());
+        cResult.part_names          = reinterpret_cast<const char (*)[OB_FW_RECORDING_PART_NAME_SIZE]>(partNames.data());
+        cResult.part_count          = static_cast<uint32_t>(partNames.size());
+        cResult.directory_valid     = result.directoryValid;
+        cResult.part_list_valid     = result.partListValid;
+        callback(&cResult, user_data);
+    });
+}
+HANDLE_EXCEPTIONS_NO_RETURN(device, callback, user_data)
+
+void ob_device_clear_ego_recording_result_callback(ob_device *device, ob_error **error) BEGIN_API_CALL {
+    VALIDATE_NOT_NULL(device);
+    auto egoStateService = device->device->getComponentT<libobsensor::EgoStateService>(libobsensor::OB_DEV_COMPONENT_EGO_STATE_SERVICE);
+    egoStateService->clearRecordingResultCallback();
 }
 HANDLE_EXCEPTIONS_NO_RETURN(device)
 

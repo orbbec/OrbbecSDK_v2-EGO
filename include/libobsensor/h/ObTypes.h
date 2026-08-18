@@ -386,6 +386,23 @@ typedef struct {
 } OBFwRecordingMcapTopic,
     ob_fw_recording_mcap_topic;
 
+#define OB_FW_RECORDING_PART_NAME_SIZE    16U
+#define OB_FW_RECORDING_PART_LIST_VERSION 1U
+
+#pragma pack(push, 1)
+typedef struct {
+    uint16_t protocol_version; /**< Must be @ref OB_FW_RECORDING_PART_LIST_VERSION. */
+    uint16_t entry_size;       /**< Must be @ref OB_FW_RECORDING_PART_NAME_SIZE. */
+    uint32_t part_count;       /**< Number of recording part entries. */
+} OBFwRecordingPartListHeader,
+    ob_fw_recording_part_list_header;
+
+typedef struct {
+    char name[OB_FW_RECORDING_PART_NAME_SIZE]; /**< Final recording part directory name. */
+} OBFwRecordingPartEntry,
+    ob_fw_recording_part_entry;
+#pragma pack(pop)
+
 #define OB_FORMAT_RGB888 OB_FORMAT_RGB  // Alias of OB_FORMAT_RGB for compatibility
 #define OB_FORMAT_MJPEG OB_FORMAT_MJPG  // Alias of OB_FORMAT_MJPG for compatibility
 
@@ -2366,6 +2383,21 @@ typedef struct {
 } OBEgoStateReport, ob_ego_state_report;
 
 /**
+ * @brief Completed firmware recording result.
+ *
+ * The directory and part-name pointers are valid only during the callback.
+ */
+typedef struct {
+    OBEgoStateReport state;
+    const char      *recording_directory;
+    uint32_t         directory_size;
+    const char      (*part_names)[OB_FW_RECORDING_PART_NAME_SIZE];
+    uint32_t         part_count;
+    bool             directory_valid;
+    bool             part_list_valid;
+} OBEgoRecordingResult, ob_ego_recording_result;
+
+/**
  * @brief Callback for file transfer
  *
  * @param[in] state Transmission status
@@ -2409,6 +2441,11 @@ typedef void (*ob_device_direction_key_callback)(const OBDirectionKeyInfomation 
  * @param[in] user_data User-defined data.
  */
 typedef void (*ob_ego_state_callback)(const OBEgoStateReport *state, void *user_data);
+
+/**
+ * @brief Callback for a completed Ego firmware recording result.
+ */
+typedef void (*ob_ego_recording_result_callback)(const OBEgoRecordingResult *result, void *user_data);
 
 /**
  * @brief Callback for writing data

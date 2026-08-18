@@ -993,6 +993,13 @@ typedef enum {
     OB_STRUCT_DEVICE_USER_NAME = 1101,
 
     /**
+     * @brief Firmware recording result part-name list.
+     *
+     * @attention Read only.
+     */
+    OB_RAW_DATA_FW_RECORDING_PART_LIST = 1102,
+
+    /**
      * @brief Color camera auto exposure
      */
     OB_PROP_COLOR_AUTO_EXPOSURE_BOOL = 2000,

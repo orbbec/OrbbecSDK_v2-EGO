@@ -70,6 +70,16 @@ public:
      */
     typedef std::function<void(const OBEgoStateReport &state)> EgoStateCallback;
 
+    struct EgoRecordingResult {
+        OBEgoStateReport         state;
+        std::string              recordingDirectory;
+        std::vector<std::string> partNames;
+        bool                     directoryValid = false;
+        bool                     partListValid  = false;
+    };
+
+    typedef std::function<void(const EgoRecordingResult &result)> EgoRecordingResultCallback;
+
     /**
      * @brief Callback function for firmware log export packets.
      */
@@ -82,6 +92,7 @@ protected:
     DeviceStateChangedCallback deviceStateChangeCallback_;
     DirectionKeyCallback       directionKeyCallback_;
     EgoStateCallback           egoStateCallback_;
+    EgoRecordingResultCallback egoRecordingResultCallback_;
     DeviceFwUpdateCallback     fwUpdateCallback_;
     FirmwareLogPacketCallback firmwareLogCallback_;
 
@@ -546,6 +557,34 @@ public:
     }
 
     /**
+     * @brief Get the part directory names of the most recent firmware recording result.
+     */
+    std::vector<std::string> getFwRecordingPartList() const {
+        ob_error *error = nullptr;
+        uint32_t  count = 0;
+        ob_device_get_fw_recording_part_list(impl_, nullptr, &count, &error);
+        Error::handle(&error);
+
+        std::vector<OBFwRecordingPartEntry> entries(count);
+        if(count > 0) {
+            ob_device_get_fw_recording_part_list(impl_, entries.data(), &count, &error);
+            Error::handle(&error);
+            entries.resize(count);
+        }
+
+        std::vector<std::string> names;
+        names.reserve(entries.size());
+        for(const auto &entry : entries) {
+            size_t length = 0;
+            while(length < sizeof(entry.name) && entry.name[length] != '\0') {
+                ++length;
+            }
+            names.emplace_back(entry.name, length);
+        }
+        return names;
+    }
+
+    /**
      * @brief Replace the custom MCAP topic list used by firmware SD-card recording.
      *
      * @param[in] topics Complete MCAP topic-type to custom-topic mapping. An empty vector clears the list.
@@ -906,6 +945,37 @@ public:
     void reboot() const {
         ob_error *error = nullptr;
         ob_device_reboot(impl_, &error);
+        Error::handle(&error);
+    }
+
+    /**
+     * @brief Set the callback invoked when a firmware recording result is ready.
+     */
+    void setEgoRecordingResultCallback(EgoRecordingResultCallback callback) {
+        if(!callback) {
+            clearEgoRecordingResultCallback();
+            return;
+        }
+
+        ob_error *error                = nullptr;
+        egoRecordingResultCallback_ = std::move(callback);
+        ob_device_set_ego_recording_result_callback(impl_, &Device::egoRecordingResultCallbackBridge, this, &error);
+        try {
+            Error::handle(&error);
+        }
+        catch(...) {
+            egoRecordingResultCallback_ = nullptr;
+            throw;
+        }
+    }
+
+    /**
+     * @brief Clear the firmware recording result callback.
+     */
+    void clearEgoRecordingResultCallback() {
+        ob_error *error = nullptr;
+        ob_device_clear_ego_recording_result_callback(impl_, &error);
+        egoRecordingResultCallback_ = nullptr;
         Error::handle(&error);
     }
 
@@ -1369,6 +1439,28 @@ private:
         if(device && device->egoStateCallback_ && state) {
             device->egoStateCallback_(*state);
         }
+    }
+
+    static void egoRecordingResultCallbackBridge(const OBEgoRecordingResult *result, void *userData) {
+        auto device = static_cast<Device *>(userData);
+        if(!device || !device->egoRecordingResultCallback_ || !result) {
+            return;
+        }
+
+        EgoRecordingResult cppResult{};
+        cppResult.state          = result->state;
+        cppResult.directoryValid = result->directory_valid;
+        cppResult.partListValid  = result->part_list_valid;
+        if(result->directory_valid && result->recording_directory) {
+            cppResult.recordingDirectory.assign(result->recording_directory, result->directory_size);
+        }
+        if(result->part_list_valid && result->part_names) {
+            cppResult.partNames.reserve(result->part_count);
+            for(uint32_t index = 0; index < result->part_count; ++index) {
+                cppResult.partNames.emplace_back(result->part_names[index]);
+            }
+        }
+        device->egoRecordingResultCallback_(cppResult);
     }
 
     static void firmwareLogCallbackBridge(const char *fileName, ob_fw_log_packet_state state, const uint8_t *data, uint32_t dataSize,
