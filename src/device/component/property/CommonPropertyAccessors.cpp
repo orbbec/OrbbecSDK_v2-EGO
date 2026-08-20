@@ -14,6 +14,9 @@
 #include "ethernet/gvcp/GVCPTransmit.hpp"
 #include "ethernet/gvcp/GVCPTypes.hpp"
 #include "utils/Utils.hpp"
+
+#include <utility>
+
 namespace libobsensor {
 
 DeviceComponentPropertyAccessor::DeviceComponentPropertyAccessor(IDevice *device, DeviceComponentId compId) : device_(device), compId_(compId) {}
@@ -31,6 +34,21 @@ void DeviceComponentPropertyAccessor::getPropertyValue(uint32_t propertyId, OBPr
 void DeviceComponentPropertyAccessor::getPropertyRange(uint32_t propertyId, OBPropertyRange *range) {
     auto propertyAccessor = device_->getComponentT<IBasicPropertyAccessor>(compId_);
     propertyAccessor->getPropertyRange(propertyId, range);
+}
+
+PropertyIdMappingAccessor::PropertyIdMappingAccessor(std::shared_ptr<IBasicPropertyAccessor> accessor, uint32_t targetPropertyId)
+    : accessor_(std::move(accessor)), targetPropertyId_(targetPropertyId) {}
+
+void PropertyIdMappingAccessor::setPropertyValue(uint32_t, const OBPropertyValue &value) {
+    accessor_->setPropertyValue(targetPropertyId_, value);
+}
+
+void PropertyIdMappingAccessor::getPropertyValue(uint32_t, OBPropertyValue *value) {
+    accessor_->getPropertyValue(targetPropertyId_, value);
+}
+
+void PropertyIdMappingAccessor::getPropertyRange(uint32_t, OBPropertyRange *range) {
+    accessor_->getPropertyRange(targetPropertyId_, range);
 }
 
 FunctionPropertyAccessor::FunctionPropertyAccessor(std::function<OBPropertyValue(uint32_t)> getter, std::function<void(uint32_t, OBPropertyValue)> setter,

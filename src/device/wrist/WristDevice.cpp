@@ -53,6 +53,7 @@ std::shared_ptr<const StreamProfile> normalizeH265AliasProfile(const std::shared
     }
     return profile;
 }
+
 }  // namespace
 
 static const uint8_t WRIST_USB_INTERFACE_COLOR = 0;
@@ -68,6 +69,7 @@ void WristDevice::init() {
     initProperties();
 
     fetchDeviceInfo();
+    registerRecoveryModeProperty();
     fetchExtensionInfo();
 
     deviceTimeFreq_ = 1000000;
@@ -158,6 +160,21 @@ void WristDevice::fetchDeviceInfo() {
 
     // mark the device as a multi-sensor device with same clock at default
     extensionInfo_["AllSensorsUsingSameClock"] = "true";
+}
+
+void WristDevice::registerRecoveryModeProperty() {
+    auto propertyServer  = getPropertyServer();
+    auto vendorAccessor  = getComponentT<VendorPropertyAccessor>(OB_DEV_COMPONENT_MAIN_PROPERTY_ACCESSOR);
+    auto firmwareVersion = getFirmwareVersionInt();
+
+    const auto devicePropertyId = firmwareVersion >= 10006
+                                      ? OB_PROP_BOOT_INTO_RECOVERY_MODE_BOOL
+                                      : OB_PROP_DEVICE_IN_RECOVERY_MODE_BOOL;
+    auto mappedAccessor = std::make_shared<PropertyIdMappingAccessor>(vendorAccessor.get(), devicePropertyId);
+
+    // The SDK always exposes the correct public property. Firmware before 1.0.6
+    // implemented the command under the legacy property ID internally.
+    propertyServer->registerProperty(OB_PROP_BOOT_INTO_RECOVERY_MODE_BOOL, "w", "w", mappedAccessor);
 }
 
 void WristDevice::initSensorStreamProfile(std::shared_ptr<ISensor> sensor) {
@@ -409,10 +426,6 @@ void WristDevice::initProperties() {
         propertyServer->registerProperty(OB_STRUCT_DEVICE_TEMPERATURE, "r", "r", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_PROP_REBOOT_DEVICE_BOOL, "w", "w", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_PROP_RECORDING_ACTION_INT, "rw", "w", vendorPropertyAccessor);
-        // The application explicitly sets this property to reboot Wrist into
-        // recovery mode. WristDevice itself does not perform firmware updates;
-        // the re-enumerated WristBootDevice owns that capability.
-        propertyServer->registerProperty(OB_PROP_DEVICE_IN_RECOVERY_MODE_BOOL, "w", "w", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_PROP_GYRO_ODR_INT, "rw", "rw", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_PROP_ACCEL_ODR_INT, "rw", "rw", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_PROP_GYRO_FULL_SCALE_INT, "rw", "rw", vendorPropertyAccessor);

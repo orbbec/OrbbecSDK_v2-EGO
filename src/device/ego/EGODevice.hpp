@@ -22,6 +22,7 @@ private:
     void init() override;
     void initSensorList();
     void initProperties();
+    void registerRecoveryModeProperty();
     void initSensorStreamProfile(std::shared_ptr<ISensor> sensor);
     void fetchDeviceInfo() override;
 

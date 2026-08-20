@@ -24,6 +24,20 @@ private:
     DeviceComponentId compId_;
 };
 
+class PropertyIdMappingAccessor : public IBasicPropertyAccessor {
+public:
+    PropertyIdMappingAccessor(std::shared_ptr<IBasicPropertyAccessor> accessor, uint32_t targetPropertyId);
+    ~PropertyIdMappingAccessor() noexcept override = default;
+
+    void setPropertyValue(uint32_t propertyId, const OBPropertyValue &value) override;
+    void getPropertyValue(uint32_t propertyId, OBPropertyValue *value) override;
+    void getPropertyRange(uint32_t propertyId, OBPropertyRange *range) override;
+
+private:
+    std::shared_ptr<IBasicPropertyAccessor> accessor_;
+    uint32_t                                targetPropertyId_;
+};
+
 class FunctionPropertyAccessor : public IBasicPropertyAccessor {
 public:
     FunctionPropertyAccessor(std::function<OBPropertyValue(uint32_t)> getter, std::function<void(uint32_t, OBPropertyValue)> setter,
