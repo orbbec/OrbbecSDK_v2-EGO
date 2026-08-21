@@ -314,7 +314,7 @@ bool CRKScan::InitLocalHub()
 			continue;
 		}
 		hubInfo.strHubPath = strHubName;
-		hubInfo.strHubLayer = to_string(index+1);
+		hubInfo.strHubLayer = std::to_string(index + 1);
 		bRet = GetHubPortNum(strHubName,hubPort);
 		if (!bRet)
 		{
