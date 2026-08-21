@@ -9,7 +9,10 @@
 #include "logger/LoggerInterval.hpp"
 #include "stream/StreamProfileFactory.hpp"
 #include "stream/StreamProfile.hpp"
+#include "usb/uvc/UvcDevicePort.hpp"
 #include "usb/uvc/UvcTypes.hpp"
+#include "property/VendorPropertyAccessor.hpp"
+#include "component/property/InternalProperty.hpp"
 #include "utils/PublicTypeHelper.hpp"
 
 #include <string>
@@ -17,7 +20,7 @@
 namespace libobsensor {
 
 namespace {
-constexpr uint8_t EGOPRO_MAX_COLOR_ID        = 3;
+constexpr uint8_t EGOPRO_MAX_COLOR_ID                = 3;
 constexpr size_t  EGOPRO_SCR_SOURCE_CLOCK_LOW_OFFSET = 4;
 
 uint8_t getEgoProColorId(const StandardUvcFramePayloadHeader *metadata) {
@@ -134,7 +137,7 @@ void EGOProColorDemuxer::startStream(uint8_t colorId, std::shared_ptr<const Stre
         else if(!isSameProfile(activeProfile_, profile)) {
             THROW_INVALID_PARAM_EXCEPTION("EgoPro shared color endpoint requires identical width, height, fps and format for all active channels");
         }
-        callbacks_[colorId] = std::move(callback);
+        callbacks_[colorId]    = std::move(callback);
         frameIndexes_[colorId] = 1;  // Frame number starts from 1 for each virtual stream.
     }
 
@@ -166,6 +169,7 @@ void EGOProColorDemuxer::stopStream(uint8_t colorId) {
 
     if(shouldStopRealPort) {
         realPort_->stopAllStream();
+        sendStopStreamVendorCmd();
     }
 }
 
@@ -179,7 +183,25 @@ void EGOProColorDemuxer::stopAllStream() {
     }
     if(shouldStopRealPort) {
         realPort_->stopAllStream();
+        sendStopStreamVendorCmd();
     }
+}
+
+void EGOProColorDemuxer::sendStopStreamVendorCmd() {
+    // Match VideoSensor::stop() ordering: the UVC endpoint has already been closed above, now tell the
+    // firmware to stop the shared color pipeline. On EgoPro all 4 channels share one UVC interface, so
+    // this is sent once (last channel stopped) on the real port, not per virtual color sensor.
+    auto uvcPort = std::dynamic_pointer_cast<UvcDevicePort>(realPort_);
+    if(!uvcPort) {
+        return;
+    }
+    // EGO firmware assigns bUnitID=2 to the Orbbec vendor XU; update before creating the accessor
+    // so that Linux/libuvc (which routes by unit number) targets the correct unit.
+    uvcPort->updateXuUnit(OB_EGO_XU_UNIT);
+    auto            accessor = std::make_shared<VendorPropertyAccessor>(owner_, realPort_);
+    OBPropertyValue value;
+    value.intValue = 1;
+    TRY_EXECUTE({ accessor->setPropertyValue(OB_PROP_STOP_COLOR_STREAM_BOOL, value); })
 }
 
 void EGOProColorDemuxer::onFrame(std::shared_ptr<Frame> frame) {
@@ -188,8 +210,8 @@ void EGOProColorDemuxer::onFrame(std::shared_ptr<Frame> frame) {
         return;
     }
 
-    const auto *metadata = reinterpret_cast<const StandardUvcFramePayloadHeader *>(frame->getMetadata());
-    const auto  colorId  = getEgoProColorId(metadata);
+    const auto          *metadata = reinterpret_cast<const StandardUvcFramePayloadHeader *>(frame->getMetadata());
+    const auto           colorId  = getEgoProColorId(metadata);
     MutableFrameCallback callback;
     uint64_t             frameIndex;
     {
@@ -199,7 +221,7 @@ void EGOProColorDemuxer::onFrame(std::shared_ptr<Frame> frame) {
             LOG_WARN_INTVL("EgoPro color frame has inactive or invalid channel id {}, drop frame", colorId);
             return;
         }
-        callback = iter->second;
+        callback   = iter->second;
         frameIndex = frameIndexes_[colorId]++;
     }
 

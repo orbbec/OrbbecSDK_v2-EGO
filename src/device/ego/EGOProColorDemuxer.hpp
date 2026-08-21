@@ -30,6 +30,10 @@ public:
 private:
     bool isSameProfile(const std::shared_ptr<const StreamProfile> &lhs, const std::shared_ptr<const StreamProfile> &rhs) const;
     void onFrame(std::shared_ptr<Frame> frame);
+    // EgoPro multiplexes 4 color channels onto one shared UVC endpoint, so the firmware
+    // STOP_COLOR_STREAM command stops the whole shared color pipeline (not a single channel).
+    // Send it on the real UVC port only when that endpoint actually closes (last channel stopped).
+    void sendStopStreamVendorCmd();
 
 private:
     IDevice                                *owner_;
@@ -38,8 +42,8 @@ private:
     std::map<uint8_t, MutableFrameCallback> callbacks_;
     // The physical UVC endpoint alternates frames from all four cameras.  Keep
     // an independent sequence for every virtual color stream instead.
-    std::array<uint64_t, 4>                 frameIndexes_{};
-    std::shared_ptr<const StreamProfile>    activeProfile_;
+    std::array<uint64_t, 4>              frameIndexes_{};
+    std::shared_ptr<const StreamProfile> activeProfile_;
 };
 
 }  // namespace libobsensor
