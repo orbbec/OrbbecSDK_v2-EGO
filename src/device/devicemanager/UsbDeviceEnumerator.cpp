@@ -15,6 +15,7 @@
 #include "ego/EGODeviceInfo.hpp"
 #include "wrist/WristDeviceInfo.hpp"
 #include "ego/boot/EGOBootDeviceInfo.hpp"
+#include "ego/boot/EgoProBoadDeviceInfo.hpp"
 #include "openni/OpenNIDeviceInfo.hpp"
 #include "bootloader/BootDeviceInfo.hpp"
 
@@ -204,6 +205,9 @@ DeviceEnumInfoList UsbDeviceEnumerator::usbDeviceInfoMatch(const SourcePortInfoL
 
     auto egoBootDevs = EGOBootDeviceInfo::pickDevices(portInfoList);
     std::copy(egoBootDevs.begin(), egoBootDevs.end(), std::back_inserter(deviceInfoList));
+
+    auto egoProBoadDevs = EgoProBoadDeviceInfo::pickDevices(portInfoList);
+    std::copy(egoProBoadDevs.begin(), egoProBoadDevs.end(), std::back_inserter(deviceInfoList));
 
     auto openniDevs = OpenNIDeviceInfo::pickDevices(portInfoList);
     std::copy(openniDevs.begin(), openniDevs.end(), std::back_inserter(deviceInfoList));

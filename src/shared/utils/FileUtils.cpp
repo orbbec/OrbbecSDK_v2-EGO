@@ -148,7 +148,18 @@ std::string joinPaths(const std::string &parent, const std::string &fileName) {
 }
 
 std::vector<uint8_t> readFile(const std::string &filePath) {
+#ifdef WIN32
+    const int wideLength = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, filePath.c_str(), -1, nullptr, 0);
+    if(wideLength == 0) {
+        LOG_WARN("Invalid UTF-8 file path");
+        return {};
+    }
+    std::wstring widePath(static_cast<size_t>(wideLength), L'\0');
+    MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, filePath.c_str(), -1, &widePath[0], wideLength);
+    auto pFile = _wfopen(widePath.c_str(), L"rb");
+#else
     auto pFile = fopen(filePath.c_str(), "rb");
+#endif
     if(nullptr == pFile) {
         LOG_WARN("open file failed. filePath: {}", filePath);
         return {};

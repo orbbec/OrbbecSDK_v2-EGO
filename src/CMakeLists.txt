@@ -53,6 +53,7 @@ file(GLOB_RECURSE HEADER_FILES ${CMAKE_CURRENT_LIST_DIR}/impl/*.hpp ${CMAKE_CURR
 target_sources(${OB_SDK_LIB_NAME} PRIVATE ${SOURCE_FILES} ${HEADER_FILES})
 target_link_libraries(${OB_SDK_LIB_NAME} PRIVATE ob::shared ob::core ob::filter ob::platform ob::device ob::pipeline ob::media)
 target_include_directories(${OB_SDK_LIB_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR})
+
 target_include_directories(
     ${OB_SDK_LIB_NAME} PUBLIC
     "$<BUILD_INTERFACE:${OB_PUBLIC_HEADERS_DIR}>"

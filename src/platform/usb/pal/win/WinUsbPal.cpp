@@ -40,6 +40,8 @@ constexpr uint16_t PID_BOOTLOADER_UVC           = 0x0501;
 constexpr uint16_t EGO_BOOT_DEVICE_VID           = 0x1B20;
 constexpr uint16_t PID_EGO_BOOT_ROM              = 0x0300;
 constexpr uint16_t PID_EGO_BOOT_UBOOT            = 0x0301;
+constexpr uint16_t EGOPRO_RK_BOOT_DEVICE_VID     = 0x2207;
+constexpr uint16_t PID_EGOPRO_RK_BOOT_LOADER     = 0x350E;
 namespace libobsensor {
 
 class WinUsbDeviceWatcher : public IDeviceWatcher {
@@ -420,15 +422,17 @@ LRESULT CALLBACK WinUsbDeviceWatcher::onWinEvent(HWND hWnd, UINT message, WPARAM
                     symbolicLink          = utils::string::toUpper(symbolicLink);
                     if(wParam == DBT_DEVICEARRIVAL) {
                         LOG_DEBUG("Device arrival event occurred! symbolicLink={}", symbolicLink);
-                        const bool isUsbDeviceInterface = devIntf->dbcc_classguid == GUID_DEVINTERFACE_USB_DEVICE;
-                        const bool isUvcBootloader      = (ORBBEC_DEVICE_VID == vid) && (PID_BOOTLOADER_UVC == pid);
-                        const bool isEgoBootDevice      = vid == EGO_BOOT_DEVICE_VID && (pid == PID_EGO_BOOT_ROM || pid == PID_EGO_BOOT_UBOOT);
+                        const bool isUsbDeviceInterface  = (devIntf->dbcc_classguid == GUID_DEVINTERFACE_USB_DEVICE);
+                        const bool isUvcBootloader       = (ORBBEC_DEVICE_VID == vid) && (PID_BOOTLOADER_UVC == pid);
+                        const bool isEgoBootDevice       = (vid == EGO_BOOT_DEVICE_VID) && (pid == PID_EGO_BOOT_ROM || pid == PID_EGO_BOOT_UBOOT);
+                        const bool isEgoProRkBootDevice = (vid == EGOPRO_RK_BOOT_DEVICE_VID) && (pid == PID_EGOPRO_RK_BOOT_LOADER);
 
                         // Generic USB-device notifications are normally suppressed because a
                         // UVC/HID device also generates its own interface notifications. EGO
                         // boot devices expose only this generic USB mass-storage notification,
-                        // so allow only their two known recovery PIDs through.
-                        if(!isUsbDeviceInterface || isUvcBootloader || isEgoBootDevice) {
+                        // so allow only known boot/recovery PIDs through. RockUSB presents
+                        // the same generic interface and must also be forwarded.
+                        if(!isUsbDeviceInterface || isUvcBootloader || isEgoBootDevice || isEgoProRkBootDevice) {
                             (void)watcherExtraData->callback_(OB_DEVICE_ARRIVAL, symbolicLink);
                         }
                     }

@@ -33,4 +33,17 @@ target_sources(
              ${CMAKE_CURRENT_LIST_DIR}/boot/EGOBinPackage.cpp
              ${CMAKE_CURRENT_LIST_DIR}/boot/EGOMd5.hpp
              ${CMAKE_CURRENT_LIST_DIR}/boot/EGOMd5.cpp
+             ${CMAKE_CURRENT_LIST_DIR}/boot/EgoProBoadDeviceInfo.hpp
+             ${CMAKE_CURRENT_LIST_DIR}/boot/EgoProBoadDeviceInfo.cpp
+             ${CMAKE_CURRENT_LIST_DIR}/boot/EgoProRkBootDevice.hpp
+             ${CMAKE_CURRENT_LIST_DIR}/boot/EgoProRkBootDevice.cpp
+             ${CMAKE_CURRENT_LIST_DIR}/boot/EgoProRkFirmwareUpdater.hpp
+             ${CMAKE_CURRENT_LIST_DIR}/boot/EgoProRkFirmwareUpdater.cpp
+             ${CMAKE_CURRENT_LIST_DIR}/boot/IRockusbUpgradeBackend.hpp
+             ${CMAKE_CURRENT_LIST_DIR}/boot/RockusbDllBackend.hpp
+             ${CMAKE_CURRENT_LIST_DIR}/boot/RockusbDllBackend.cpp
+             ${CMAKE_CURRENT_LIST_DIR}/boot/EgoProUpgradeApi.h
         )
+
+
+add_subdirectory(rockchip_upgrade/egopro_dll)

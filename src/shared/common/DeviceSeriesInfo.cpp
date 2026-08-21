@@ -289,6 +289,14 @@ bool isSupportedDevice(uint32_t vid, uint32_t pid) {
         return true;
     }
 #endif
+    // EgoPro firmware-upgrade device in RockUSB download (Loader) mode, exposed
+    // by the Rockchip "USB download gadget". macOS uses the same libusb
+    // enumerator as Linux, so it must not be filtered before EgoProBoadDeviceInfo
+    // can match this vendor-specific interface. Keep the whitelist narrow to the
+    // single known VID/PID pair.
+    if(vid == EGOPRO_BOADER_VID && pid == EGOPRO_BOADER_PID) {
+        return true;
+    }
 
     uint32_t key = (static_cast<uint32_t>(vid) << 16) | static_cast<uint32_t>(pid);
     return deviceEnumWhitelist.count(key) > 0;

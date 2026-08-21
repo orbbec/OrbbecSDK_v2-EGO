@@ -17,6 +17,10 @@
 
 namespace libobsensor {
 
+// EgoPro firmware upgrade board (RockUSB download gadget).
+#define EGOPRO_BOADER_VID 0x2207
+#define EGOPRO_BOADER_PID 0x350E
+
 extern std::vector<DeviceIdentifier> G330DevPids;
 extern std::vector<DeviceIdentifier> G330LDevPids;
 extern std::vector<DeviceIdentifier> DaBaiADevPids;
