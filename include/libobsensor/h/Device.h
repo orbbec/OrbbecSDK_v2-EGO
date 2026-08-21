@@ -539,6 +539,26 @@ OB_EXPORT void ob_device_set_direction_key_callback(ob_device *device, ob_device
 OB_EXPORT void ob_device_clear_direction_key_callback(ob_device *device, ob_error **error);
 
 /**
+ * @brief Set the HID battery-information callback.
+ *
+ * This callback is available only on devices that report battery information over HID.
+ *
+ * @param[in] device The device object.
+ * @param[in] callback The callback function to be called when a battery report is received.
+ * @param[in] user_data User-defined data that will be returned in the callback.
+ * @param[out] error Pointer to an error object that will be set if an error occurs.
+ */
+OB_EXPORT void ob_device_set_battery_info_callback(ob_device *device, ob_battery_info_callback callback, void *user_data, ob_error **error);
+
+/**
+ * @brief Clear the HID battery-information callback.
+ *
+ * @param[in] device The device object.
+ * @param[out] error Pointer to an error object that will be set if an error occurs.
+ */
+OB_EXPORT void ob_device_clear_battery_info_callback(ob_device *device, ob_error **error);
+
+/**
  * @brief Set the Ego device state callback.
  *
  * @param[in] device The device object.

@@ -25,6 +25,7 @@
 #include "ICustomMetadataManager.hpp"
 #include "component/fwlog/FirmwareLogManager.hpp"
 #include "hid/EgoStateService.hpp"
+#include "hid/BatteryInfoService.hpp"
 #include "hid/DirectionKeyService.hpp"
 #include "utils/PublicTypeHelper.hpp"
 
@@ -979,6 +980,24 @@ void ob_device_clear_direction_key_callback(ob_device *device, ob_error **error)
     VALIDATE_NOT_NULL(device);
     auto directionKeyService = device->device->getComponentT<libobsensor::DirectionKeyService>(libobsensor::OB_DEV_COMPONENT_DIRECTION_KEY_SERVICE);
     directionKeyService->clearCallback();
+}
+HANDLE_EXCEPTIONS_NO_RETURN(device)
+
+void ob_device_set_battery_info_callback(ob_device *device, ob_battery_info_callback callback, void *user_data, ob_error **error)
+    BEGIN_API_CALL {
+        VALIDATE_NOT_NULL(device);
+        VALIDATE_NOT_NULL(callback);
+        auto batteryInfoService =
+            device->device->getComponentT<libobsensor::BatteryInfoService>(libobsensor::OB_DEV_COMPONENT_BATTERY_INFO_SERVICE);
+        batteryInfoService->setCallback([callback, user_data](const OBBatteryInfo &info) { callback(&info, user_data); });
+    }
+HANDLE_EXCEPTIONS_NO_RETURN(device, callback, user_data)
+
+void ob_device_clear_battery_info_callback(ob_device *device, ob_error **error) BEGIN_API_CALL {
+    VALIDATE_NOT_NULL(device);
+    auto batteryInfoService =
+        device->device->getComponentT<libobsensor::BatteryInfoService>(libobsensor::OB_DEV_COMPONENT_BATTERY_INFO_SERVICE);
+    batteryInfoService->clearCallback();
 }
 HANDLE_EXCEPTIONS_NO_RETURN(device)
 

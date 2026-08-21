@@ -2307,6 +2307,16 @@ typedef struct {
 } OBDirectionKeyInfomation, ob_direction_key_infomation;
 
 /**
+ * @brief Battery information reported through HID.
+ */
+typedef struct {
+    uint32_t capacity;    /**< Battery capacity reported by firmware. */
+    uint32_t voltage;     /**< Battery voltage reported by firmware. */
+    uint8_t  usbOnline;   /**< USB online status. 1: online, 0: offline. */
+    int8_t   temperature; /**< Battery temperature reported by firmware. */
+} OBBatteryInfo, ob_battery_info;
+
+/**
  * @brief Ego device work state reported through HID.
  */
 typedef enum {
@@ -2433,6 +2443,14 @@ typedef void (*ob_device_state_callback)(ob_device_state state, const char *mess
  * @param[in] user_data User-defined data.
  */
 typedef void (*ob_device_direction_key_callback)(const OBDirectionKeyInfomation *info, void *user_data);
+
+/**
+ * @brief Callback for HID battery information notifications.
+ *
+ * @param[in] info Battery information.
+ * @param[in] user_data User-defined data.
+ */
+typedef void (*ob_battery_info_callback)(const OBBatteryInfo *info, void *user_data);
 
 /**
  * @brief Callback for Ego HID state notifications.

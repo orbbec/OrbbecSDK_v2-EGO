@@ -64,6 +64,13 @@ public:
     typedef std::function<void(const OBDirectionKeyInfomation &info)> DirectionKeyCallback;
 
     /**
+     * @brief Callback function for HID battery information reports.
+     *
+     * @param[in] info Battery information.
+     */
+    typedef std::function<void(const OBBatteryInfo &info)> BatteryInfoCallback;
+
+    /**
      * @brief Callback function for Ego HID state reports.
      *
      * @param[in] state Ego device state information.
@@ -91,6 +98,7 @@ protected:
     ob_device                 *impl_ = nullptr;
     DeviceStateChangedCallback deviceStateChangeCallback_;
     DirectionKeyCallback       directionKeyCallback_;
+    BatteryInfoCallback        batteryInfoCallback_;
     EgoStateCallback           egoStateCallback_;
     EgoRecordingResultCallback egoRecordingResultCallback_;
     DeviceFwUpdateCallback     fwUpdateCallback_;
@@ -803,6 +811,39 @@ public:
     }
 
     /**
+     * @brief Set the HID battery-information callback.
+     *
+     * @param[in] callback The callback function that is triggered when a HID battery report is received.
+     */
+    void setBatteryInfoCallback(BatteryInfoCallback callback) {
+        if(!callback) {
+            clearBatteryInfoCallback();
+            return;
+        }
+
+        ob_error *error      = nullptr;
+        batteryInfoCallback_ = callback;
+        try {
+            ob_device_set_battery_info_callback(impl_, &Device::batteryInfoCallbackBridge, this, &error);
+            Error::handle(&error);
+        }
+        catch(...) {
+            batteryInfoCallback_ = nullptr;
+            throw;
+        }
+    }
+
+    /**
+     * @brief Clear the HID battery-information callback.
+     */
+    void clearBatteryInfoCallback() {
+        ob_error *error = nullptr;
+        ob_device_clear_battery_info_callback(impl_, &error);
+        Error::handle(&error);
+        batteryInfoCallback_ = nullptr;
+    }
+
+    /**
      * @brief Set the Ego device state callback.
      *
      * @param[in] callback The callback function that is triggered when an Ego HID state report is received.
@@ -1431,6 +1472,13 @@ private:
         auto device = static_cast<Device *>(userData);
         if(device && device->directionKeyCallback_ && info) {
             device->directionKeyCallback_(*info);
+        }
+    }
+
+    static void batteryInfoCallbackBridge(const OBBatteryInfo *info, void *userData) {
+        auto device = static_cast<Device *>(userData);
+        if(device && device->batteryInfoCallback_ && info) {
+            device->batteryInfoCallback_(*info);
         }
     }
 
