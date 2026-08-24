@@ -28,6 +28,7 @@
 #include "RKImage.h"
 #include "RKDevice.h"
 #include "RKUpgrade.h"
+#include "logger/Logger.hpp"
 #ifdef _WIN32
 #include "os\\win\\RKScan.h"
 #include "os\\win\\RKComm.h"
@@ -117,7 +118,10 @@ extern "C" EGOPRO_API int egopro_rk_upgrade_file(const char *image_path, egopro_
         // ObjectInit(path, false): the whole-image MD5 check is skipped (the RK
         // sample only enables it for the standalone image-verify command).
         image = new CRKImage();
-        if(image->ObjectInit(image_path, false) != 0 || image->Error != 0) {
+        const int imageInitResult = image->ObjectInit(image_path, false);
+        const int imageError      = image->Error;
+        if(imageInitResult != 0 || imageError != 0) {
+            LOG_ERROR("Failed to load EgoPro RockUSB image: path='{}', ObjectInit result={}, image error={}", image_path, imageInitResult, imageError);
             result = -2;  // bad image
             throw 0;
         }

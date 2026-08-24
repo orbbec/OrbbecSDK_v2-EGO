@@ -85,6 +85,11 @@ target_include_directories(EgoProRkUpgrade PRIVATE
     ${RK_SRC_ROOT}
 )
 
+# EgoProUpgradeApi emits SDK-formatted diagnostic logs. Link the SDK shared
+# target explicitly so this static library receives the logger/spdlog include
+# paths during its own compilation, rather than relying on its final consumer.
+target_link_libraries(EgoProRkUpgrade PRIVATE ob::shared)
+
 if(WIN32)
     target_link_libraries(EgoProRkUpgrade PRIVATE setupapi)
 else()
