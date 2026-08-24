@@ -98,7 +98,7 @@ void progressPrompt(uint_32 /*layer*/, ENUM_PROGRESS_PROMPT prompt, long long to
 extern "C" EGOPRO_API int egopro_rk_upgrade_file(const char *image_path, egopro_progress_cb cb, void *user, const volatile int *cancel_flag) {
     g_cb     = cb;
     g_user   = user;
-        g_cancel = cancel_flag;
+    g_cancel = cancel_flag;
 
     if(image_path == NULL) {
         return -1;
@@ -113,9 +113,11 @@ extern "C" EGOPRO_API int egopro_rk_upgrade_file(const char *image_path, egopro_
 
     try {
 
-        // Load and verify the update image.
+        // Load the update image. Mirror the upstream "UF" command, which calls
+        // ObjectInit(path, false): the whole-image MD5 check is skipped (the RK
+        // sample only enables it for the standalone image-verify command).
         image = new CRKImage();
-        if(image->ObjectInit(image_path) != 0 || image->Error != 0) {
+        if(image->ObjectInit(image_path, false) != 0 || image->Error != 0) {
             result = -2;  // bad image
             throw 0;
         }
@@ -161,10 +163,34 @@ extern "C" EGOPRO_API int egopro_rk_upgrade_file(const char *image_path, egopro_
             throw 0;
         }
         device->SetObject(image, comm, NULL);
+        // Match the packet-affecting device tuning the RK sample's
+        // upgrade_firmware() applies (main.cpp UF path). These mirror the RK
+        // tool's default globals; setting them explicitly keeps the wire
+        // traffic identical to `rk_upgrade_sample UF <img>` and avoids relying
+        // on constructor defaults (m_bUsb3Transfer in particular is left
+        // uninitialized by the vendored CRKDevice constructor).
+        device->RemallocDisk   = false;             // g_bRemallocDisk
+        device->MiscModifyFlag = MISC_MODIFY_NONE;  // MISC_MODIFY_NONE
         // EgoPro Loader accepts writes but does not provide reliable LBA
-        // read-back data. Use the upgrade tool''s built-in no-check mode;
-        // RockUSB write commands remain checked through their transport status.
-        device->NoCheckMode = true;
+        // read-back data. Use the upgrade tool's built-in no-check mode
+        // (matches the sample's g_bReadCheckOff default of true); RockUSB write
+        // commands remain checked through their transport status.
+        device->NoCheckMode   = true;   // g_bReadCheckOff (default true)
+        device->IDBCheckMode  = false;  // g_bCloseCheckIDB
+        device->NorSingleIDB  = false;  // g_bNorSingleIDB
+        device->ForceDataBand = 0;      // g_uiForceBand
+        device->Usb3Transfer  = false;  // g_bUsb3Transfer
+
+        // g_bUsbDriver4m: the RK sample enables 4M USB transfer when the Windows
+        // rockusb driver is >= 5.13 (non-Windows always enables it). Replicate
+        // that here so the TEST_UNIT_READY sub-code (0xF7 vs 0x00) sent at the
+        // start of DownloadImage matches the sample byte-for-byte.
+#ifdef _WIN32
+        uint_32 drvMajor = 0, drvMinor = 0;
+        device->UsbDriver4M = CRKScan::GetRockusbDriverVer(drvMajor, drvMinor) && ((drvMajor > 5) || (drvMajor == 5 && drvMinor >= 13));
+#else
+        device->UsbDriver4M = true;
+#endif
         device->CallBackPointer = progressPrompt;
 
         // [V1] Standard full-firmware step-set; MASKROM-only steps are filtered
