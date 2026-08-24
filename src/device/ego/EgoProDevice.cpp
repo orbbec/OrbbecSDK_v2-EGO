@@ -33,6 +33,7 @@
 #include "component/fwrecord/FwRecordProfileManager.hpp"
 #include "component/fwrecord/FwRecordingDirectoryManager.hpp"
 #include "component/custommetadata/CustomMetadataManager.hpp"
+#include "component/timezone/UtcOffsetManager.hpp"
 #include "common/DeviceSeriesInfo.hpp"
 
 #include "FilterFactory.hpp"
@@ -85,6 +86,11 @@ void EgoProDevice::init() {
     auto deviceClockSynchronizer = std::make_shared<DeviceClockSynchronizer>(this, deviceTimeFreq_, deviceTimeFreq_);
     registerComponent(OB_DEV_COMPONENT_DEVICE_CLOCK_SYNCHRONIZER, deviceClockSynchronizer);
     registerComponent(OB_DEV_COMPONENT_FW_RECORD_PROFILE_MANAGER, [this]() { return std::make_shared<FwRecordProfileManager>(this); });
+
+    auto utcOffsetManager = std::make_shared<UtcOffsetManager>(this);
+    registerComponent(OB_DEV_COMPONENT_UTC_OFFSET_MANAGER, utcOffsetManager);
+    BEGIN_TRY_EXECUTE({ utcOffsetManager->syncFromSystem(); })
+    CATCH_EXCEPTION_AND_EXECUTE({ LOG_WARN("Failed to initialize local UTC offset for EGO device"); })
 }
 
 void EgoProDevice::fetchDeviceInfo() {
@@ -137,7 +143,7 @@ void EgoProDevice::fetchDeviceInfo() {
     }
     deviceInfo_->fullName_ = deviceInfo_->name_;
 
-    const size_t deviceUserNameBufferSize = 32;
+    const size_t         deviceUserNameBufferSize = 32;
     std::vector<uint8_t> userNameData;
     BEGIN_TRY_EXECUTE({ userNameData = propServer->getStructureData(OB_STRUCT_DEVICE_USER_NAME, PROP_ACCESS_INTERNAL); })
     CATCH_EXCEPTION_AND_EXECUTE({ userNameData.clear(); })
@@ -199,7 +205,7 @@ void EgoProDevice::initSensorStreamProfile(std::shared_ptr<ISensor> sensor) {
 }
 
 void EgoProDevice::initSensorList() {
-    //registerComponent(OB_DEV_COMPONENT_SENSOR_STREAM_STRATEGY, [this]() { return std::make_shared<EGOStreamStrategy>(this); });
+    // registerComponent(OB_DEV_COMPONENT_SENSOR_STREAM_STRATEGY, [this]() { return std::make_shared<EGOStreamStrategy>(this); });
 
     registerComponent(OB_DEV_COMPONENT_FRAME_PROCESSOR_FACTORY, [this]() {
         std::shared_ptr<FrameProcessorFactory> factory;
@@ -210,9 +216,8 @@ void EgoProDevice::initSensorList() {
     const auto &sourcePortInfoList = enumInfo_->getSourcePortInfoList();
 
     // ---- Left color (UVC) ----
-    auto leftColorPortInfoIter = std::find_if(sourcePortInfoList.begin(), sourcePortInfoList.end(), [](const std::shared_ptr<const SourcePortInfo> &portInfo) {
-        return portInfo->portType == SOURCE_PORT_USB_UVC;
-    });
+    auto leftColorPortInfoIter = std::find_if(sourcePortInfoList.begin(), sourcePortInfoList.end(),
+                                              [](const std::shared_ptr<const SourcePortInfo> &portInfo) { return portInfo->portType == SOURCE_PORT_USB_UVC; });
 
     if(leftColorPortInfoIter != sourcePortInfoList.end()) {
         auto leftColorPortInfo = *leftColorPortInfoIter;
@@ -263,10 +268,11 @@ void EgoProDevice::initSensorList() {
         });
 
         const std::vector<std::tuple<OBSensorType, DeviceComponentId, DeviceComponentId, uint8_t>> extraColors = {
-            { OB_SENSOR_COLOR_RIGHT, OB_DEV_COMPONENT_RIGHT_COLOR_SENSOR, OB_DEV_COMPONENT_RIGHT_COLOR_FRAME_PROCESSOR, static_cast<uint8_t>(1) },
-            { OB_SENSOR_COLOR_SIDE_LEFT, OB_DEV_COMPONENT_SIDE_LEFT_COLOR_SENSOR, OB_DEV_COMPONENT_SIDE_LEFT_COLOR_FRAME_PROCESSOR, static_cast<uint8_t>(3) },
-            { OB_SENSOR_COLOR_SIDE_RIGHT, OB_DEV_COMPONENT_SIDE_RIGHT_COLOR_SENSOR, OB_DEV_COMPONENT_SIDE_RIGHT_COLOR_FRAME_PROCESSOR,
-              static_cast<uint8_t>(2) },
+            std::make_tuple(OB_SENSOR_COLOR_RIGHT, OB_DEV_COMPONENT_RIGHT_COLOR_SENSOR, OB_DEV_COMPONENT_RIGHT_COLOR_FRAME_PROCESSOR, static_cast<uint8_t>(1)),
+            std::make_tuple(OB_SENSOR_COLOR_SIDE_LEFT, OB_DEV_COMPONENT_SIDE_LEFT_COLOR_SENSOR, OB_DEV_COMPONENT_SIDE_LEFT_COLOR_FRAME_PROCESSOR,
+                            static_cast<uint8_t>(3)),
+            std::make_tuple(OB_SENSOR_COLOR_SIDE_RIGHT, OB_DEV_COMPONENT_SIDE_RIGHT_COLOR_SENSOR, OB_DEV_COMPONENT_SIDE_RIGHT_COLOR_FRAME_PROCESSOR,
+                            static_cast<uint8_t>(2)),
         };
 
         for(const auto &extraColor: extraColors) {
@@ -375,8 +381,8 @@ void EgoProDevice::initSensorList() {
             // the gyro and accel are both on the same port; no correction filter applied
             auto sharedHidPort  = getComponentT<SharedDataStreamPort>(OB_DEV_COMPONENT_SHARED_HID_STREAM);
             auto dataStreamPort = sharedHidPort->createClientPort();
-            auto imuStreamer = std::make_shared<ImuStreamer>(this, dataStreamPort, std::vector<std::shared_ptr<IFilter>>{},
-                                                              std::make_shared<ImuCalculatorBMI088>());
+            auto imuStreamer =
+                std::make_shared<ImuStreamer>(this, dataStreamPort, std::vector<std::shared_ptr<IFilter>>{}, std::make_shared<ImuCalculatorBMI088>());
             return imuStreamer;
         });
 

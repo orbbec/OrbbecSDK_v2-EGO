@@ -9,7 +9,10 @@
 #include <chrono>
 #include <ctime>
 
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(__GLIBC__)
+// glibc already declares timegm in <time.h> (with throw()); redeclaring it here
+// would conflict on its exception specifier. Only declare as a fallback for
+// libc implementations that do not expose it.
 extern "C" time_t timegm(struct tm *timeptr);
 #endif
 

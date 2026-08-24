@@ -26,6 +26,7 @@
 #include "component/fwrecord/FwRecordProfileManager.hpp"
 #include "component/fwrecord/FwRecordingDirectoryManager.hpp"
 #include "component/custommetadata/CustomMetadataManager.hpp"
+#include "component/timezone/UtcOffsetManager.hpp"
 #include "common/DeviceSeriesInfo.hpp"
 
 #include "FilterFactory.hpp"
@@ -94,6 +95,11 @@ void EgoProNetDevice::init() {
         TRY_EXECUTE({ firmwareUpdater = std::make_shared<FirmwareUpdater>(this); })
         return firmwareUpdater;
     });
+
+    auto utcOffsetManager = std::make_shared<UtcOffsetManager>(this);
+    registerComponent(OB_DEV_COMPONENT_UTC_OFFSET_MANAGER, utcOffsetManager);
+    BEGIN_TRY_EXECUTE({ utcOffsetManager->syncFromSystem(); })
+    CATCH_EXCEPTION_AND_EXECUTE({ LOG_WARN("Failed to initialize local UTC offset for EGO network device"); })
 }
 
 void EgoProNetDevice::fetchDeviceInfo() {
@@ -137,7 +143,7 @@ void EgoProNetDevice::fetchDeviceInfo() {
     }
     deviceInfo_->fullName_ = deviceInfo_->name_;
 
-    const size_t deviceUserNameBufferSize = 32;
+    const size_t         deviceUserNameBufferSize = 32;
     std::vector<uint8_t> userNameData;
     BEGIN_TRY_EXECUTE({ userNameData = propServer->getStructureData(OB_STRUCT_DEVICE_USER_NAME, PROP_ACCESS_INTERNAL); })
     CATCH_EXCEPTION_AND_EXECUTE({ userNameData.clear(); })
@@ -188,9 +194,8 @@ void EgoProNetDevice::initSensorList() {
 
                 sensor->updateFormatFilterConfig(formatFilterConfigs);
 
-                // TODO: Re-enable after firmware returns a valid OB_STRUCT_DEVICE_TIME(1037) response.
-                // auto videoFrameTimestampCalculator = std::make_shared<FrameTimestampCalculatorBaseDeviceTime>(this, deviceTimeFreq_, colorFrameTimeFreq_);
-                // sensor->setFrameTimestampCalculator(videoFrameTimestampCalculator);
+                auto videoFrameTimestampCalculator = std::make_shared<FrameTimestampCalculatorBaseDeviceTime>(this, deviceTimeFreq_, colorFrameTimeFreq_);
+                sensor->setFrameTimestampCalculator(videoFrameTimestampCalculator);
 
                 auto frameProcessor = getComponentT<FrameProcessor>(OB_DEV_COMPONENT_LEFT_COLOR_FRAME_PROCESSOR, false);
                 if(frameProcessor) {
@@ -231,9 +236,8 @@ void EgoProNetDevice::initSensorList() {
 
                 sensor->updateFormatFilterConfig(formatFilterConfigs);
 
-                // TODO: Re-enable after firmware returns a valid OB_STRUCT_DEVICE_TIME(1037) response.
-                // auto videoFrameTimestampCalculator = std::make_shared<FrameTimestampCalculatorBaseDeviceTime>(this, deviceTimeFreq_, colorFrameTimeFreq_);
-                // sensor->setFrameTimestampCalculator(videoFrameTimestampCalculator);
+                auto videoFrameTimestampCalculator = std::make_shared<FrameTimestampCalculatorBaseDeviceTime>(this, deviceTimeFreq_, colorFrameTimeFreq_);
+                sensor->setFrameTimestampCalculator(videoFrameTimestampCalculator);
 
                 auto frameProcessor = getComponentT<FrameProcessor>(OB_DEV_COMPONENT_RIGHT_COLOR_FRAME_PROCESSOR, false);
                 if(frameProcessor) {
@@ -276,9 +280,8 @@ void EgoProNetDevice::initSensorList() {
 
                 sensor->updateFormatFilterConfig(formatFilterConfigs);
 
-                // TODO: Re-enable after firmware returns a valid OB_STRUCT_DEVICE_TIME(1037) response.
-                // auto videoFrameTimestampCalculator = std::make_shared<FrameTimestampCalculatorBaseDeviceTime>(this, deviceTimeFreq_, colorFrameTimeFreq_);
-                // sensor->setFrameTimestampCalculator(videoFrameTimestampCalculator);
+                auto videoFrameTimestampCalculator = std::make_shared<FrameTimestampCalculatorBaseDeviceTime>(this, deviceTimeFreq_, colorFrameTimeFreq_);
+                sensor->setFrameTimestampCalculator(videoFrameTimestampCalculator);
 
                 auto frameProcessor = getComponentT<FrameProcessor>(OB_DEV_COMPONENT_SIDE_LEFT_COLOR_FRAME_PROCESSOR, false);
                 if(frameProcessor) {
@@ -321,9 +324,8 @@ void EgoProNetDevice::initSensorList() {
 
                 sensor->updateFormatFilterConfig(formatFilterConfigs);
 
-                // TODO: Re-enable after firmware returns a valid OB_STRUCT_DEVICE_TIME(1037) response.
-                // auto videoFrameTimestampCalculator = std::make_shared<FrameTimestampCalculatorBaseDeviceTime>(this, deviceTimeFreq_, colorFrameTimeFreq_);
-                // sensor->setFrameTimestampCalculator(videoFrameTimestampCalculator);
+                auto videoFrameTimestampCalculator = std::make_shared<FrameTimestampCalculatorBaseDeviceTime>(this, deviceTimeFreq_, colorFrameTimeFreq_);
+                sensor->setFrameTimestampCalculator(videoFrameTimestampCalculator);
 
                 auto frameProcessor = getComponentT<FrameProcessor>(OB_DEV_COMPONENT_SIDE_RIGHT_COLOR_FRAME_PROCESSOR, false);
                 if(frameProcessor) {
@@ -389,8 +391,8 @@ void EgoProNetDevice::initSensorList() {
             // no correction filter applied: EGOAlgParamManager is disabled, so no intrinsics would be bound
             auto sharedHidPort  = getComponentT<SharedDataStreamPort>(OB_DEV_COMPONENT_SHARED_HID_STREAM);
             auto dataStreamPort = sharedHidPort->createClientPort();
-            auto imuStreamer = std::make_shared<ImuStreamer>(this, dataStreamPort, std::vector<std::shared_ptr<IFilter>>{},
-                                                              std::make_shared<ImuCalculatorBMI088>());
+            auto imuStreamer =
+                std::make_shared<ImuStreamer>(this, dataStreamPort, std::vector<std::shared_ptr<IFilter>>{}, std::make_shared<ImuCalculatorBMI088>());
             return imuStreamer;
         });
 
@@ -536,7 +538,7 @@ void EgoProNetDevice::initProperties() {
     propertyServer->registerProperty(OB_RAW_DATA_FW_RECORDING_PART_LIST, "r", "r", vendorPropertyAccessor);
 
     // propertyServer->registerProperty(OB_PROP_DEVICE_IN_RECOVERY_MODE_BOOL, "r", "r", vendorPropertyAccessor);
-    //propertyServer->registerProperty(OB_PROP_BOOT_INTO_RECOVERY_MODE_BOOL, "w", "w", vendorPropertyAccessor);
+    // propertyServer->registerProperty(OB_PROP_BOOT_INTO_RECOVERY_MODE_BOOL, "w", "w", vendorPropertyAccessor);
 
     auto imuCorrectorFilter = getSensorFrameFilter("IMUCorrector", OB_SENSOR_ACCEL);
     if(imuCorrectorFilter) {
