@@ -97,6 +97,7 @@ public:
     DeviceComponentPtr<IPropertyServer> getPropertyServer() override;
 
     void updateFirmware(const std::vector<uint8_t> &firmware, DeviceFwUpdateCallback updateCallback, bool async) override;
+    void updateFirmwareFromPath(const std::string &path, DeviceFwUpdateCallback updateCallback, bool async) override;
     void setFirmwareUpdateState(bool isUpdating) override;
     bool isFirmwareUpdating() const override;
     void updateOptionalDepthPresets(const char filePathList[][OB_PATH_MAX], uint8_t pathCount, DeviceFwUpdateCallback updateCallback) override;

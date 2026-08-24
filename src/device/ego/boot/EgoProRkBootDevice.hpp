@@ -13,6 +13,7 @@ public:
     explicit EgoProRkBootDevice(const std::shared_ptr<const IDeviceEnumInfo> &info);
     ~EgoProRkBootDevice() noexcept override;
     void                                  updateFirmware(const std::vector<uint8_t> &, DeviceFwUpdateCallback, bool) override;
+    void                                  updateFirmwareFromPath(const std::string &, DeviceFwUpdateCallback, bool) override;
     std::vector<std::shared_ptr<IFilter>> createRecommendedPostProcessingFilters(OBSensorType) override {
         return {};
     }

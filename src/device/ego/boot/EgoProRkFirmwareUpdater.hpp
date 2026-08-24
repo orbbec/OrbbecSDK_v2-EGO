@@ -6,6 +6,7 @@
 #include "SourcePortInfo.hpp"
 #include <atomic>
 #include <memory>
+#include <string>
 #include <thread>
 #include <vector>
 namespace libobsensor {
@@ -18,9 +19,11 @@ public:
     EgoProRkFirmwareUpdater(std::shared_ptr<const USBSourcePortInfo> bootPortInfo, uint16_t pid);
     ~EgoProRkFirmwareUpdater() noexcept;
     void update(const std::vector<uint8_t> &firmware, DeviceFwUpdateCallback callback, bool async);
+    void updateFromPath(const std::string &path, DeviceFwUpdateCallback callback, bool async);
 
 private:
     void                                     run(std::vector<uint8_t> firmware, DeviceFwUpdateCallback callback);
+    void                                     runFromPath(std::string path, DeviceFwUpdateCallback callback);
     std::shared_ptr<const USBSourcePortInfo> bootPortInfo_;
     uint16_t                                 initialPid_;
     std::unique_ptr<IRockusbUpgradeBackend>  backend_;

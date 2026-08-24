@@ -1,5 +1,12 @@
 #include "RKScan.h"
 
+#if defined(__ANDROID__)
+#include "Platform.hpp"
+#include "usb/enumerator/UsbEnumeratorLibusb.hpp"
+#include "usb/vendor/VendorUsbDevicePort.hpp"
+#include <exception>
+#endif
+
 int CRKScan::GetDEVICE_COUNTS()
 {
 	return m_list.size();
@@ -234,6 +241,51 @@ int CRKScan::FindConfigSetPos(RKDEVICE_CONFIG_SET &devConfigSet,uint_16 vid,uint
 }
 void CRKScan::EnumerateUsbDevice(RKDEVICE_DESC_SET &list,uint_32 &uiTotalMatchDevices)
 {
+#if defined(__ANDROID__)
+	uiTotalMatchDevices = 0;
+	const libobsensor::SourcePortInfoList infos = libobsensor::Platform::getInstance()->queryUsbSourcePortInfos(false);
+	for(const auto &baseInfo: infos) {
+		auto info = std::dynamic_pointer_cast<const libobsensor::USBSourcePortInfo>(baseInfo);
+		if(!info || info->portType != libobsensor::SOURCE_PORT_USB_VENDOR) {
+			continue;
+		}
+		try {
+			auto sourcePort = libobsensor::Platform::getInstance()->getUsbSourcePort(info);
+			auto vendorPort = std::dynamic_pointer_cast<libobsensor::VendorUsbDevicePort>(sourcePort);
+			if(!vendorPort) {
+				continue;
+			}
+			auto usbDevice = std::dynamic_pointer_cast<libobsensor::UsbDeviceLibusb>(vendorPort->getUsbDevice());
+			if(!usbDevice || !usbDevice->getLibusbDeviceHandle()) {
+				continue;
+			}
+			libusb_device_handle *openedHandle = usbDevice->getLibusbDeviceHandle();
+			libusb_device *device = libusb_get_device(openedHandle);
+			libusb_device_descriptor descriptor;
+			if(!device || libusb_get_device_descriptor(device, &descriptor) != 0) {
+				continue;
+			}
+			STRUCT_RKDEVICE_DESC desc = {};
+			desc.usVid = descriptor.idVendor;
+			desc.usPid = descriptor.idProduct;
+			desc.usbcdUsb = descriptor.bcdUSB;
+			desc.emUsbType = (descriptor.bcdUSB & 0x1) ? RKUSB_LOADER : RKUSB_MASKROM;
+			desc.emDeviceType = RKNONE_DEVICE;
+			desc.emUsbSpeed = HIGH_SPEED;
+			desc.pUsbHandle = device;
+			desc.pOpenedUsbHandle = openedHandle;
+			desc.strSerial = info->serial;
+			desc.strDevPath = info->url;
+			m_androidUsbDevices[info->url] = usbDevice;
+			list.push_back(desc);
+			++uiTotalMatchDevices;
+		}
+		catch(const std::exception &) {
+			// Unrelated or unauthorized Android USB devices are not candidates.
+		}
+	}
+	return;
+#else
 	STRUCT_RKDEVICE_DESC desc;
 	struct libusb_device_descriptor descriptor;
 	int ret,j,i,cnt;
@@ -323,6 +375,7 @@ void CRKScan::EnumerateUsbDevice(RKDEVICE_DESC_SET &list,uint_32 &uiTotalMatchDe
 			
 	}
 	libusb_free_device_list(pDevs,1);
+#endif
     
 }
 
@@ -330,11 +383,13 @@ void CRKScan::FreeDeviceList(RKDEVICE_DESC_SET &list)
 {
 	device_list_iter iter;
 	 for (iter=list.begin(); iter!=list.end(); iter++) {
+	#if !defined(__ANDROID__)
 		if ((*iter).pUsbHandle) 
 		{
 			libusb_unref_device((libusb_device *)((*iter).pUsbHandle));
 			(*iter).pUsbHandle = NULL;
 		}
+	#endif
 	}
    	list.clear();
 }
@@ -387,7 +442,9 @@ int CRKScan::Search(uint_32 type)
 		{
 			if ((*iter).pUsbHandle) 
 			{
+				#if !defined(__ANDROID__)
 				libusb_unref_device((libusb_device *)((*iter).pUsbHandle));
+				#endif
 				(*iter).pUsbHandle = NULL;
 			}
 			iter = m_list.erase(iter);
@@ -408,7 +465,9 @@ int CRKScan::Search(uint_32 type)
 			{
 	            if ((*iter).pUsbHandle) 
 				{
+					#if !defined(__ANDROID__)
 					libusb_unref_device((libusb_device *)((*iter).pUsbHandle));
+					#endif
 					(*iter).pUsbHandle = NULL;
 				}
 				iter = m_list.erase(iter);
@@ -434,7 +493,9 @@ int CRKScan::Search(uint_32 type)
 			{
 	            if ((*iter).pUsbHandle) 
 				{
+					#if !defined(__ANDROID__)
 					libusb_unref_device((libusb_device *)((*iter).pUsbHandle));
+					#endif
 					(*iter).pUsbHandle = NULL;
 				}
 				iter = m_list.erase(iter);
@@ -460,7 +521,9 @@ int CRKScan::Search(uint_32 type)
 			{
                 if ((*iter).pUsbHandle) 
 				{
+					#if !defined(__ANDROID__)
 					libusb_unref_device((libusb_device *)((*iter).pUsbHandle));
+					#endif
 					(*iter).pUsbHandle = NULL;
 				}
 				iter = m_list.erase(iter);
@@ -522,7 +585,17 @@ bool CRKScan::Wait(STRUCT_RKDEVICE_DESC &device,ENUM_RKUSB_TYPE usbType,uint_16 
 		
 		for ( iter=deviceList.begin();iter!=deviceList.end();iter++ )
 		{
-			if ( (*iter).uiLocationID==device.uiLocationID)
+			bool sameDevice = ((*iter).uiLocationID==device.uiLocationID);
+#if defined(__ANDROID__)
+			// Android does not expose a stable bus/port topology through the USB
+			// Host API. A RockUSB loader restart can also change its device URL,
+			// so prefer the USB serial captured before reset. If no serial is
+			// available, retain the conservative URL match rather than selecting a
+			// different device with the same VID/PID.
+			sameDevice = !device.strSerial.empty() ? ((*iter).strSerial == device.strSerial)
+				                                : (!device.strDevPath.empty() && ((*iter).strDevPath == device.strDevPath));
+#endif
+			if (sameDevice)
 			{
 				if ((usVid!=0)||(usPid!=0))
 				{
@@ -564,12 +637,15 @@ bool CRKScan::Wait(STRUCT_RKDEVICE_DESC &device,ENUM_RKUSB_TYPE usbType,uint_16 
 			device.usPid = (*iter).usPid;
 			device.uiLocationID = (*iter).uiLocationID;
 			device.pUsbHandle= (*iter).pUsbHandle;
+			device.pOpenedUsbHandle= (*iter).pOpenedUsbHandle;
 			device.emUsbType = usbType;
 			device.emUsbSpeed = (*iter).emUsbSpeed;
 			device.usbcdUsb = (*iter).usbcdUsb;
 			device.strDevPath = (*iter).strDevPath;
 			device.strSerial = (*iter).strSerial;
+			#if !defined(__ANDROID__)
 			libusb_ref_device((libusb_device *)device.pUsbHandle);
+			#endif
             
 			if (usbType==RKUSB_MSC)
 			{
@@ -611,7 +687,12 @@ bool CRKScan::Wait2(STRUCT_RKDEVICE_DESC &device,ENUM_RKUSB_TYPE usbType,uint_16
 		
 		for ( iter=deviceList.begin();iter!=deviceList.end();iter++ )
 		{
-			if ( (*iter).strSerial==device.strSerial)
+			bool sameDevice = ((*iter).strSerial==device.strSerial);
+#if defined(__ANDROID__)
+			sameDevice = !device.strSerial.empty() ? ((*iter).strSerial == device.strSerial)
+				                                : (!device.strDevPath.empty() && ((*iter).strDevPath == device.strDevPath));
+#endif
+			if (sameDevice)
 			{
 				if ((usVid!=0)||(usPid!=0))
 				{
@@ -645,12 +726,15 @@ bool CRKScan::Wait2(STRUCT_RKDEVICE_DESC &device,ENUM_RKUSB_TYPE usbType,uint_16
 			device.usPid = (*iter).usPid;
 			device.uiLocationID = (*iter).uiLocationID;
 			device.pUsbHandle= (*iter).pUsbHandle;
+			device.pOpenedUsbHandle= (*iter).pOpenedUsbHandle;
 			device.emUsbType = usbType;
 			device.emUsbSpeed = (*iter).emUsbSpeed;
 			device.usbcdUsb = (*iter).usbcdUsb;
 			device.strDevPath = (*iter).strDevPath;
 			device.strSerial = (*iter).strSerial;
+			#if !defined(__ANDROID__)
 			libusb_ref_device((libusb_device *)device.pUsbHandle);
+			#endif
             
 			if (IsRockusbDevice(devType,device.usVid,device.usPid))
 				device.emDeviceType = devType;
@@ -702,6 +786,7 @@ bool CRKScan::GetDevice(STRUCT_RKDEVICE_DESC &device,int pos)
 	device.emUsbSpeed = (*iter).emUsbSpeed;
 	device.uiLocationID = (*iter).uiLocationID;
 	device.pUsbHandle= (*iter).pUsbHandle;
+	device.pOpenedUsbHandle= (*iter).pOpenedUsbHandle;
 	device.usbcdUsb = (*iter).usbcdUsb;
 	device.strDevPath = (*iter).strDevPath;
 	device.strSerial = (*iter).strSerial;

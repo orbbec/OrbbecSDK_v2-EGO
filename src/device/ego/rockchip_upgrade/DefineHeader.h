@@ -174,6 +174,9 @@ typedef struct _STRUCT_RKDEVICE_DESC
 	ENUM_RKDEVICE_TYPE emDeviceType;
 	ENUM_USB_SPEED emUsbSpeed;
 	void*   pUsbHandle;
+	// Optional borrowed libusb_device_handle. Android obtains this from the
+	// SDK's Java-authorized USB connection; desktop scanners leave it null.
+	void*   pOpenedUsbHandle;
 	string strSerial;
 	string strDevPath;
 }STRUCT_RKDEVICE_DESC,*PSTRUCT_RKDEVICE_DESC;

@@ -23,8 +23,15 @@ void EgoProRkBootDevice::init() {
     updater_.reset(new EgoProRkFirmwareUpdater(info, static_cast<uint16_t>(enumInfo_->getPid())));
 }
 void EgoProRkBootDevice::updateFirmware(const std::vector<uint8_t> &fw, DeviceFwUpdateCallback cb, bool async) {
-    if(fw.empty()) {
-        THROW_INVALID_PARAM_EXCEPTION("EGOPro firmware data is empty");
+    (void)fw;
+    (void)cb;
+    (void)async;
+    THROW_INVALID_PARAM_EXCEPTION("Firmware update from data is unsupported; use the file-path firmware update API");
+}
+
+void EgoProRkBootDevice::updateFirmwareFromPath(const std::string &path, DeviceFwUpdateCallback cb, bool async) {
+    if(path.empty()) {
+        THROW_INVALID_PARAM_EXCEPTION("EGOPro firmware path is empty");
     }
     if(isFirmwareUpdating()) {
         THROW_WRONG_API_CALL_SEQUENCE_EXCEPTION("EGOPro firmware update is already running");
@@ -39,7 +46,7 @@ void EgoProRkBootDevice::updateFirmware(const std::vector<uint8_t> &fw, DeviceFw
         }
     };
     try {
-        updater_->update(fw, wrapped, async);
+        updater_->updateFromPath(path, wrapped, async);
     }
     catch(...) {
         setFirmwareUpdateState(false);

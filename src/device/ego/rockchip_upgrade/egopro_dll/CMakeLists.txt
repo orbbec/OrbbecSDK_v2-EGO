@@ -103,3 +103,9 @@ else()
         target_link_libraries(EgoProRkUpgrade PRIVATE pthread)
     endif()
 endif()
+
+# Android RockUSB enumeration must reuse the SDK's Java-authorized USB
+# handles; the desktop paths remain self-contained in the legacy scanner.
+if(ANDROID)
+    target_link_libraries(EgoProRkUpgrade PRIVATE ob::platform)
+endif()

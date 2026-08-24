@@ -30,6 +30,14 @@ bool hasRockusbMagic(const std::vector<uint8_t> &fw) {
     return std::equal(kRkfw, kRkfw + 4, fw.begin()) || std::equal(kRkaf, kRkaf + 4, fw.begin());
 }
 
+bool hasRockusbMagicFile(const std::string &path) {
+    std::ifstream stream(path.c_str(), std::ios::binary);
+    char          magic[4] = {};
+    return stream.read(magic, sizeof(magic)).gcount() == static_cast<std::streamsize>(sizeof(magic))
+           && ((magic[0] == 'R' && magic[1] == 'K' && magic[2] == 'F' && magic[3] == 'W')
+               || (magic[0] == 'R' && magic[1] == 'K' && magic[2] == 'A' && magic[3] == 'F'));
+}
+
 std::string stageDir() {
 #if defined(__ANDROID__)
     // Android application processes cannot write to their current working
@@ -114,6 +122,62 @@ void EgoProRkFirmwareUpdater::update(const std::vector<uint8_t> &fw, DeviceFwUpd
     worker_    = std::thread([this, copy, cb]() { run(copy, cb); });
     if(!async) {
         worker_.join();
+    }
+}
+
+void EgoProRkFirmwareUpdater::updateFromPath(const std::string &path, DeviceFwUpdateCallback cb, bool async) {
+    if(worker_.joinable()) {
+        worker_.join();
+    }
+    cancelled_ = false;
+    worker_ = std::thread([this, path, cb]() { runFromPath(path, cb); });
+    if(!async) {
+        worker_.join();
+    }
+}
+
+void EgoProRkFirmwareUpdater::runFromPath(std::string path, DeviceFwUpdateCallback cb) {
+    bool verified = false;
+    auto report = [&](OBFwUpdateState state, const std::string &message, uint8_t percent) {
+        if(cb) {
+            try {
+                cb(state, message.c_str(), percent);
+            }
+            catch(const std::exception &e) {
+                LOG_ERROR("EgoPro firmware update callback failed: {}", e.what());
+            }
+            catch(...) {
+                LOG_ERROR("EgoPro firmware update callback failed with an unknown exception");
+            }
+        }
+    };
+    try {
+        report(STAT_VERIFY_IMAGE, "Verifying EgoPro update image...", 0);
+        if(!hasRockusbMagicFile(path)) {
+            THROW_INVALID_PARAM_EXCEPTION("Not a valid RockUSB update image (missing RKFW/RKAF tag)");
+        }
+        verified = true;
+        report(STAT_VERIFY_SUCCESS, "EgoPro update image verified", 5);
+        if(!backend_) {
+            backend_ = createDefaultRockusbUpgradeBackend();
+        }
+        auto progress = [&](int percent, const std::string &message) {
+            const int clamped = std::max(0, std::min(100, percent));
+            const uint8_t mapped = static_cast<uint8_t>(clamped >= 100 ? 100 : 10 + clamped * 85 / 100);
+            report(STAT_FILE_TRANSFER, message.empty() ? std::string("Flashing EgoPro firmware...") : message, mapped);
+        };
+        report(STAT_IN_PROGRESS, "Flashing EgoPro firmware via RockUSB...", 10);
+        backend_->upgrade(path, progress, cancelled_);
+        report(STAT_DONE, "EgoPro firmware update completed; device is rebooting", 100);
+    }
+    catch(const std::exception &e) {
+        LOG_ERROR("EgoPro firmware update failed: {}", e.what());
+        report(verified ? ERR_OTHER : ERR_VERIFY, e.what(), 0);
+    }
+    catch(...) {
+        const std::string errorMessage = "EgoPro firmware update failed with an unknown exception";
+        LOG_ERROR("{}", errorMessage);
+        report(verified ? ERR_OTHER : ERR_VERIFY, errorMessage, 0);
     }
 }
 

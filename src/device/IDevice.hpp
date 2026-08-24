@@ -110,6 +110,9 @@ public:
 
     // device firmware update
     virtual void updateFirmware(const std::vector<uint8_t> &firmware, DeviceFwUpdateCallback updateCallback, bool async) = 0;
+    // File-path update entry. Most devices preserve the legacy path-to-data
+    // behavior; EgoPro RockUSB overrides it to stream update.img from disk.
+    virtual void updateFirmwareFromPath(const std::string &path, DeviceFwUpdateCallback updateCallback, bool async)       = 0;
 
     virtual void setFirmwareUpdateState(bool isUpdating) = 0;
 

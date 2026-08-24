@@ -236,6 +236,7 @@ protected:
 	
 private:
 	void * m_pUsbHandle;
+	bool m_borrowedUsbHandle;
 	unsigned char m_pipeBulkIn;
 	unsigned char m_pipeBulkOut;
 	int m_interfaceNum;

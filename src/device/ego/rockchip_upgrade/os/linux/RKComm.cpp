@@ -7,6 +7,7 @@ CRKComm::CRKComm(CRKLog *pLog)
 {
 	memset((void*)&m_deviceDesc,0,18);
 	m_deviceDesc.pUsbHandle = NULL;
+	m_deviceDesc.pOpenedUsbHandle = NULL;
 	m_deviceDesc.strDevPath = "";
 	m_deviceDesc.strSerial = "";
 	m_log = pLog;
@@ -23,6 +24,7 @@ CRKUsbComm::~CRKUsbComm()
 bool CRKUsbComm::InitializeUsb(STRUCT_RKDEVICE_DESC &devDesc)
 {
 	m_pUsbHandle = NULL;
+	m_borrowedUsbHandle = false;
 	m_pipeBulkIn = m_pipeBulkOut = 0;
 	m_interfaceNum = -1;
 	if (!devDesc.pUsbHandle) {
@@ -38,10 +40,21 @@ bool CRKUsbComm::InitializeUsb(STRUCT_RKDEVICE_DESC &devDesc)
 	m_deviceDesc.emUsbType = devDesc.emUsbType;
 	m_deviceDesc.emDeviceType = devDesc.emDeviceType;
 	m_deviceDesc.pUsbHandle = devDesc.pUsbHandle;
+	m_deviceDesc.pOpenedUsbHandle = devDesc.pOpenedUsbHandle;
 	m_deviceDesc.strSerial = devDesc.strSerial;
 	m_deviceDesc.strDevPath = devDesc.strDevPath;
 	int iRet;
-	iRet = libusb_open((libusb_device *)devDesc.pUsbHandle,(libusb_device_handle **)&m_pUsbHandle);
+#if defined(__ANDROID__)
+	if(devDesc.pOpenedUsbHandle != NULL) {
+		m_pUsbHandle = devDesc.pOpenedUsbHandle;
+		m_borrowedUsbHandle = true;
+		iRet = 0;
+	}
+	else
+#endif
+	{
+		iRet = libusb_open((libusb_device *)devDesc.pUsbHandle,(libusb_device_handle **)&m_pUsbHandle);
+	}
 	if (iRet!=0)
 	{
 		if (m_log) {
@@ -178,11 +191,14 @@ void CRKUsbComm::UninitializeUsb()
 			}
 		}
 			
-		libusb_close((libusb_device_handle *)m_pUsbHandle);
+		if(!m_borrowedUsbHandle) {
+			libusb_close((libusb_device_handle *)m_pUsbHandle);
+		}
 		m_pUsbHandle = NULL;
 	}
 	memset((void*)&m_deviceDesc,0,18);
 	m_deviceDesc.pUsbHandle = NULL;
+	m_deviceDesc.pOpenedUsbHandle = NULL;
 	m_deviceDesc.strDevPath = "";
 	m_deviceDesc.strSerial = "";
 	m_pipeBulkIn = m_pipeBulkOut = 0;

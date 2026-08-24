@@ -3,6 +3,14 @@
 #include "../../DefineHeader.h"
 #include "../../RKLog.h"
 
+#if defined(__ANDROID__)
+#include <map>
+#include <memory>
+namespace libobsensor {
+class IUsbDevice;
+}
+#endif
+
 
 typedef struct  
 {
@@ -48,6 +56,11 @@ private:
 	uint_32   m_waitMscSecond;
 	CRKLog *m_log;
 	RKDEVICE_DESC_SET m_list;
+#if defined(__ANDROID__)
+	// Keeps Java-authorized handles alive while CRKUpgrade uses copied scan
+	// descriptors. The key is Android's USB device URL.
+	std::map<string, std::shared_ptr<libobsensor::IUsbDevice> > m_androidUsbDevices;
+#endif
 	RKDEVICE_CONFIG_SET m_deviceConfigSet;
 	RKDEVICE_CONFIG_SET m_deviceMscConfigSet;
 

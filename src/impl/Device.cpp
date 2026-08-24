@@ -892,10 +892,8 @@ void ob_device_update_firmware(ob_device *device, const char *path, ob_device_fw
     VALIDATE_NOT_NULL(device);
     VALIDATE_NOT_NULL(path);
     VALIDATE_NOT_NULL(callback);
-    auto data = libobsensor::utils::readFile(path);
-
-    device->device->updateFirmware(
-        data,
+    device->device->updateFirmwareFromPath(
+        path,
         [callback, user_data](ob_fw_update_state status, const char *message, uint8_t percent) {  //
             callback(status, message, percent, user_data);
         },

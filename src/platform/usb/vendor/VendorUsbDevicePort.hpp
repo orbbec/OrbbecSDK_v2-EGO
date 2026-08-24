@@ -19,6 +19,10 @@ public:
 
     std::shared_ptr<const SourcePortInfo> getSourcePortInfo() const override;
 
+    std::shared_ptr<IUsbDevice> getUsbDevice() const {
+        return usbDev_;
+    }
+
 #ifdef __ANDROID__
     virtual std::string getUsbConnectType();
 #endif

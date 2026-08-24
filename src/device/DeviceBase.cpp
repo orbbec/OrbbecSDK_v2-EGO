@@ -749,6 +749,10 @@ void DeviceBase::updateFirmware(const std::vector<uint8_t> &firmware, DeviceFwUp
     updater->updateFirmwareFromRawDataExt(firmware.data(), static_cast<uint32_t>(firmware.size()), updateCallback, async);
 }
 
+void DeviceBase::updateFirmwareFromPath(const std::string &path, DeviceFwUpdateCallback updateCallback, bool async) {
+    updateFirmware(utils::readFile(path), updateCallback, async);
+}
+
 void DeviceBase::setFirmwareUpdateState(bool isUpdating) {
     isFirmwareUpdating_.store(isUpdating);
 }
