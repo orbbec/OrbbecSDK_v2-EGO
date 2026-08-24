@@ -1,5 +1,7 @@
 #include "RKImage.h"
 #include "MD5Checksum.h"
+#include <algorithm>
+#include <cctype>
 #ifdef _WIN32
 #include <windows.h>
 #endif
@@ -164,14 +166,18 @@ int CRKImage::ObjectInit(string filename,bool bDoCheck,uint_64 baseOffset,uint_6
 
 	if (!exist_file(filename))
 	{
+		m_error = ERR_OPEN_IMAGE;
 		return -1;
 	}
-	
-	transform(filename.begin(),filename.end(),filename.begin(),(int(*)(int))tolower);
-	if (filename.find(".bin")!=string::npos)
-	{
-		m_bSingleBootFlag = true;
-	}
+
+	// Keep filename unchanged: it is the path used below to open the image.
+	// Only a separate lowercase copy is needed to recognize .bin single-boot
+	// images. Lowercasing the original path breaks case-sensitive filesystems.
+	std::string lowerName = filename;
+	std::transform(lowerName.begin(), lowerName.end(), lowerName.begin(), [](unsigned char c) {
+		return static_cast<char>(std::tolower(c));
+	});
+	m_bSingleBootFlag = lowerName.size() >= 4 && lowerName.compare(lowerName.size() - 4, 4, ".bin") == 0;
 
 	if (baseOffset==static_cast<uint_64>(-1))
 	{
