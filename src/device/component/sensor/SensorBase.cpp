@@ -469,7 +469,7 @@ void SensorBase::outputFrame(std::shared_ptr<Frame> frame) {
     }
 
     if(hostTimestampProvider_) {
-        hostTimestampProvider_->applyHostTimestamp(frame);
+        hostTimestampProvider_->applyHostTimestamp(frame, owner_->getTimestampTimeBase());
     }
 
     if(globalTimestampCalculator_) {

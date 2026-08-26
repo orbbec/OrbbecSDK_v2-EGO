@@ -112,7 +112,7 @@ public:
     virtual void updateFirmware(const std::vector<uint8_t> &firmware, DeviceFwUpdateCallback updateCallback, bool async) = 0;
     // File-path update entry. Most devices preserve the legacy path-to-data
     // behavior; EgoPro RockUSB overrides it to stream update.img from disk.
-    virtual void updateFirmwareFromPath(const std::string &path, DeviceFwUpdateCallback updateCallback, bool async)       = 0;
+    virtual void updateFirmwareFromPath(const std::string &path, DeviceFwUpdateCallback updateCallback, bool async) = 0;
 
     virtual void setFirmwareUpdateState(bool isUpdating) = 0;
 
@@ -151,6 +151,20 @@ public:
     virtual uint16_t getDepthMaxValidValue(OBFormat format) {
         (void)format;
         return 65535;
+    }
+
+    /**
+     * @brief Get the realtime timestamp time base for this device.
+     */
+    virtual OBTimestampTimeBase getTimestampTimeBase() const {
+        return OB_TIMESTAMP_TIME_BASE_UTC;
+    }
+
+    /**
+     * @brief Override the realtime timestamp time base for this device.
+     */
+    virtual void setTimestampTimeBase(OBTimestampTimeBase timeBase) {
+        (void)timeBase;
     }
 
 public:

@@ -82,6 +82,10 @@ void EGODevice::init() {
     deviceTimeFreq_ = 1000000;
     frameTimeFreq_  = 1000000;
 
+    // EGO records to SD card using SDK-synced time; use host local wall-clock so on-device
+    // recording timestamps match the host local time.
+    setTimestampTimeBase(OB_TIMESTAMP_TIME_BASE_LOCAL);
+
     // auto algParamManager = std::make_shared<EGOAlgParamManager>(this);
     // registerComponent(OB_DEV_COMPONENT_ALG_PARAM_MANAGER, algParamManager);
 
@@ -143,7 +147,7 @@ void EGODevice::fetchDeviceInfo() {
     }
     deviceInfo_->fullName_ = deviceInfo_->name_;
 
-    const size_t deviceUserNameBufferSize = 32;
+    const size_t         deviceUserNameBufferSize = 32;
     std::vector<uint8_t> userNameData;
     BEGIN_TRY_EXECUTE({ userNameData = propServer->getStructureData(OB_STRUCT_DEVICE_USER_NAME, PROP_ACCESS_INTERNAL); })
     CATCH_EXCEPTION_AND_EXECUTE({ userNameData.clear(); })
@@ -186,10 +190,8 @@ void EGODevice::registerRecoveryModeProperty() {
     auto vendorAccessor  = getComponentT<VendorPropertyAccessor>(OB_DEV_COMPONENT_MAIN_PROPERTY_ACCESSOR);
     auto firmwareVersion = getFirmwareVersionInt();
 
-    const auto devicePropertyId = firmwareVersion >= 10006
-                                      ? OB_PROP_BOOT_INTO_RECOVERY_MODE_BOOL
-                                      : OB_PROP_DEVICE_IN_RECOVERY_MODE_BOOL;
-    auto mappedAccessor = std::make_shared<PropertyIdMappingAccessor>(vendorAccessor.get(), devicePropertyId);
+    const auto devicePropertyId = firmwareVersion >= 10006 ? OB_PROP_BOOT_INTO_RECOVERY_MODE_BOOL : OB_PROP_DEVICE_IN_RECOVERY_MODE_BOOL;
+    auto       mappedAccessor   = std::make_shared<PropertyIdMappingAccessor>(vendorAccessor.get(), devicePropertyId);
 
     // The SDK always exposes the correct public property. Firmware before 1.0.6
     // implemented the command under the legacy property ID internally.
@@ -387,8 +389,8 @@ void EGODevice::initSensorList() {
             // the gyro and accel are both on the same port; no correction filter applied
             auto sharedHidPort  = getComponentT<SharedDataStreamPort>(OB_DEV_COMPONENT_SHARED_HID_STREAM);
             auto dataStreamPort = sharedHidPort->createClientPort();
-            auto imuStreamer = std::make_shared<ImuStreamer>(this, dataStreamPort, std::vector<std::shared_ptr<IFilter>>{},
-                                                              std::make_shared<ImuCalculatorBMI088>());
+            auto imuStreamer =
+                std::make_shared<ImuStreamer>(this, dataStreamPort, std::vector<std::shared_ptr<IFilter>>{}, std::make_shared<ImuCalculatorBMI088>());
             return imuStreamer;
         });
 

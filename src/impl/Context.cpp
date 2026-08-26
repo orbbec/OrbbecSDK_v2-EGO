@@ -49,7 +49,7 @@ void ob_delete_context(ob_context *context, ob_error **error) BEGIN_API_CALL {
 
     // Release ref before delete to ensure DeviceManager is destroyed before Logger.
     deviceMgr.reset();
-    
+
     delete context;
 }
 HANDLE_EXCEPTIONS_NO_RETURN(context)
@@ -75,9 +75,9 @@ bool ob_force_ip_config(const char *macAddress, ob_net_ip_config config, ob_erro
     auto ctx    = libobsensor::Context::getInstance();
     auto devMgr = ctx->getDeviceManager();
 
-    bool allowZeroGateWay = false;
-    auto        deviceList = devMgr->getDeviceInfoList();
-    std::string targetMac  = macAddress;
+    bool        allowZeroGateWay = false;
+    auto        deviceList       = devMgr->getDeviceInfoList();
+    std::string targetMac        = macAddress;
     for(const auto &deviceInfo: deviceList) {
         auto portList = deviceInfo->getSourcePortInfoList();
         if(!portList.empty()) {
@@ -279,22 +279,6 @@ ob_clock_type ob_context_get_timestamp_clock_type(const ob_context *context, ob_
     return mapper->getClockType();
 }
 HANDLE_EXCEPTIONS_AND_RETURN(OB_CLOCK_TYPE_REALTIME, context)
-
-void ob_context_set_timestamp_time_base(ob_context *context, ob_timestamp_time_base time_base, ob_error **error) BEGIN_API_CALL {
-    VALIDATE_NOT_NULL(context);
-    auto mapper = context->context->getHostTimestampProvider();
-    VALIDATE_NOT_NULL(mapper);
-    mapper->setTimestampTimeBase(time_base);
-}
-HANDLE_EXCEPTIONS_NO_RETURN(context, time_base)
-
-ob_timestamp_time_base ob_context_get_timestamp_time_base(const ob_context *context, ob_error **error) BEGIN_API_CALL {
-    VALIDATE_NOT_NULL(context);
-    auto mapper = context->context->getHostTimestampProvider();
-    VALIDATE_NOT_NULL(mapper);
-    return mapper->getTimestampTimeBase();
-}
-HANDLE_EXCEPTIONS_AND_RETURN(OB_TIMESTAMP_TIME_BASE_UTC, context)
 
 #ifdef __cplusplus
 }

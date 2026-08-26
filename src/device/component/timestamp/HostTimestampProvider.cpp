@@ -52,8 +52,7 @@ HostTimestampProvider ::HostTimestampProvider() {
 void HostTimestampProvider::loadConfig() {
     auto        envConfig = EnvConfig::getInstance();
     std::string value;
-    auto        type     = OB_CLOCK_TYPE_REALTIME;  // default
-    auto        timeBase = OB_TIMESTAMP_TIME_BASE_UTC;
+    auto        type = OB_CLOCK_TYPE_REALTIME;  // default
 
     if(envConfig->getStringValue("Device.ClockSource", value)) {
         if(value == "Realtime") {
@@ -67,19 +66,6 @@ void HostTimestampProvider::loadConfig() {
         }
     }
     setClockType(type);
-
-    if(envConfig->getStringValue("Device.TimestampTimeBase", value) || envConfig->getStringValue("Device.DeviceTimeSyncTimeBase", value)) {
-        if(value == "UTC") {
-            timeBase = OB_TIMESTAMP_TIME_BASE_UTC;
-        }
-        else if(value == "Local") {
-            timeBase = OB_TIMESTAMP_TIME_BASE_LOCAL;
-        }
-        else {
-            LOG_DEBUG("Unknown timestamp time base, use UTC instead");
-        }
-    }
-    setTimestampTimeBase(timeBase);
 }
 
 void HostTimestampProvider::setClockType(OBClockType type) {
@@ -91,21 +77,12 @@ OBClockType HostTimestampProvider::getClockType() const {
     return clockType_.load(std::memory_order_relaxed);
 }
 
-void HostTimestampProvider::setTimestampTimeBase(OBTimestampTimeBase timeBase) {
-    timestampTimeBase_.store(timeBase, std::memory_order_relaxed);
-    LOG_INFO("Update timestamp time base to: {}", static_cast<int>(timeBase));
-}
-
-OBTimestampTimeBase HostTimestampProvider::getTimestampTimeBase() const {
-    return timestampTimeBase_.load(std::memory_order_relaxed);
-}
-
-uint64_t HostTimestampProvider::getTimeUs() const {
+uint64_t HostTimestampProvider::getTimeUs(OBTimestampTimeBase timeBase) const {
     if(getClockType() == OB_CLOCK_TYPE_MONOTONIC) {
         return utils::getSteadyTimeUs();
     }
 
-    if(getTimestampTimeBase() == OB_TIMESTAMP_TIME_BASE_LOCAL) {
+    if(timeBase == OB_TIMESTAMP_TIME_BASE_LOCAL) {
         auto tp = std::chrono::system_clock::now();
         auto us = std::chrono::duration_cast<std::chrono::microseconds>(tp.time_since_epoch()).count();
         return getLocalTimeUs(static_cast<uint64_t>(us));
@@ -113,15 +90,15 @@ uint64_t HostTimestampProvider::getTimeUs() const {
     return utils::getNowTimesUs();
 }
 
-uint64_t HostTimestampProvider::getTimeMs() const {
+uint64_t HostTimestampProvider::getTimeMs(OBTimestampTimeBase timeBase) const {
     if(getClockType() == OB_CLOCK_TYPE_MONOTONIC) {
         return utils::getSteadyTimeMs();
     }
 
-    return getTimeUs() / 1000;
+    return getTimeUs(timeBase) / 1000;
 }
 
-void HostTimestampProvider::applyHostTimestamp(const std::shared_ptr<Frame> &frame) const {
+void HostTimestampProvider::applyHostTimestamp(const std::shared_ptr<Frame> &frame, OBTimestampTimeBase timeBase) const {
     if(!frame) {
         return;
     }
@@ -136,7 +113,7 @@ void HostTimestampProvider::applyHostTimestamp(const std::shared_ptr<Frame> &fra
         return;
     }
 
-    if(getTimestampTimeBase() == OB_TIMESTAMP_TIME_BASE_LOCAL) {
+    if(timeBase == OB_TIMESTAMP_TIME_BASE_LOCAL) {
         auto systemTime = frame->getSystemTimeStampUsec();
         if(systemTime == 0) {
             systemTime = utils::getNowTimesUs();

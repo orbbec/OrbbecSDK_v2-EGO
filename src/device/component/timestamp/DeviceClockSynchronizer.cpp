@@ -92,6 +92,7 @@ void DeviceClockSynchronizer::timerSyncWithHost() {
     auto           devInfo                    = owner->getInfo();
     bool           isMX6600Device             = false;
     auto           hostTimestampProvider      = Context::getInstance()->getHostTimestampProvider();
+    auto           timeBase                   = owner->getTimestampTimeBase();
 
     if(devInfo->vid_ == ORBBEC_DEVICE_VID) {
         isMX6600Device = std::find(Mx6600DevPids.begin(), Mx6600DevPids.end(), devInfo->pid_) != Mx6600DevPids.end();
@@ -100,7 +101,7 @@ void DeviceClockSynchronizer::timerSyncWithHost() {
     while(repeated < MAX_REPEAT_TIME) {
         {
             auto         propertyServer = owner->getPropertyServer();
-            auto         now            = hostTimestampProvider->getTimeUs();
+            auto         now            = hostTimestampProvider->getTimeUs(timeBase);
             OBDeviceTime devTsp;
             devTsp.time = static_cast<uint64_t>(static_cast<double>(now) / 1000000 * deviceClockFreqOut_);
             devTsp.rtt  = static_cast<uint64_t>(static_cast<double>(rtt) / 1000000 * deviceClockFreqOut_);
@@ -112,7 +113,7 @@ void DeviceClockSynchronizer::timerSyncWithHost() {
             }
 
             propertyServer->setStructureDataT<OBDeviceTime>(OB_STRUCT_DEVICE_TIME, devTsp);
-            uint64_t after = hostTimestampProvider->getTimeUs();
+            uint64_t after = hostTimestampProvider->getTimeUs(timeBase);
             rtt            = after - now;
         }
         if(repeated == 0) {
@@ -122,9 +123,9 @@ void DeviceClockSynchronizer::timerSyncWithHost() {
         }
         {
             auto     propertyServer = owner->getPropertyServer();
-            uint64_t now            = hostTimestampProvider->getTimeUs();
+            uint64_t now            = hostTimestampProvider->getTimeUs(timeBase);
             auto     devTsp         = propertyServer->getStructureDataT<OBDeviceTime>(OB_STRUCT_DEVICE_TIME);
-            uint64_t after          = hostTimestampProvider->getTimeUs();
+            uint64_t after          = hostTimestampProvider->getTimeUs(timeBase);
             uint64_t nowDev         = static_cast<uint64_t>(static_cast<double>(devTsp.time) / deviceClockFreqIn_ * 1000000);
             double   diff           = std::fabs(static_cast<double>(nowDev) - (after + now) / 2);
             if(diff > 0xFFFFFFFF) {

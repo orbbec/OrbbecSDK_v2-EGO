@@ -113,32 +113,6 @@ public:
     }
 
     /**
-     * @brief Set the time base used for realtime timestamps.
-     *
-     * @attention This affects device time synchronization, frame system timestamps, global timestamps, and host-generated device timestamps.
-     * @attention This only applies when the timestamp clock type is realtime. Monotonic timestamps are not UTC/local based.
-     *
-     * @param[in] timeBase The timestamp time base to use.
-     */
-    void setTimestampTimeBase(OBTimestampTimeBase timeBase) const {
-        ob_error *error = nullptr;
-        ob_context_set_timestamp_time_base(impl_, timeBase, &error);
-        Error::handle(&error);
-    }
-
-    /**
-     * @brief Get the time base used for realtime timestamps.
-     *
-     * @return OBTimestampTimeBase The current timestamp time base.
-     */
-    OBTimestampTimeBase getTimestampTimeBase() const {
-        ob_error *error   = nullptr;
-        auto      timeBase = ob_context_get_timestamp_time_base(impl_, &error);
-        Error::handle(&error);
-        return timeBase;
-    }
-
-    /**
      * @brief Queries the enumerated device list.
      *
      * @return std::shared_ptr<DeviceList> A pointer to the device list class.

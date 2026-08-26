@@ -136,8 +136,6 @@ Based on the device's timestamp and considering data transmission delays, the ti
         <LinuxUVCBackend>LibUVC</LinuxUVCBackend>
         <!--Host-side clock type for frame timestamps; optional values: Realtime, Monotonic-->
         <ClockSource>Realtime</ClockSource>
-        <!--Realtime timestamp time base; optional values: UTC, Local-->
-        <TimestampTimeBase>UTC</TimestampTimeBase>
 
             <!--Gemini 335 config-->
         <Gemini335>
@@ -214,9 +212,4 @@ Based on the device's timestamp and considering data transmission delays, the ti
         <ClockSource>Realtime</ClockSource>
 ```
 
-4. Set the time base used for realtime timestamps. `UTC` keeps the standard Unix epoch behavior. `Local` uses the host system local-time conversion rules. This affects device time synchronization, frame system timestamps, global timestamps, and host-generated device timestamps. Monotonic timestamps are not UTC/local based.
-```cpp
-        <TimestampTimeBase>UTC</TimestampTimeBase>
-```
-
-5. Set the resolution, frame rate, and data format.
+4. Set the resolution, frame rate, and data format.
