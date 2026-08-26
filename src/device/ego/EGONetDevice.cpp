@@ -95,10 +95,6 @@ void EGONetDevice::init() {
         return firmwareUpdater;
     });
 
-    auto utcOffsetManager = std::make_shared<UtcOffsetManager>(this);
-    registerComponent(OB_DEV_COMPONENT_UTC_OFFSET_MANAGER, utcOffsetManager);
-    BEGIN_TRY_EXECUTE({ utcOffsetManager->syncFromSystem(); })
-    CATCH_EXCEPTION_AND_EXECUTE({ LOG_WARN("Failed to initialize local UTC offset for EGO network device"); })
 }
 
 void EGONetDevice::fetchDeviceInfo() {

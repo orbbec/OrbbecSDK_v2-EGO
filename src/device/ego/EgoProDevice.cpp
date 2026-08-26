@@ -90,10 +90,6 @@ void EgoProDevice::init() {
     registerComponent(OB_DEV_COMPONENT_DEVICE_CLOCK_SYNCHRONIZER, deviceClockSynchronizer);
     registerComponent(OB_DEV_COMPONENT_FW_RECORD_PROFILE_MANAGER, [this]() { return std::make_shared<FwRecordProfileManager>(this); });
 
-    auto utcOffsetManager = std::make_shared<UtcOffsetManager>(this);
-    registerComponent(OB_DEV_COMPONENT_UTC_OFFSET_MANAGER, utcOffsetManager);
-    BEGIN_TRY_EXECUTE({ utcOffsetManager->syncFromSystem(); })
-    CATCH_EXCEPTION_AND_EXECUTE({ LOG_WARN("Failed to initialize local UTC offset for EGO device"); })
 }
 
 void EgoProDevice::fetchDeviceInfo() {
