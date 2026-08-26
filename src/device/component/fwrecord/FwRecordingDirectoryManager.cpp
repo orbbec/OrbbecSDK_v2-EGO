@@ -5,6 +5,7 @@
 
 #include "IDevice.hpp"
 #include "exception/ObException.hpp"
+#include "logger/Logger.hpp"
 #include "property/InternalProperty.hpp"
 
 #include <algorithm>
@@ -53,7 +54,25 @@ std::vector<uint8_t> FwRecordingDirectoryManager::getStructureData(uint32_t prop
         THROW_INVALID_PARAM_EXCEPTION("Unsupported firmware recording directory property id");
     }
 
-    return parseWirePayload(vendorPropertyAccessor_->getStructureData(propertyId));
+    try {
+        return parseWirePayload(vendorPropertyAccessor_->getStructureData(propertyId));
+    }
+    catch(const libobsensor_exception &error) {
+        // Some EGO firmware versions advertise this property but answer its
+        // Get request with no payload or a malformed directory payload. Treat
+        // only those optional-response errors as an unavailable directory so
+        // callers can continue; transport and other protocol errors still
+        // reach the application.
+        const auto message = std::string(error.what());
+        const bool emptyStructureData = message.find("get structure data return data size invalid") != std::string::npos;
+        const bool malformedDirectoryData = error.getStatus() == OB_ERROR_INVALID_DATA
+                                            && message.find("Firmware recording directory response") != std::string::npos;
+        if(emptyStructureData || malformedDirectoryData) {
+            LOG_WARN("Firmware recording directory is unavailable: property 1098 response is invalid ({})", message);
+            return {};
+        }
+        throw;
+    }
 }
 
 void FwRecordingDirectoryManager::validateDirectory(const std::vector<uint8_t> &directory) {
