@@ -105,6 +105,8 @@ typedef enum {
     // SDK internal write-only property.
     OB_PROP_LOCAL_UTC_OFFSET_MINUTES_INT  = 295,
     OB_RAW_DATA_FW_RECORDING_PROFILE_LIST = 1096, /**< Current firmware recording profile list, OBInternalStreamProfile[] */
+    // Host UTC time, UTC offset and IANA time-zone information. Internal write-only structure property.
+    OB_STRUCT_HOST_TIME_INFO              = 1105,
 } OBInternalPropertyID;
 
 }  // namespace libobsensor

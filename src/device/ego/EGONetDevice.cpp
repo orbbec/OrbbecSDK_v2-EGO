@@ -25,7 +25,7 @@
 #include "component/fwrecord/FwRecordProfileManager.hpp"
 #include "component/fwrecord/FwRecordingDirectoryManager.hpp"
 #include "component/custommetadata/CustomMetadataManager.hpp"
-#include "component/timezone/UtcOffsetManager.hpp"
+#include "component/timezone/HostTimeInfoManager.hpp"
 #include "common/DeviceSeriesInfo.hpp"
 
 #include "FilterFactory.hpp"
@@ -95,6 +95,17 @@ void EGONetDevice::init() {
         return firmwareUpdater;
     });
 
+    auto hostTimeInfoManager = std::make_shared<HostTimeInfoManager>(this);
+    registerComponent(OB_DEV_COMPONENT_HOST_TIME_INFO_MANAGER, hostTimeInfoManager);
+    BEGIN_TRY_EXECUTE({
+        if(getFirmwareVersionInt() > 10006) {
+            hostTimeInfoManager->setHostTimeInfoToDevice();
+        }
+        else {
+            hostTimeInfoManager->setUtcOffsetToDevice();
+        }
+    })
+    CATCH_EXCEPTION_AND_EXECUTE({ LOG_WARN("Failed to initialize host time information for EGO network device"); })
 }
 
 void EGONetDevice::fetchDeviceInfo() {
@@ -394,6 +405,7 @@ void EGONetDevice::initProperties() {
     auto heartbeatPropertyAccessor = std::make_shared<HeartbeatPropertyAccessor>(this);
     // propertyServer->registerProperty(OB_PROP_HEARTBEAT_BOOL, "rw", "rw", heartbeatPropertyAccessor);
     propertyServer->registerProperty(OB_STRUCT_VERSION, "", "r", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_STRUCT_HOST_TIME_INFO, "", "w", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_STRUCT_DEVICE_SERIAL_NUMBER, "r", "r", vendorPropertyAccessor);
     // propertyServer->registerProperty(OB_STRUCT_DEVICE_IP_ADDR_CONFIG, "rw", "rw", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_STRUCT_DEVICE_TIME, "rw", "rw", vendorPropertyAccessor);

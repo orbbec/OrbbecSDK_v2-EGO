@@ -32,6 +32,12 @@ typedef struct {
     uint64_t rtt;   ///< sdk->dev: command round-trip time, the device sets the time to time+rtt/2 after receiving it; dev->sdk: reserved; unit: ms
 } OBDeviceTime, ob_device_time;
 
+typedef struct {
+    uint64_t utcTimeUs;          ///< UTC Unix epoch timestamp in microseconds
+    int32_t  timezoneOffsetMin;  ///< Local UTC offset in minutes, UTC+8 = 480
+    char     timezone[32];       ///< IANA time zone, e.g. Asia/Shanghai
+} OBHostTimeInfo, ob_host_time_info;
+
 /**
  *@brief Post-process parameters after depth align to color
  *

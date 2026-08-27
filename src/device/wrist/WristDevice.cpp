@@ -29,7 +29,7 @@
 #include "component/fwrecord/FwRecordingDirectoryManager.hpp"
 #include "component/fwlog/FirmwareLogManager.hpp"
 #include "component/custommetadata/CustomMetadataManager.hpp"
-#include "component/timezone/UtcOffsetManager.hpp"
+#include "component/timezone/HostTimeInfoManager.hpp"
 
 #include "FilterFactory.hpp"
 #include "publicfilters/FormatConverterProcess.hpp"
@@ -79,10 +79,17 @@ void WristDevice::init() {
     registerComponent(OB_DEV_COMPONENT_DEVICE_CLOCK_SYNCHRONIZER, deviceClockSynchronizer);
     registerComponent(OB_DEV_COMPONENT_FW_RECORD_PROFILE_MANAGER, [this]() { return std::make_shared<FwRecordProfileManager>(this); });
 
-    auto utcOffsetManager = std::make_shared<UtcOffsetManager>(this);
-    registerComponent(OB_DEV_COMPONENT_UTC_OFFSET_MANAGER, utcOffsetManager);
-    BEGIN_TRY_EXECUTE({ utcOffsetManager->syncFromSystem(); })
-    CATCH_EXCEPTION_AND_EXECUTE({ LOG_WARN("Failed to initialize local UTC offset for Wrist device"); })
+    auto hostTimeInfoManager = std::make_shared<HostTimeInfoManager>(this);
+    registerComponent(OB_DEV_COMPONENT_HOST_TIME_INFO_MANAGER, hostTimeInfoManager);
+    BEGIN_TRY_EXECUTE({
+        if(getFirmwareVersionInt() > 10006) {
+            hostTimeInfoManager->setHostTimeInfoToDevice();
+        }
+        else {
+            hostTimeInfoManager->setUtcOffsetToDevice();
+        }
+    })
+    CATCH_EXCEPTION_AND_EXECUTE({ LOG_WARN("Failed to initialize host time information for Wrist device"); })
 }
 
 void WristDevice::fetchDeviceInfo() {
@@ -420,6 +427,7 @@ void WristDevice::initProperties() {
         // sensor's own interface XU, so it is intentionally NOT registered on this device-global accessor.
         // TODO:
         propertyServer->registerProperty(OB_STRUCT_VERSION, "", "r", vendorPropertyAccessor);
+        propertyServer->registerProperty(OB_STRUCT_HOST_TIME_INFO, "", "w", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_STRUCT_DEVICE_SERIAL_NUMBER, "r", "r", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_STRUCT_DEVICE_TIME, "rw", "rw", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_STRUCT_GET_TF_CARD_CAPACITY, "r", "r", vendorPropertyAccessor);

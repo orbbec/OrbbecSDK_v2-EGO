@@ -54,6 +54,14 @@ target_sources(${OB_SDK_LIB_NAME} PRIVATE ${SOURCE_FILES} ${HEADER_FILES})
 target_link_libraries(${OB_SDK_LIB_NAME} PRIVATE ob::shared ob::core ob::filter ob::platform ob::device ob::pipeline ob::media)
 target_include_directories(${OB_SDK_LIB_NAME} PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 
+if(APPLE)
+    find_library(COREFOUNDATION_FRAMEWORK CoreFoundation)
+    if(NOT COREFOUNDATION_FRAMEWORK)
+        message(FATAL_ERROR "CoreFoundation framework is required on Apple platforms")
+    endif()
+    target_link_libraries(${OB_SDK_LIB_NAME} PRIVATE ${COREFOUNDATION_FRAMEWORK})
+endif()
+
 target_include_directories(
     ${OB_SDK_LIB_NAME} PUBLIC
     "$<BUILD_INTERFACE:${OB_PUBLIC_HEADERS_DIR}>"
