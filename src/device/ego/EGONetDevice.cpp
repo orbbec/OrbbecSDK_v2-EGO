@@ -64,9 +64,12 @@ EGONetDevice::EGONetDevice(const std::shared_ptr<const IDeviceEnumInfo> &info) :
 
     // check and start heartbeat after initialization is complete
     checkAndStartHeartbeat();
+    LOG_DEBUG("EGONetDevice Construct.....");
 }
 
-EGONetDevice::~EGONetDevice() noexcept {}
+EGONetDevice::~EGONetDevice() noexcept {
+    LOG_DEBUG("EGONetDevice Destructor.....");
+}
 
 void EGONetDevice::init() {
     initProperties();
@@ -149,7 +152,7 @@ void EGONetDevice::fetchDeviceInfo() {
     }
     deviceInfo_->fullName_ = deviceInfo_->name_;
 
-    const size_t deviceUserNameBufferSize = 32;
+    const size_t         deviceUserNameBufferSize = 32;
     std::vector<uint8_t> userNameData;
     BEGIN_TRY_EXECUTE({ userNameData = propServer->getStructureData(OB_STRUCT_DEVICE_USER_NAME, PROP_ACCESS_INTERNAL); })
     CATCH_EXCEPTION_AND_EXECUTE({ userNameData.clear(); })
@@ -309,8 +312,8 @@ void EGONetDevice::initSensorList() {
             // no correction filter applied: EGOAlgParamManager is disabled, so no intrinsics would be bound
             auto sharedHidPort  = getComponentT<SharedDataStreamPort>(OB_DEV_COMPONENT_SHARED_HID_STREAM);
             auto dataStreamPort = sharedHidPort->createClientPort();
-            auto imuStreamer = std::make_shared<ImuStreamer>(this, dataStreamPort, std::vector<std::shared_ptr<IFilter>>{},
-                                                              std::make_shared<ImuCalculatorBMI088>());
+            auto imuStreamer =
+                std::make_shared<ImuStreamer>(this, dataStreamPort, std::vector<std::shared_ptr<IFilter>>{}, std::make_shared<ImuCalculatorBMI088>());
             return imuStreamer;
         });
 

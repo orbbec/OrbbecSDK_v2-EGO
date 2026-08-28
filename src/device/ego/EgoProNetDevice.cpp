@@ -65,9 +65,12 @@ EgoProNetDevice::EgoProNetDevice(const std::shared_ptr<const IDeviceEnumInfo> &i
 
     // check and start heartbeat after initialization is complete
     checkAndStartHeartbeat();
+    LOG_DEBUG("EGOProNetDevice Construct.....");
 }
 
-EgoProNetDevice::~EgoProNetDevice() noexcept {}
+EgoProNetDevice::~EgoProNetDevice() noexcept {
+    LOG_DEBUG("EGOProNetDevice Destructor.....");
+}
 
 void EgoProNetDevice::init() {
     initProperties();

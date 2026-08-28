@@ -6,7 +6,7 @@
 #include "utils/Utils.hpp"
 #include "exception/ObException.hpp"
 
-#if (defined(WIN32) || defined(_WIN32) || defined(WINCE))
+#if(defined(WIN32) || defined(_WIN32) || defined(WINCE))
 #include <windows.h>
 #include <iphlpapi.h>
 #include <iostream>
@@ -31,7 +31,7 @@ VendorTCPClient::VendorTCPClient(std::string localAddress, std::string localMac,
       CONNECT_TIMEOUT_MS(connectTimeout),
       COMM_TIMEOUT_MS(commTimeout) {
     LOG_DEBUG("VendorTCPClient create localAddress:{}, localMac:{}", localAddress_, localMac_);
-#if (defined(WIN32) || defined(_WIN32) || defined(WINCE))
+#if(defined(WIN32) || defined(_WIN32) || defined(WINCE))
     WSADATA wsaData;
     int     rst = WSAStartup(MAKEWORD(2, 2), &wsaData);
     if(rst != 0) {
@@ -41,10 +41,11 @@ VendorTCPClient::VendorTCPClient(std::string localAddress, std::string localMac,
     checkLocalIP();
 // Due to network configuration changes causing socket connection pipeline errors, macOS throws a SIGPIPE exception to the application, leading to a crash (this
 // does not occur on Linux). This exception needs to be filtered out.
-#if (defined(OS_IOS) || defined(OS_MACOS))
+#if(defined(OS_IOS) || defined(OS_MACOS))
     signal(SIGPIPE, SIG_IGN);
 #endif
     socketConnect();
+    LOG_DEBUG("VendorTCPClient Constructor ");
 }
 
 void VendorTCPClient::checkLocalIP() {
@@ -59,7 +60,7 @@ void VendorTCPClient::checkLocalIP() {
         }
     }
 
-#if (defined(WIN32) || defined(_WIN32) || defined(WINCE))
+#if(defined(WIN32) || defined(_WIN32) || defined(WINCE))
     if(!isValidIP_) {
         localAddress_ = "";
         IP_ADAPTER_INFO adapterInfo[16];  // Buffer to hold adapter info
@@ -107,9 +108,11 @@ void VendorTCPClient::checkLocalIP() {
 
 VendorTCPClient::~VendorTCPClient() noexcept {
     socketClose();
-#if (defined(WIN32) || defined(_WIN32) || defined(WINCE))
+#if(defined(WIN32) || defined(_WIN32) || defined(WINCE))
     WSACleanup();
 #endif
+
+    LOG_DEBUG("VendorTCPClient Destructor ");
 }
 
 bool VendorTCPClient::checkConnectReady(SOCKET socket, uint32_t timeoutMs) {
@@ -174,7 +177,9 @@ void VendorTCPClient::socketConnect() {
         THROW_IO_EXCEPTION(utils::string::to_string() << "create socket failed! err_code=" << GET_LAST_ERROR());
     }
 
-#if (defined(WIN32) || defined(_WIN32) || defined(WINCE))
+    LOG_DEBUG("TCP client socket: create socket={}", socketFd_);
+
+#if(defined(WIN32) || defined(_WIN32) || defined(WINCE))
     uint32_t commTimeout = COMM_TIMEOUT_MS;
 #else
     TIMEVAL commTimeout;
@@ -246,7 +251,7 @@ void VendorTCPClient::socketConnect() {
     rst = connect(socketFd_, (struct sockaddr *)&serverAddr, sizeof(serverAddr));
     if(rst < 0) {
         rst = GET_LAST_ERROR();
-#if (defined(WIN32) || defined(_WIN32) || defined(WINCE))
+#if(defined(WIN32) || defined(_WIN32) || defined(WINCE))
         if(rst != WSAEWOULDBLOCK) {
 #else
         if(rst != EINPROGRESS) {  // EINPROGRESS due to non-blocking mode
@@ -276,15 +281,20 @@ void VendorTCPClient::socketConnect() {
 }
 
 void VendorTCPClient::socketClose() {
-    if(socketFd_ > 0) {
-        auto rst = closesocket(socketFd_);
-        LOG_DEBUG("TCP client socket closed.");
+    // Guard against closing an already-invalidated socket. Use the portable "!= INVALID_SOCKET" check
+    // (instead of "> 0") so the sentinel stays consistent with socketConnect()/flush() on all platforms
+    // (Windows: SOCKET is an unsigned UINT_PTR and INVALID_SOCKET is ~0; POSIX: SOCKET is int and -1).
+    if(socketFd_ != INVALID_SOCKET) {
+        // Capture the error code immediately after the call: intervening calls (e.g. logging) may
+        // overwrite the thread-local last-error, so deferring GET_LAST_ERROR() could report a stale code.
+        auto rst     = closesocket(socketFd_);
+        auto lastErr = GET_LAST_ERROR();
+        socketFd_    = INVALID_SOCKET;  // invalidate before any early exit, preventing a double close
         if(rst < 0) {
-            LOG_ERROR("close socket failed! socket={0}, err_code={1}", socketFd_, GET_LAST_ERROR());
+            LOG_ERROR("close socket failed! socket={0}, err_code={1}", socketFd_, lastErr);
         }
     }
     LOG_DEBUG("TCP client socket closed! socket={}", socketFd_);
-    socketFd_ = INVALID_SOCKET;
 }
 
 void VendorTCPClient::socketReconnect() {
@@ -306,19 +316,42 @@ int VendorTCPClient::read(uint8_t *data, const uint32_t dataLen, utils::TimeInte
             rst = recv(socketFd_, (char *)data, dataLen, 0);
 #endif
 
-            if(rst < 0) {
-                rst = GET_LAST_ERROR();
-#if (defined(WIN32) || defined(_WIN32) || defined(WINCE))
-                if((rst == WSAECONNRESET || rst == WSAENOTCONN || rst == WSAETIMEDOUT) && retry >= 1) {
-#else
-                if((rst == EAGAIN || rst == EWOULDBLOCK) && retry >= 1) {
-                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            if(rst == 0) {
+                // Peer has performed an orderly shutdown (recv returning 0 means the connection is closed).
+                if(retry >= 1) {
+                    LOG_INFO("reconnect...");
+                    socketReconnect();
+                    continue;
                 }
-                else if((rst == ENOTCONN || rst == ECONNRESET || rst == ETIMEDOUT) && retry >= 1) {
-#endif
+                return -1;
+            }
+            else if(rst < 0) {
+                rst = GET_LAST_ERROR();
+#if(defined(WIN32) || defined(_WIN32) || defined(WINCE))
+                if(rst == WSAETIMEDOUT) {
+                    // Timed out with no data; return 0 to indicate "no data available" (normal case).
+                    return 0;
+                }
+                else if((rst == WSAECONNRESET || rst == WSAENOTCONN) && retry >= 1) {
+                    LOG_INFO("RESET or NOTCONN ,reconnect...");
                     socketReconnect();
                     return -1;
                 }
+#else
+                if(rst == EAGAIN || rst == EWOULDBLOCK) {
+                    // Timed out with no data; return 0 to indicate "no data available" (normal case).
+                    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+                    return 0;
+                }
+                else if(rst == EINTR) {
+                    // Interrupted by a signal; retry directly.
+                    continue;
+                }
+                else if((rst == ENOTCONN || rst == ECONNRESET || rst == ETIMEDOUT) && retry >= 1) {
+                    socketReconnect();
+                    return -1;
+                }
+#endif
                 else {
                     THROW_IO_EXCEPTION(utils::string::to_string() << "VendorTCPClient read data failed! socket=" << socketFd_ << ", err_code=" << rst);
                 }
@@ -347,7 +380,7 @@ void VendorTCPClient::write(const uint8_t *data, const uint32_t dataLen, utils::
 
             if(rst < 0) {
                 rst = GET_LAST_ERROR();
-#if (defined(WIN32) || defined(_WIN32) || defined(WINCE))
+#if(defined(WIN32) || defined(_WIN32) || defined(WINCE))
                 if((rst == WSAECONNRESET || rst == WSAENOTCONN || rst == WSAETIMEDOUT) && retry >= 1) {
 #else
                 if((rst == EAGAIN || rst == EWOULDBLOCK) && retry >= 1) {

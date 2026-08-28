@@ -9,7 +9,9 @@
 
 namespace libobsensor {
 
-NetDataStreamPort::NetDataStreamPort(std::shared_ptr<const NetDataStreamPortInfo> portInfo) : portInfo_(portInfo), isStreaming_(false) {}
+NetDataStreamPort::NetDataStreamPort(std::shared_ptr<const NetDataStreamPortInfo> portInfo) : portInfo_(portInfo), isStreaming_(false) {
+    LOG_WARN("NetDataStreamPort Constructor!");
+}
 
 NetDataStreamPort::~NetDataStreamPort() noexcept {
     isStreaming_ = false;
@@ -20,6 +22,8 @@ NetDataStreamPort::~NetDataStreamPort() noexcept {
     if(tcpClient_) {
         tcpClient_.reset();
     }
+
+    LOG_WARN("NetDataStreamPort Destructor!");
 }
 
 void NetDataStreamPort::startStream(MutableFrameCallback callback) {
