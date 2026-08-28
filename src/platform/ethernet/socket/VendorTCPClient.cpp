@@ -289,10 +289,12 @@ void VendorTCPClient::socketClose() {
         // overwrite the thread-local last-error, so deferring GET_LAST_ERROR() could report a stale code.
         auto rst     = closesocket(socketFd_);
         auto lastErr = GET_LAST_ERROR();
-        socketFd_    = INVALID_SOCKET;  // invalidate before any early exit, preventing a double close
+
         if(rst < 0) {
             LOG_ERROR("close socket failed! socket={0}, err_code={1}", socketFd_, lastErr);
         }
+
+        socketFd_ = INVALID_SOCKET;
     }
     LOG_DEBUG("TCP client socket closed! socket={}", socketFd_);
 }
