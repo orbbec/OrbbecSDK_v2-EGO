@@ -10,6 +10,7 @@
 #include "property/InternalProperty.hpp"
 
 #include <chrono>
+#include <cmath>
 #include <cstdint>
 #include <cstring>
 #include <ctime>
@@ -170,12 +171,13 @@ int32_t HostTimeInfoManager::getUtcOffsetMinutes(std::time_t timestamp) {
     }
 
     constexpr CFAbsoluteTime kCFAbsoluteTimeAtUnixEpoch = -978307200.0;
-    const auto offsetSeconds = CFTimeZoneGetSecondsFromGMT(timeZone, kCFAbsoluteTimeAtUnixEpoch + static_cast<CFAbsoluteTime>(timestamp));
+    const auto offsetSecondsFromGmt = CFTimeZoneGetSecondsFromGMT(timeZone, kCFAbsoluteTimeAtUnixEpoch + static_cast<CFAbsoluteTime>(timestamp));
     CFRelease(timeZone);
 
-    if(static_cast<int64_t>(offsetSeconds) != offsetSeconds) {
-        THROW_INVALID_DATA_EXCEPTION("Current local UTC offset is not an integral number of seconds");
+    if(std::fmod(offsetSecondsFromGmt, static_cast<CFTimeInterval>(kSecondsPerMinute)) != 0.0) {
+        THROW_INVALID_DATA_EXCEPTION("Current local UTC offset is not an integral number of minutes");
     }
+    const auto offsetSeconds = static_cast<int64_t>(offsetSecondsFromGmt);
 #else
 
     std::tm localTime{};
