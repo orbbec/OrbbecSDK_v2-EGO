@@ -15,6 +15,7 @@
 #include <ctime>
 #include <cstdlib>
 #include <fstream>
+#include <limits>
 #include <unordered_map>
 #include <utility>
 
@@ -37,21 +38,19 @@ constexpr int64_t kSecondsPerDay        = 24 * kSecondsPerHour;
 constexpr int32_t kMinimumOffsetMinutes = -12 * 60;
 constexpr int32_t kMaximumOffsetMinutes = 14 * 60;
 
+// On Linux/Android, localtime_r() is not required to refresh the process
+// time-zone state after TZ or /etc/localtime changes. Refresh it explicitly so
+// the offset is calculated with the same current system setting as the IANA ID.
+#if !defined(_WIN32) && !defined(__APPLE__)
 bool getLocalTime(std::time_t time, std::tm *result) {
-#ifdef _WIN32
-    return localtime_s(result, &time) == 0;
-#else
+    tzset();
     return localtime_r(&time, result) != nullptr;
-#endif
 }
 
 bool getUtcTime(std::time_t time, std::tm *result) {
-#ifdef _WIN32
-    return gmtime_s(result, &time) == 0;
-#else
     return gmtime_r(&time, result) != nullptr;
-#endif
 }
+#endif
 
 // Days since 1970-01-01 for a Gregorian civil date. Comparing civil times avoids
 // interpreting a UTC tm as local time, which can be wrong near a DST transition.
@@ -124,6 +123,60 @@ void HostTimeInfoManager::setHostTimeInfoToDevice() {
 }
 
 int32_t HostTimeInfoManager::getUtcOffsetMinutes(std::time_t timestamp) {
+#ifdef _WIN32
+    // Do not use localtime_s() here. Its CRT time-zone state can remain stale
+    // after Windows changes the system time zone while this process is running.
+    constexpr int64_t  kWindowsEpochOffsetSeconds = 11644473600LL;
+    constexpr uint64_t kFileTimeTicksPerSecond    = 10000000ULL;
+    constexpr uint64_t kMaxUnixTimeSeconds = (std::numeric_limits<uint64_t>::max)() / kFileTimeTicksPerSecond
+                                             - static_cast<uint64_t>(kWindowsEpochOffsetSeconds);
+
+    if(timestamp < -kWindowsEpochOffsetSeconds || static_cast<uint64_t>(timestamp) > kMaxUnixTimeSeconds) {
+        THROW_INVALID_DATA_EXCEPTION("Current system time cannot be represented as a Windows FILETIME");
+    }
+
+    ULARGE_INTEGER fileTimeValue{};
+    fileTimeValue.QuadPart = (static_cast<uint64_t>(timestamp) + static_cast<uint64_t>(kWindowsEpochOffsetSeconds)) * kFileTimeTicksPerSecond;
+    FILETIME utcFileTime{ fileTimeValue.LowPart, fileTimeValue.HighPart };
+
+    SYSTEMTIME utcTime{};
+    if(!FileTimeToSystemTime(&utcFileTime, &utcTime)) {
+        THROW_IO_EXCEPTION("Failed to convert the current UTC time");
+    }
+
+    DYNAMIC_TIME_ZONE_INFORMATION timeZoneInfo{};
+    if(GetDynamicTimeZoneInformation(&timeZoneInfo) == TIME_ZONE_ID_INVALID) {
+        THROW_IO_EXCEPTION("Failed to query the current Windows time zone");
+    }
+
+    SYSTEMTIME localTime{};
+    if(!SystemTimeToTzSpecificLocalTimeEx(&timeZoneInfo, &utcTime, &localTime)) {
+        THROW_IO_EXCEPTION("Failed to convert the current UTC time to Windows local time");
+    }
+
+    const std::tm utcCivilTime = { utcTime.wSecond, utcTime.wMinute, utcTime.wHour, utcTime.wDay, static_cast<int>(utcTime.wMonth) - 1,
+                                   static_cast<int>(utcTime.wYear) - 1900 };
+    const std::tm localCivilTime = { localTime.wSecond, localTime.wMinute, localTime.wHour, localTime.wDay, static_cast<int>(localTime.wMonth) - 1,
+                                     static_cast<int>(localTime.wYear) - 1900 };
+    const auto offsetSeconds = civilTimeInSeconds(localCivilTime) - civilTimeInSeconds(utcCivilTime);
+#elif defined(__APPLE__)
+    // CFTimeZoneCopySystem() caches the system zone in the process. Clear it
+    // so a device reconnect observes a time-zone change made while the SDK
+    // process stayed alive.
+    CFTimeZoneResetSystem();
+    CFTimeZoneRef timeZone = CFTimeZoneCopySystem();
+    if(timeZone == nullptr) {
+        THROW_IO_EXCEPTION("Failed to query the current Apple system time zone");
+    }
+
+    constexpr CFAbsoluteTime kCFAbsoluteTimeAtUnixEpoch = -978307200.0;
+    const auto offsetSeconds = CFTimeZoneGetSecondsFromGMT(timeZone, kCFAbsoluteTimeAtUnixEpoch + static_cast<CFAbsoluteTime>(timestamp));
+    CFRelease(timeZone);
+
+    if(static_cast<int64_t>(offsetSeconds) != offsetSeconds) {
+        THROW_INVALID_DATA_EXCEPTION("Current local UTC offset is not an integral number of seconds");
+    }
+#else
 
     std::tm localTime{};
     std::tm utcTime{};
@@ -132,6 +185,7 @@ int32_t HostTimeInfoManager::getUtcOffsetMinutes(std::time_t timestamp) {
     }
 
     const auto offsetSeconds = civilTimeInSeconds(localTime) - civilTimeInSeconds(utcTime);
+#endif
     if(offsetSeconds % kSecondsPerMinute != 0) {
         THROW_INVALID_DATA_EXCEPTION("Current local UTC offset is not an integral number of minutes");
     }
@@ -647,6 +701,9 @@ std::string HostTimeInfoManager::getCurrentIanaTimeZone() {
     }
     THROW_UNSUPPORTED_OPERATION_EXCEPTION("The current Android time zone cannot be mapped to an IANA time zone");
 #elif defined(__APPLE__)
+    // See getUtcOffsetMinutes(): the Core Foundation system-zone value is
+    // process cached until it is explicitly reset.
+    CFTimeZoneResetSystem();
     CFTimeZoneRef timeZone = CFTimeZoneCopySystem();
     if(timeZone == nullptr) {
         THROW_IO_EXCEPTION("Failed to query the current Apple system time zone");
