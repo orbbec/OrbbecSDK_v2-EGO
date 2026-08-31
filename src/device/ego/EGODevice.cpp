@@ -104,6 +104,12 @@ void EGODevice::init() {
         }
     })
     CATCH_EXCEPTION_AND_EXECUTE({ LOG_WARN("Failed to initialize host time information for EGO device"); })
+
+    if(getFirmwareVersionInt() >= 10100) {
+        auto propertyServer = getPropertyServer();
+        auto vendorAccessor = getComponentT<VendorPropertyAccessor>(OB_DEV_COMPONENT_MAIN_PROPERTY_ACCESSOR);
+        propertyServer->registerProperty(OB_PROP_DEVICE_AUDIO_OUTPUT_ENABLE_BOOL, "rw", "rw", vendorAccessor.get());
+    }
 }
 
 void EGODevice::fetchDeviceInfo() {

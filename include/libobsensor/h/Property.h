@@ -841,6 +841,13 @@ typedef enum {
     OB_PROP_EGO_CLEAR_PAIRING_INT = 302,
 
     /**
+     * @brief Enable device audio output.
+     *
+     * @attention Read and write.
+     */
+    OB_PROP_DEVICE_AUDIO_OUTPUT_ENABLE_BOOL = 304,
+
+    /**
      * @brief Baseline calibration parameters
      */
     OB_STRUCT_BASELINE_CALIBRATION_PARAM = 1002,
