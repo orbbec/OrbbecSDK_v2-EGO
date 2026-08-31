@@ -12,6 +12,13 @@
 #include <cerrno>
 #if defined(_WIN32)
 #include <direct.h>
+#include <windows.h>
+#ifdef min
+#undef min
+#endif
+#ifdef max
+#undef max
+#endif
 #else
 #include <sys/stat.h>
 #endif
@@ -19,6 +26,31 @@
 #include <utility>
 namespace libobsensor {
 namespace {
+#if defined(_WIN32)
+FILE *openFirmwareFile(const std::string &path) {
+    const UINT codePages[] = { CP_UTF8, CP_ACP };
+    for(UINT codePage: codePages) {
+        if(codePage == CP_ACP && CP_ACP == CP_UTF8) {
+            continue;
+        }
+        const DWORD flags  = codePage == CP_UTF8 ? MB_ERR_INVALID_CHARS : 0;
+        const int   length = MultiByteToWideChar(codePage, flags, path.c_str(), -1, nullptr, 0);
+        if(length == 0) {
+            continue;
+        }
+        std::vector<wchar_t> widePath(static_cast<size_t>(length));
+        if(MultiByteToWideChar(codePage, flags, path.c_str(), -1, widePath.data(), length) == 0) {
+            continue;
+        }
+        FILE *file = _wfopen(widePath.data(), L"rb");
+        if(file != nullptr) {
+            return file;
+        }
+    }
+    return nullptr;
+}
+#endif
+
 // Outer RockUSB firmware container ("RKFW") and inner Android image ("RKAF")
 // tags. A valid update.img starts with one of these.
 bool hasRockusbMagic(const std::vector<uint8_t> &fw) {
@@ -31,11 +63,23 @@ bool hasRockusbMagic(const std::vector<uint8_t> &fw) {
 }
 
 bool hasRockusbMagicFile(const std::string &path) {
+#if defined(_WIN32)
+    FILE *stream = openFirmwareFile(path);
+    if(stream == nullptr) {
+        return false;
+    }
+    char         magic[4] = {};
+    const size_t bytesRead = fread(magic, 1, sizeof(magic), stream);
+    fclose(stream);
+    return bytesRead == sizeof(magic) && ((magic[0] == 'R' && magic[1] == 'K' && magic[2] == 'F' && magic[3] == 'W')
+                                          || (magic[0] == 'R' && magic[1] == 'K' && magic[2] == 'A' && magic[3] == 'F'));
+#else
     std::ifstream stream(path.c_str(), std::ios::binary);
     char          magic[4] = {};
     return stream.read(magic, sizeof(magic)).gcount() == static_cast<std::streamsize>(sizeof(magic))
            && ((magic[0] == 'R' && magic[1] == 'K' && magic[2] == 'F' && magic[3] == 'W')
                || (magic[0] == 'R' && magic[1] == 'K' && magic[2] == 'A' && magic[3] == 'F'));
+#endif
 }
 
 std::string stageDir() {

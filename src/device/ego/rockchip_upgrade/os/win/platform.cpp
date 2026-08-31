@@ -1,16 +1,32 @@
 #include "platform.h"
 
-bool exist_file(string file)
-{
-    const int length = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, file.c_str(), -1, NULL, 0);
-    if(length == 0) return false;
+namespace {
+bool existsWithCodePage(const string &file, UINT codePage) {
+    const DWORD flags  = codePage == CP_UTF8 ? MB_ERR_INVALID_CHARS : 0;
+    const int   length = MultiByteToWideChar(codePage, flags, file.c_str(), -1, NULL, 0);
+    if(length == 0) {
+        return false;
+    }
     vector<wchar_t> widePath(length);
-    MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, file.c_str(), -1, widePath.data(), length);
+    if(MultiByteToWideChar(codePage, flags, file.c_str(), -1, widePath.data(), length) == 0) {
+        return false;
+    }
     WIN32_FIND_DATAW findFileData;
-    HANDLE handle = FindFirstFileW(widePath.data(), &findFileData);
-    if(handle == INVALID_HANDLE_VALUE) return false;
+    HANDLE           handle = FindFirstFileW(widePath.data(), &findFileData);
+    if(handle == INVALID_HANDLE_VALUE) {
+        return false;
+    }
     FindClose(handle);
     return true;
+}
+}  // namespace
+
+bool exist_file(string file)
+{
+    // Public SDK paths are UTF-8, but existing Windows applications may pass
+    // the local ANSI code page from their native file picker. Try UTF-8 first
+    // and fall back to ACP only if that path does not exist.
+    return existsWithCodePage(file, CP_UTF8) || (CP_ACP != CP_UTF8 && existsWithCodePage(file, CP_ACP));
 }
 bool exist_dir(string dir)
 {

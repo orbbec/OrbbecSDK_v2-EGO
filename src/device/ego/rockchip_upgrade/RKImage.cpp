@@ -4,6 +4,31 @@
 #include <cctype>
 #ifdef _WIN32
 #include <windows.h>
+
+namespace {
+FILE *openImageFile(const std::string &filename) {
+    const UINT codePages[] = { CP_UTF8, CP_ACP };
+    for(UINT codePage: codePages) {
+        if(codePage == CP_ACP && CP_ACP == CP_UTF8) {
+            continue;
+        }
+        const DWORD flags  = codePage == CP_UTF8 ? MB_ERR_INVALID_CHARS : 0;
+        const int   length = MultiByteToWideChar(codePage, flags, filename.c_str(), -1, NULL, 0);
+        if(length == 0) {
+            continue;
+        }
+        vector<wchar_t> widePath(length);
+        if(MultiByteToWideChar(codePage, flags, filename.c_str(), -1, widePath.data(), length) == 0) {
+            continue;
+        }
+        FILE *file = _wfopen(widePath.data(), L"rb");
+        if(file != NULL) {
+            return file;
+        }
+    }
+    return NULL;
+}
+}  // namespace
 #endif
 
 uint_32 CRKImage::GetVersion()
@@ -160,10 +185,6 @@ int CRKImage::GetError()
 int CRKImage::ObjectInit(string filename,bool bDoCheck,uint_64 baseOffset,uint_64 baseSize)
 {
 	int ret;
-	// A long path previously overflowed this fixed buffer and could crash the
-	// RockUSB DLL before the firmware transfer began.
-	const char *szName = filename.c_str();
-
 	if (!exist_file(filename))
 	{
 		m_error = ERR_OPEN_IMAGE;
@@ -187,16 +208,9 @@ int CRKImage::ObjectInit(string filename,bool bDoCheck,uint_64 baseOffset,uint_6
 		m_baseOffset = baseOffset;
 
 	#ifdef _WIN32
-    const int length = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, szName, -1, NULL, 0);
-    if(length == 0) {
-        m_error = ERR_OPEN_IMAGE;
-        return -3;
-    }
-    vector<wchar_t> widePath(length);
-    MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, szName, -1, widePath.data(), length);
-    m_pFile = _wfopen(widePath.data(), L"rb");
+    m_pFile = openImageFile(filename);
 #else
-    m_pFile = fopen(szName,"rb");
+    m_pFile = fopen(filename.c_str(),"rb");
 #endif
 	if ( !m_pFile)
 	{
