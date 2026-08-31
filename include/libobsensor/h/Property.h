@@ -832,6 +832,15 @@ typedef enum {
     OB_PROP_VIDEO_GOP_INT = 294,
 
     /**
+     * @brief Clear all pairing records stored by the Ego device.
+     *
+     * Set the value to 1 to clear the pairing relationship.
+     *
+     * @attention Write only.
+     */
+    OB_PROP_EGO_CLEAR_PAIRING_INT = 302,
+
+    /**
      * @brief Baseline calibration parameters
      */
     OB_STRUCT_BASELINE_CALIBRATION_PARAM = 1002,
@@ -998,6 +1007,16 @@ typedef enum {
      * @attention Read only.
      */
     OB_RAW_DATA_FW_RECORDING_PART_LIST = 1102,
+
+    /**
+     * @brief Ego device pairing information.
+     *
+     * The firmware payload is variable length. Use
+     * @ref ob_device_get_ego_pairing_info to obtain the parsed result.
+     *
+     * @attention Read only.
+     */
+    OB_STRUCT_EGO_PAIRING_INFO = 1104,
 
     /**
      * @brief Color camera auto exposure

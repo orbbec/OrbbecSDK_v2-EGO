@@ -443,6 +443,29 @@ public:
     }
 
     /**
+     * @brief Get the parsed Ego device pairing information.
+     *
+     * @details Bluetooth names are not null terminated. Use pairing_count and
+     * each record's name_length to access the valid records and bytes.
+     */
+    OBEgoPairingInfo getEgoPairingInfo() const {
+        OBEgoPairingInfo info{};
+        ob_error        *error = nullptr;
+        ob_device_get_ego_pairing_info(impl_, &info, &error);
+        Error::handle(&error);
+        return info;
+    }
+
+    /**
+     * @brief Clear all pairing records stored by the Ego device.
+     */
+    void clearEgoPairing() const {
+        ob_error *error = nullptr;
+        ob_device_clear_ego_pairing(impl_, &error);
+        Error::handle(&error);
+    }
+
+    /**
      * @brief Get the raw data of a device property
      *
      * @param[in] propertyId The ID of the property
