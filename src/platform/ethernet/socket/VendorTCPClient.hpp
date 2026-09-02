@@ -21,10 +21,12 @@ public:
     void flush();
 
     void socketReconnect();
+    void setTimeouts(uint32_t connectTimeoutMs, uint32_t commTimeoutMs);
 
 private:
     void checkLocalIP();
     bool checkConnectReady(SOCKET socket, uint32_t timeoutMs);
+    void applyCommTimeout();
     void socketConnect();
     void socketClose();
 
@@ -38,6 +40,7 @@ private:
     bool              flushed_;
     uint32_t          CONNECT_TIMEOUT_MS = 2000;
     uint32_t          COMM_TIMEOUT_MS    = 2000;
+    bool              isCommTimeoutConfigured_ = false;
 
     std::mutex tcpMtx_;
 };

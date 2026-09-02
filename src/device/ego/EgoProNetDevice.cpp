@@ -41,6 +41,7 @@
 
 #if defined(BUILD_NET_PAL)
 #include "ethernet/RTSPStreamPort.hpp"
+#include "ethernet/VendorNetDataPort.hpp"
 #endif
 
 #include <algorithm>
@@ -48,6 +49,11 @@
 namespace libobsensor {
 
 namespace {
+#if defined(BUILD_NET_PAL)
+constexpr uint32_t egoVendorConnectTimeoutMs = 2000;
+constexpr uint32_t egoVendorCommTimeoutMs    = 5000;
+#endif
+
 OBFormat normalizeH265AliasFormat(OBFormat format) {
     return format == OB_FORMAT_HEVC ? OB_FORMAT_H265 : format;
 }
@@ -458,24 +464,27 @@ void EgoProNetDevice::initProperties() {
 
     auto propertyServer = std::make_shared<PropertyServer>(this);
 
-    auto vendorPortInfo         = *vendorPortInfoIter;
-    auto vendorPropertyAccessor = std::make_shared<LazySuperPropertyAccessor>([this, vendorPortInfo]() {
-        auto port     = getSourcePort(vendorPortInfo);
-        auto accessor = std::make_shared<VendorPropertyAccessor>(this, port);
-        return accessor;
+    auto vendorPortInfo = *vendorPortInfoIter;
+    auto sourcePort     = getSourcePort(vendorPortInfo);
+#if defined(BUILD_NET_PAL)
+    auto vendorNetPort  = std::dynamic_pointer_cast<VendorNetDataPort>(sourcePort);
+    if(!vendorNetPort) {
+        THROW_INVALID_PARAM_EXCEPTION("EGO Pro network vendor port is not VendorNetDataPort");
+    }
+    vendorNetPort->setTcpTimeouts(egoVendorConnectTimeoutMs, egoVendorCommTimeoutMs);
+#endif
+
+    auto vendorPropertyAccessor = std::make_shared<LazySuperPropertyAccessor>([this, sourcePort]() {
+        return std::make_shared<VendorPropertyAccessor>(this, sourcePort);
     });
 
     // the main property accessor
-    registerComponent(OB_DEV_COMPONENT_MAIN_PROPERTY_ACCESSOR, [this, vendorPortInfo]() {
-        auto port     = getSourcePort(vendorPortInfo);
-        auto accessor = std::make_shared<VendorPropertyAccessor>(this, port);
-        return accessor;
+    registerComponent(OB_DEV_COMPONENT_MAIN_PROPERTY_ACCESSOR, [this, sourcePort]() {
+        return std::make_shared<VendorPropertyAccessor>(this, sourcePort);
     });
 
-    registerComponent(OB_DEV_COMPONENT_DEVICE_MONITOR, [this, vendorPortInfo]() {
-        auto port       = getSourcePort(vendorPortInfo);
-        auto devMonitor = std::make_shared<DeviceMonitor>(this, port);
-        return devMonitor;
+    registerComponent(OB_DEV_COMPONENT_DEVICE_MONITOR, [this, sourcePort]() {
+        return std::make_shared<DeviceMonitor>(this, sourcePort);
     });
 
     // color controls (apply to both left/right RGB)

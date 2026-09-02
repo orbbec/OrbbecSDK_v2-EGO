@@ -178,19 +178,7 @@ void VendorTCPClient::socketConnect() {
     }
 
     LOG_DEBUG("TCP client socket: create socket={}", socketFd_);
-
-#if(defined(WIN32) || defined(_WIN32) || defined(WINCE))
-    uint32_t commTimeout = COMM_TIMEOUT_MS;
-#else
-    TIMEVAL commTimeout;
-    // commTimeout.tv_sec  = COMM_TIMEOUT_MS / 1000;
-    // commTimeout.tv_usec = COMM_TIMEOUT_MS % 1000 * 1000;
-    commTimeout.tv_sec  = 2;
-    commTimeout.tv_usec = 0;
-#endif
-
-    setsockopt(socketFd_, SOL_SOCKET, SO_SNDTIMEO, (char *)&commTimeout, sizeof(commTimeout));  // Send timeout limit
-    setsockopt(socketFd_, SOL_SOCKET, SO_RCVTIMEO, (char *)&commTimeout, sizeof(commTimeout));  // Receive timeout limit
+    applyCommTimeout();
 
     // Add SO_LINGER configuration here
     struct linger linger_opt;
@@ -278,6 +266,45 @@ void VendorTCPClient::socketConnect() {
                                                                  << ", port=" << port_ << ", err_code=" << GET_LAST_ERROR());
     }
     LOG_DEBUG("TCP client socket created!, addr={0}, port={1}, socket={2}", address_, port_, socketFd_);
+}
+
+void VendorTCPClient::setTimeouts(uint32_t connectTimeoutMs, uint32_t commTimeoutMs) {
+    if(connectTimeoutMs == 0 || commTimeoutMs == 0) {
+        THROW_INVALID_PARAM_EXCEPTION("VendorTCPClient timeout must be greater than 0");
+    }
+
+    std::lock_guard<std::mutex> lock(tcpMtx_);
+    CONNECT_TIMEOUT_MS          = connectTimeoutMs;
+    COMM_TIMEOUT_MS             = commTimeoutMs;
+    isCommTimeoutConfigured_    = true;
+
+    applyCommTimeout();
+    LOG_DEBUG("Vendor TCP timeout updated: connect={}ms, comm={}ms, addr={}, port={}", CONNECT_TIMEOUT_MS, COMM_TIMEOUT_MS, address_, port_);
+}
+
+void VendorTCPClient::applyCommTimeout() {
+    if(socketFd_ == INVALID_SOCKET) {
+        return;
+    }
+
+#if(defined(WIN32) || defined(_WIN32) || defined(WINCE))
+    const uint32_t effectiveCommTimeoutMs = COMM_TIMEOUT_MS;
+    uint32_t       commTimeout            = effectiveCommTimeoutMs;
+#else
+    const uint32_t effectiveCommTimeoutMs = isCommTimeoutConfigured_ ? COMM_TIMEOUT_MS : 2000;
+    TIMEVAL        commTimeout{};
+    commTimeout.tv_sec  = effectiveCommTimeoutMs / 1000;
+    commTimeout.tv_usec = (effectiveCommTimeoutMs % 1000) * 1000;
+#endif
+
+    if(setsockopt(socketFd_, SOL_SOCKET, SO_SNDTIMEO, (char *)&commTimeout, sizeof(commTimeout)) < 0) {
+        LOG_WARN("Set SO_SNDTIMEO failed: timeout={}ms, err={}", effectiveCommTimeoutMs, GET_LAST_ERROR());
+    }
+
+    if(setsockopt(socketFd_, SOL_SOCKET, SO_RCVTIMEO, (char *)&commTimeout, sizeof(commTimeout)) < 0) {
+        LOG_WARN("Set SO_RCVTIMEO failed: timeout={}ms, err={}", effectiveCommTimeoutMs, GET_LAST_ERROR());
+    }
+
 }
 
 void VendorTCPClient::socketClose() {

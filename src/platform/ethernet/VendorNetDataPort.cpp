@@ -5,6 +5,7 @@
 
 #include "utils/Utils.hpp"
 #include "logger/Logger.hpp"
+#include "exception/ObException.hpp"
 
 namespace libobsensor {
 #define OB_VENDOR_CMD_RECV_LEN 1024
@@ -14,6 +15,14 @@ VendorNetDataPort::VendorNetDataPort(std::shared_ptr<const NetSourcePortInfo> po
 }
 
 VendorNetDataPort::~VendorNetDataPort() noexcept {}
+
+void VendorNetDataPort::setTcpTimeouts(uint32_t connectTimeoutMs, uint32_t commTimeoutMs) {
+    std::lock_guard<std::mutex> lock(tcpMtx_);
+    if(!tcpClient_) {
+        THROW_IO_EXCEPTION("VendorNetDataPort TCP client is not initialized");
+    }
+    tcpClient_->setTimeouts(connectTimeoutMs, commTimeoutMs);
+}
 
 uint32_t VendorNetDataPort::sendAndReceive(const uint8_t *sendData, uint32_t sendLen, uint8_t *recvData, uint32_t exceptedRecvLen,
                                            utils::TransferTiming *timing) {
