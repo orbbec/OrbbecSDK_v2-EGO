@@ -47,7 +47,7 @@ void printError(const ob::Error &error) {
     std::cout << "SDK error: " << error.what() << " (type=" << error.getExceptionType() << ")" << std::endl;
 }
 
-bool setAndVerify(const std::shared_ptr<ob::Device> &device, const std::string &directory, const std::string &expectedDirectory, const char *name) {
+bool setAndVerify(const std::shared_ptr<ob::DataAcquisitionDevice> &device, const std::string &directory, const std::string &expectedDirectory, const char *name) {
     std::cout << "\n[" << name << "] setting: " << directory << std::endl;
     try {
         device->setFwRecordingDirectory(directory);
@@ -82,11 +82,11 @@ bool setAndVerify(const std::shared_ptr<ob::Device> &device, const std::string &
     return true;
 }
 
-bool setAndVerify(const std::shared_ptr<ob::Device> &device, const std::string &directory, const char *name) {
+bool setAndVerify(const std::shared_ptr<ob::DataAcquisitionDevice> &device, const std::string &directory, const char *name) {
     return setAndVerify(device, directory, directory, name);
 }
 
-bool setAndVerifyViaStructuredData(const std::shared_ptr<ob::Device> &device, const std::string &directory, const char *name) {
+bool setAndVerifyViaStructuredData(const std::shared_ptr<ob::DataAcquisitionDevice> &device, const std::string &directory, const char *name) {
     std::cout << "\n[" << name << "] setting through setStructuredData: " << directory << std::endl;
     try {
         device->setStructuredData(kDirectoryPropertyId, reinterpret_cast<const uint8_t *>(directory.data()), static_cast<uint32_t>(directory.size()));
@@ -121,7 +121,7 @@ bool setAndVerifyViaStructuredData(const std::shared_ptr<ob::Device> &device, co
     return true;
 }
 
-bool expectRejected(const std::shared_ptr<ob::Device> &device, const std::string &directory, const char *name) {
+bool expectRejected(const std::shared_ptr<ob::DataAcquisitionDevice> &device, const std::string &directory, const char *name) {
     std::cout << "\n[" << name << "] expecting rejection" << std::endl;
     try {
         device->setFwRecordingDirectory(directory);
@@ -135,7 +135,7 @@ bool expectRejected(const std::shared_ptr<ob::Device> &device, const std::string
     }
 }
 
-void readCurrentDirectory(const std::shared_ptr<ob::Device> &device) {
+void readCurrentDirectory(const std::shared_ptr<ob::DataAcquisitionDevice> &device) {
     try {
         std::cout << "Current firmware recording directory: " << device->getFwRecordingDirectory() << std::endl;
     }
@@ -145,7 +145,7 @@ void readCurrentDirectory(const std::shared_ptr<ob::Device> &device) {
     }
 }
 
-void setRecordingDestination(const std::shared_ptr<ob::Device> &device, OBRecordingDestination destination) {
+void setRecordingDestination(const std::shared_ptr<ob::DataAcquisitionDevice> &device, OBRecordingDestination destination) {
     if(!device->isPropertySupported(kDestinationPropertyId, OB_PERMISSION_WRITE)) {
         std::cout << "Recording destination property is not supported for writing." << std::endl;
         return;
@@ -173,7 +173,7 @@ void setRecordingDestination(const std::shared_ptr<ob::Device> &device, OBRecord
     }
 }
 
-void readRecordingDestination(const std::shared_ptr<ob::Device> &device) {
+void readRecordingDestination(const std::shared_ptr<ob::DataAcquisitionDevice> &device) {
     if(!device->isPropertySupported(kDestinationPropertyId, OB_PERMISSION_READ)) {
         std::cout << "Recording destination property is not supported for reading." << std::endl;
         return;
@@ -189,7 +189,7 @@ void readRecordingDestination(const std::shared_ptr<ob::Device> &device) {
     }
 }
 
-void sendRecordingAction(const std::shared_ptr<ob::Device> &device, OBRecordingAction action) {
+void sendRecordingAction(const std::shared_ptr<ob::DataAcquisitionDevice> &device, OBRecordingAction action) {
     if(!device->isPropertySupported(kActionPropertyId, OB_PERMISSION_WRITE)) {
         std::cout << "Recording action property is not supported for writing." << std::endl;
         return;
@@ -270,7 +270,7 @@ Firmware SD-card recording directory test
               << std::endl;
 }
 
-bool runFormatTests(const std::shared_ptr<ob::Device> &device) {
+bool runFormatTests(const std::shared_ptr<ob::DataAcquisitionDevice> &device) {
     bool passed = true;
     passed &= setAndVerify(device,
                            "all_raw_data/20260703/task_20260623I001Hg_/background_00/"
@@ -311,7 +311,7 @@ int main() try {
         return EXIT_FAILURE;
     }
 
-    auto device = list->getDevice(0);
+    auto device = ob::DataAcquisitionDevice::fromDevice(list->getDevice(0));
     if(!device->isPropertySupported(kDirectoryPropertyId, OB_PERMISSION_READ) || !device->isPropertySupported(kDirectoryPropertyId, OB_PERMISSION_WRITE)) {
         std::cerr << "Firmware recording directory property is not supported by this device or firmware." << std::endl;
         return EXIT_FAILURE;

@@ -10,6 +10,7 @@
 
 #include <libobsensor/hpp/Context.hpp>
 #include <libobsensor/hpp/Device.hpp>
+#include <libobsensor/hpp/DataAcquisitionDevice.hpp>
 #include <libobsensor/hpp/Error.hpp>
 #include <libobsensor/hpp/Filter.hpp>
 #include <libobsensor/hpp/Frame.hpp>

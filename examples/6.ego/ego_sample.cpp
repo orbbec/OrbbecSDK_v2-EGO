@@ -342,7 +342,7 @@ int main(void) try {
 
     // Create a pipeline with default device.
     ob::Pipeline pipe;
-    auto         device = pipe.getDevice();
+    auto         device = ob::DataAcquisitionDevice::fromDevice(pipe.getDevice());
 
     bool hasColor      = hasSensorType(device, OB_SENSOR_COLOR);
     bool hasLeftColor  = hasSensorType(device, OB_SENSOR_COLOR_LEFT);

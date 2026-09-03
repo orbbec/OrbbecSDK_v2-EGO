@@ -715,7 +715,7 @@ void testAudio(const std::shared_ptr<ob::Device> &device, int durationSec) {
     }
 }
 
-void testEgoState(const std::shared_ptr<ob::Device> &device, int durationSec) {
+void testEgoState(const std::shared_ptr<ob::DataAcquisitionDevice> &device, int durationSec) {
     const std::string name = "Ego state callback";
     try {
         std::atomic<uint64_t> stateCount(0);
@@ -739,7 +739,7 @@ void testEgoState(const std::shared_ptr<ob::Device> &device, int durationSec) {
     }
 }
 
-void testBattery(const std::shared_ptr<ob::Device> &device, int durationSec) {
+void testBattery(const std::shared_ptr<ob::DataAcquisitionDevice> &device, int durationSec) {
     const std::string name = "Battery callback";
     try {
         std::atomic<uint64_t> batteryCount(0);
@@ -808,10 +808,10 @@ int main(int argc, char *argv[]) try {
     ctx.setUvcBackendType(OB_UVC_BACKEND_TYPE_LIBUVC);
 #endif
 
-    std::shared_ptr<ob::Device> device;
+    std::shared_ptr<ob::DataAcquisitionDevice> device;
     if(ip != nullptr) {
         std::cout << "Connecting to network device at " << ip << ":" << port << " ..." << std::endl;
-        device = ctx.createNetDevice(ip, port);
+        device = ob::DataAcquisitionDevice::fromDevice(ctx.createNetDevice(ip, port));
     }
     else {
         auto list = ctx.queryDeviceList();
@@ -819,7 +819,7 @@ int main(int argc, char *argv[]) try {
             std::cerr << "No device found. Pass an IP address to connect to a network device: ob_ego_auto_test <ip> [port] [durationSec]" << std::endl;
             return EXIT_FAILURE;
         }
-        device = list->getDevice(0);
+        device = ob::DataAcquisitionDevice::fromDevice(list->getDevice(0));
     }
 
     // Report file name defaults to one derived from the device name (Ego vs EgoPro) unless overridden.

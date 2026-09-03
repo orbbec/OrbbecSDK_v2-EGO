@@ -118,7 +118,7 @@ int main() try {
         return EXIT_FAILURE;
     }
 
-    auto device = deviceList->getDevice(0);
+    auto device = ob::DataAcquisitionDevice::fromDevice(deviceList->getDevice(0));
     LogSaveContext saveCtx(outputDir);
 
     device->startFirmwareLogExport([&saveCtx](const char *fileName, OBFwLogPacketState state, const uint8_t *data, uint32_t dataSize,
