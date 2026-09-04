@@ -521,7 +521,8 @@ void EGONetDevice::initNetworkAudio() {
         return;
     }
 
-    registerComponent(OB_DEV_COMPONENT_NETWORK_AUDIO_PLAYER, [this, deviceIp = netPortInfo->address]() {
+    const auto deviceIp = netPortInfo->address;
+    registerComponent(OB_DEV_COMPONENT_NETWORK_AUDIO_PLAYER, [this, deviceIp]() {
         return std::make_shared<NetworkAudioPlayer>(this, deviceIp);
     });
 
