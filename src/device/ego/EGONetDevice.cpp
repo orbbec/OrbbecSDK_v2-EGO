@@ -528,8 +528,7 @@ void EGONetDevice::initNetworkAudio() {
 
     auto propertyServer = getPropertyServer();
     auto vendorAccessor = getComponentT<VendorPropertyAccessor>(OB_DEV_COMPONENT_MAIN_PROPERTY_ACCESSOR);
-    propertyServer->registerProperty(OB_STRUCT_NET_AUDIO_PLAYER_CONTROL, "", "w", vendorAccessor.get());
-    propertyServer->registerProperty(OB_PROP_NET_AUDIO_PLAYER_RTP_PORT_INT, "", "r", vendorAccessor.get());
+    propertyServer->registerProperty(OB_PROP_DEVICE_AUDIO_OUTPUT_ENABLE_BOOL, "rw", "rw", vendorAccessor.get());
     propertyServer->registerProperty(OB_PROP_DEVICE_AUDIO_OUTPUT_VOLUME_INT, "rw", "rw", vendorAccessor.get());
 }
 

@@ -43,7 +43,6 @@ typedef enum {
     OB_PROP_ACCEL_FULL_SCALE_INT = 2024, /**< get/set current accelerometer range*/
 
     OB_STRUCT_VERSION                           = 1000, /**< version information*/
-    OB_STRUCT_NET_AUDIO_PLAYER_CONTROL          = 1106, /**< EGONet RTP audio player control, SDK internal only */
     OB_STRUCT_INTERNAL_CAMERA_PARAM             = 1001, /**< Camera intrinsic and extrinsic parameters */
     OB_STRUCT_EXTENSION_PARAM                   = 1005, /**< Extended parameters*/
     OB_STRUCT_GET_GYRO_PRESETS_ODR_LIST         = 1031, /**< Get the list of sampling rates supported by the gyroscope*/
@@ -110,17 +109,5 @@ typedef enum {
     // Host UTC time, UTC offset and IANA time-zone information. Internal write-only structure property.
     OB_STRUCT_HOST_TIME_INFO              = 1105,
 } OBInternalPropertyID;
-
-enum NetAudioAction {
-    NET_AUDIO_ACTION_STOP  = 0,
-    NET_AUDIO_ACTION_START = 1,
-};
-
-#pragma pack(push, 1)
-struct NetAudioControl {
-    int32_t action;
-    int32_t param;
-};
-#pragma pack(pop)
 
 }  // namespace libobsensor

@@ -130,9 +130,8 @@ IDevice *NetworkAudioPlayer::getOwner() const {
     return owner_;
 }
 
-void NetworkAudioPlayer::sendControl(NetAudioAction action, int32_t param) {
-    const NetAudioControl control{ static_cast<int32_t>(action), param };
-    owner_->getPropertyServer()->setStructureDataT(OB_STRUCT_NET_AUDIO_PLAYER_CONTROL, control);
+void NetworkAudioPlayer::setAudioOutputEnabled(bool enabled) {
+    owner_->getPropertyServer()->setPropertyValueT<bool>(OB_PROP_DEVICE_AUDIO_OUTPUT_ENABLE_BOOL, enabled);
 }
 
 uint16_t NetworkAudioPlayer::startReceiver() {
@@ -141,9 +140,9 @@ uint16_t NetworkAudioPlayer::startReceiver() {
         return 0;
     }
     if(!receiverStarted_) {
-        sendControl(NET_AUDIO_ACTION_START, defaultRtpPort);
+        setAudioOutputEnabled(true);
         receiverStarted_ = true;
-        LOG_INFO("Network audio receiver started on port {}", defaultRtpPort);
+        LOG_INFO("Network audio output enabled");
     }
     return defaultRtpPort;
 }
@@ -152,8 +151,8 @@ void NetworkAudioPlayer::stopReceiverNoThrow() noexcept {
     std::lock_guard<std::mutex> lock(controlMutex_);
     if(receiverStarted_.exchange(false)) {
         std::lock_guard<std::mutex> sendLock(sendMutex_);
-        TRY_EXECUTE({ sendControl(NET_AUDIO_ACTION_STOP, 0); });
-        LOG_INFO("Network audio receiver stopped");
+        TRY_EXECUTE({ setAudioOutputEnabled(false); });
+        LOG_INFO("Network audio output disabled");
     }
 }
 
@@ -172,7 +171,7 @@ void NetworkAudioPlayer::playFile(const std::string &filePath) {
         if(!file.is_open()) {
             THROW_INVALID_PARAM_EXCEPTION("Unable to open WAV file: " + filePath);
         }
-        const auto wav     = parseWav(file);
+        const auto wav = parseWav(file);
         LOG_INFO("Start playing audio file: {}", filePath);
         const auto rtpPort = startReceiver();
         if(rtpPort == 0 || stopRequested_) {
