@@ -20,6 +20,12 @@
 namespace libobsensor {
 namespace {
 constexpr uint32_t rtpTimestampPerPacket = 1800;
+constexpr uint32_t rtpPacketDurationMs   = 20;
+// The device may need several RTP packets to establish a new UDP/RTP session
+// after an idle interval. Send silence first so a not-yet-ready receiver never
+// drops the beginning of the caller's WAV data.
+constexpr uint32_t receiverWarmupDurationMs = 400;
+constexpr uint32_t receiverWarmupPacketCount = receiverWarmupDurationMs / rtpPacketDurationMs;
 constexpr uint16_t defaultRtpPort        = 57686;
 constexpr uint16_t wavPcmFormat          = 1;
 constexpr uint16_t wavChannels           = 1;
@@ -191,6 +197,23 @@ void NetworkAudioPlayer::playFile(const std::string &filePath) {
         const uint32_t                                          ssrc      = (static_cast<uint32_t>(rd()) << 16) ^ static_cast<uint32_t>(rd());
         auto                                                    deadline  = std::chrono::steady_clock::now();
 
+        // Each playFile call uses a fresh UDP socket and SSRC. Pre-roll silence
+        // on that exact RTP session before sending real PCM; otherwise a device
+        // whose receiver has timed out can lose the first spoken syllables.
+        pcm.fill(0);
+        for(uint32_t i = 0; i < receiverWarmupPacketCount && !stopRequested_; ++i) {
+            {
+                std::lock_guard<std::mutex> lock(sendMutex_);
+                if(stopRequested_) {
+                    break;
+                }
+                sender.send(pcm.data(), RtpAudioPacketSender::payloadBytes, sequence++, timestamp, ssrc);
+            }
+            timestamp += rtpTimestampPerPacket;
+            deadline += std::chrono::milliseconds(rtpPacketDurationMs);
+            std::this_thread::sleep_until(deadline);
+        }
+
         file.clear();
         file.seekg(wav.offset);
         uint32_t remaining = wav.size;
@@ -210,7 +233,7 @@ void NetworkAudioPlayer::playFile(const std::string &filePath) {
             }
             timestamp += rtpTimestampPerPacket;
             remaining -= static_cast<uint32_t>(bytesToRead);
-            deadline += std::chrono::milliseconds(20);
+            deadline += std::chrono::milliseconds(rtpPacketDurationMs);
             std::this_thread::sleep_until(deadline);
         }
         LOG_INFO("Audio file playback {}: {}", stopRequested_ ? "stopped" : "completed", filePath);
