@@ -848,6 +848,13 @@ typedef enum {
     OB_PROP_DEVICE_AUDIO_OUTPUT_ENABLE_BOOL = 304,
 
     /**
+     * @brief Device audio output volume in dB.
+     *
+     * @attention Read and write.
+     */
+    OB_PROP_DEVICE_AUDIO_OUTPUT_VOLUME_INT = 305,
+
+    /**
      * @brief Baseline calibration parameters
      */
     OB_STRUCT_BASELINE_CALIBRATION_PARAM = 1002,

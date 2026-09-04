@@ -26,6 +26,7 @@
 #include "component/fwrecord/FwRecordingDirectoryManager.hpp"
 #include "component/custommetadata/CustomMetadataManager.hpp"
 #include "component/timezone/HostTimeInfoManager.hpp"
+#include "component/audio/NetworkAudioPlayer.hpp"
 #include "common/DeviceSeriesInfo.hpp"
 
 #include "FilterFactory.hpp"
@@ -82,6 +83,10 @@ void EGONetDevice::init() {
 
     fetchDeviceInfo();
     fetchExtensionInfo();
+
+    if(!inRecoveryMode_ && getFirmwareVersionInt() >= 10102) {
+        initNetworkAudio();
+    }
 
     if(!inRecoveryMode_) {
         initSensorList();
@@ -382,6 +387,10 @@ void EGONetDevice::initProperties() {
 
     auto vendorPortInfo = *vendorPortInfoIter;
     auto sourcePort     = getSourcePort(vendorPortInfo);
+    auto vendorDataPort = std::dynamic_pointer_cast<IVendorDataPort>(sourcePort);
+    if(!vendorDataPort) {
+        THROW_INVALID_PARAM_EXCEPTION("EGO network vendor port is not an IVendorDataPort");
+    }
 #if defined(BUILD_NET_PAL)
     auto vendorNetPort  = std::dynamic_pointer_cast<VendorNetDataPort>(sourcePort);
     if(!vendorNetPort) {
@@ -503,6 +512,24 @@ void EGONetDevice::initProperties() {
     //     }
     // })
     // CATCH_EXCEPTION_AND_EXECUTE({ LOG_DEBUG("Get device in recovery mode failed!"); })
+}
+
+void EGONetDevice::initNetworkAudio() {
+    auto netPortInfo = std::dynamic_pointer_cast<const NetSourcePortInfo>(enumInfo_->getSourcePortInfoList().front());
+    if(!netPortInfo) {
+        LOG_WARN("Network audio is unavailable because the EGO network address is missing");
+        return;
+    }
+
+    registerComponent(OB_DEV_COMPONENT_NETWORK_AUDIO_PLAYER, [this, deviceIp = netPortInfo->address]() {
+        return std::make_shared<NetworkAudioPlayer>(this, deviceIp);
+    });
+
+    auto propertyServer = getPropertyServer();
+    auto vendorAccessor = getComponentT<VendorPropertyAccessor>(OB_DEV_COMPONENT_MAIN_PROPERTY_ACCESSOR);
+    propertyServer->registerProperty(OB_STRUCT_NET_AUDIO_PLAYER_CONTROL, "", "w", vendorAccessor.get());
+    propertyServer->registerProperty(OB_PROP_NET_AUDIO_PLAYER_RTP_PORT_INT, "", "r", vendorAccessor.get());
+    propertyServer->registerProperty(OB_PROP_DEVICE_AUDIO_OUTPUT_VOLUME_INT, "rw", "rw", vendorAccessor.get());
 }
 
 void EGONetDevice::initSensorStreamProfile(std::shared_ptr<ISensor> sensor) {

@@ -87,6 +87,32 @@ public:
     }
 
     /**
+     * @brief Play a WAV audio file through the EGO device speaker.
+     *
+     * WAV format requirements:
+     *   - Encoding:     PCM (uncompressed, format tag 1)
+     *   - Sample rate:  48000 Hz
+     *   - Channels:     Mono (1 channel)
+     *   - Bit depth:    16-bit little-endian
+     *
+     * This call blocks until playback finishes or stopAudioPlayback() is called from another thread.
+     * Multiple consecutive calls are supported without calling stop in between; the device receiver
+     * remains open across calls and is only closed when stopAudioPlayback() is called.
+     */
+    void playAudioFile(const std::string &filePath) const {
+        ob_error *error = nullptr;
+        ob_device_play_audio_file(impl_, filePath.c_str(), &error);
+        Error::handle(&error);
+    }
+
+    /** @brief Stop the active network audio playback. */
+    void stopAudioPlayback() const {
+        ob_error *error = nullptr;
+        ob_device_stop_audio_playback(impl_, &error);
+        Error::handle(&error);
+    }
+
+    /**
      * @brief Set the directory used for firmware SD-card recordings.
      *
      * @param[in] directory UTF-8 Linux-style directory path.

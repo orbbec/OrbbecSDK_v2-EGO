@@ -26,6 +26,7 @@ private:
     void init() override;
     void initSensorList();
     void initProperties();
+    void initNetworkAudio();
     void initSensorStreamProfile(std::shared_ptr<ISensor> sensor);
     void fetchAllVideoStreamProfileList();
 

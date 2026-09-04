@@ -127,7 +127,8 @@ private:
     X(OB_DEV_COMPONENT_FW_LOG_MANAGER, "firmware log manager")                                       \
     X(OB_DEV_COMPONENT_FW_RECORD_PROFILE_MANAGER, "firmware record profile manager") \
     X(OB_DEV_COMPONENT_HOST_TIME_INFO_MANAGER, "host time info manager")                \
-    X(OB_DEV_COMPONENT_CUSTOM_METADATA_MANAGER, "custom metadata manager")
+    X(OB_DEV_COMPONENT_CUSTOM_METADATA_MANAGER, "custom metadata manager") \
+    X(OB_DEV_COMPONENT_NETWORK_AUDIO_PLAYER, "network audio player")
 
 // generate enum
 typedef enum {
