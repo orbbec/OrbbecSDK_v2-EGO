@@ -113,6 +113,17 @@ public:
     }
 
     /**
+     * @brief Set the EGO speaker playback volume in dB.
+     *
+     * @note The valid range is device/firmware-specific and can be obtained
+     *       from @ref getIntPropertyRange using
+     *       @ref OB_PROP_DEVICE_AUDIO_OUTPUT_VOLUME_INT.
+     */
+    void setAudioPlaybackVolume(int32_t volume) const {
+        setIntProperty(OB_PROP_DEVICE_AUDIO_OUTPUT_VOLUME_INT, volume);
+    }
+
+    /**
      * @brief Set the directory used for firmware SD-card recordings.
      *
      * @param[in] directory UTF-8 Linux-style directory path.
