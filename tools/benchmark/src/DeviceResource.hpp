@@ -11,6 +11,7 @@
 #include <condition_variable>
 #include <queue>
 #include <atomic>
+#include <thread>
 
 class DeviceResource {
 public:
