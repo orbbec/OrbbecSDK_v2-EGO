@@ -28,6 +28,7 @@
 #include "usb/uvc/WmfUvcDevicePort.hpp"
 #include "usb/hid/HidDevicePort.hpp"
 #include "usb/uac/WasapiUacDevicePort.hpp"
+#include "usb/uac/WasapiUacPlaybackPort.hpp"
 #include "usb/vendor/VendorUsbDevicePort.hpp"
 #include "usb/scsi/win/WinScsiDevicePort.hpp"
 
@@ -222,6 +223,9 @@ std::shared_ptr<ISourcePort> WinUsbPal::getSourcePort(std::shared_ptr<const Sour
     case SOURCE_PORT_USB_UAC:
         // Windows captures the UAC microphone via WASAPI, paired to the device by USB VID/PID.
         port = std::make_shared<WasapiUacDevicePort>(std::dynamic_pointer_cast<const USBSourcePortInfo>(portInfo));
+        break;
+    case SOURCE_PORT_USB_UAC_PLAYBACK:
+        port = std::make_shared<WasapiUacPlaybackPort>(std::dynamic_pointer_cast<const USBSourcePortInfo>(portInfo));
         break;
     case SOURCE_PORT_USB_HID: {
         auto usbPortInfo = std::dynamic_pointer_cast<const USBSourcePortInfo>(portInfo);

@@ -91,13 +91,13 @@ public:
      *
      * WAV format requirements:
      *   - Encoding:     PCM (uncompressed, format tag 1)
-     *   - Sample rate:  48000 Hz
      *   - Channels:     Mono (1 channel)
      *   - Bit depth:    16-bit little-endian
+     *   - Sample rate:  16000 Hz
      *
      * This call blocks until playback finishes or stopAudioPlayback() is called from another thread.
-     * Multiple consecutive calls are supported without calling stop in between; the device receiver
-     * remains open across calls and is only closed when stopAudioPlayback() is called.
+     * Multiple consecutive calls are supported without calling stop in between; the output session
+     * remains enabled across calls and is only closed when stopAudioPlayback() is called.
      */
     void playAudioFile(const std::string &filePath) const {
         ob_error *error = nullptr;
@@ -105,7 +105,7 @@ public:
         Error::handle(&error);
     }
 
-    /** @brief Stop the active network audio playback. */
+    /** @brief Stop the active EGO audio playback and close its output session. */
     void stopAudioPlayback() const {
         ob_error *error = nullptr;
         ob_device_stop_audio_playback(impl_, &error);

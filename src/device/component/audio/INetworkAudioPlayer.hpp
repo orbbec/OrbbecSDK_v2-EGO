@@ -3,13 +3,13 @@
 
 #pragma once
 
-#include "IDeviceComponent.hpp"
+#include "IAudioPlayer.hpp"
 
 #include <string>
 
 namespace libobsensor {
 
-class INetworkAudioPlayer : public IDeviceComponent {
+class INetworkAudioPlayer : public IAudioPlayer {
 public:
     ~INetworkAudioPlayer() noexcept override = default;
 

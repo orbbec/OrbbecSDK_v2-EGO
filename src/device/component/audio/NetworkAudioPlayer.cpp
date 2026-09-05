@@ -19,6 +19,8 @@
 
 namespace libobsensor {
 namespace {
+// The EGO RTP receiver uses a 90 kHz RTP clock. Keep its 20 ms timestamp
+// step independent of the PCM sample rate (90,000 * 20 / 1,000 = 1,800).
 constexpr uint32_t rtpTimestampPerPacket = 1800;
 constexpr uint32_t rtpPacketDurationMs   = 20;
 // The device may need several RTP packets to establish a new UDP/RTP session
@@ -29,7 +31,7 @@ constexpr uint32_t receiverWarmupPacketCount = receiverWarmupDurationMs / rtpPac
 constexpr uint16_t defaultRtpPort        = 57686;
 constexpr uint16_t wavPcmFormat          = 1;
 constexpr uint16_t wavChannels           = 1;
-constexpr uint32_t wavSampleRate         = 48000;
+constexpr uint32_t wavSampleRate         = 16000;
 constexpr uint16_t wavBitsPerSample      = 16;
 constexpr uint16_t wavBlockAlign         = wavChannels * (wavBitsPerSample / 8);
 constexpr uint32_t wavByteRate           = wavSampleRate * wavBlockAlign;
@@ -101,7 +103,7 @@ WavDataInfo parseWav(std::ifstream &file) {
                          "required: PCM (encoding {}), {} channel, {} Hz, {} bytes/s, block align {}, {} bits per sample",
                          format, channels, sampleRate, byteRate, blockAlign, bitsPerSample, wavPcmFormat, wavChannels, wavSampleRate, wavByteRate,
                          wavBlockAlign, wavBitsPerSample);
-                THROW_INVALID_PARAM_EXCEPTION("WAV must be PCM, 48 kHz, mono, 16-bit little-endian");
+                THROW_INVALID_PARAM_EXCEPTION("WAV must be PCM, 16 kHz, mono, 16-bit little-endian");
             }
             fmtFound = true;
         }

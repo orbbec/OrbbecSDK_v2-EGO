@@ -10,6 +10,7 @@
 #include "usb/scsi/linux/LinuxScsiDevicePort.hpp"
 #include "usb/uvc/ObLibuvcDevicePort.hpp"
 #include "usb/uac/ObLibUacDevicePort.hpp"
+#include "usb/uac/ObLibUacPlaybackPort.hpp"
 #include "usb/uvc/ObV4lUvcDevicePort.hpp"
 #include "usb/vendor/VendorUsbDevicePort.hpp"
 
@@ -101,6 +102,12 @@ std::shared_ptr<ISourcePort> AndroidUsbPal::getSourcePort(std::shared_ptr<const 
         }
         // NOTE: Android iso capture / snd-usb-audio detach must be validated by the §8 PoC per target ROM.
         port = std::make_shared<ObLibUacDevicePort>(usbDev, std::dynamic_pointer_cast<const USBSourcePortInfo>(portInfo));
+        break;
+    }
+    case SOURCE_PORT_USB_UAC_PLAYBACK: {
+        auto usbDev = androidUsbManager_->openUsbDevice(std::dynamic_pointer_cast<const USBSourcePortInfo>(portInfo)->url);
+        if(!usbDev) THROW_DEVICE_UNAVAILABLE_EXCEPTION("usbEnumerator openUsbDevice failed!");
+        port = std::make_shared<ObLibUacPlaybackPort>(usbDev, std::dynamic_pointer_cast<const USBSourcePortInfo>(portInfo));
         break;
     }
     case SOURCE_PORT_USB_MASS_STORAGE: {

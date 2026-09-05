@@ -12,7 +12,8 @@ namespace libobsensor {
 
 class RtpAudioPacketSender {
 public:
-    static constexpr uint16_t payloadBytes = 1920;
+    // 20 ms of 16 kHz, mono, S16LE PCM.
+    static constexpr uint16_t payloadBytes = 640;
 
     RtpAudioPacketSender(const std::string &deviceAddress, uint16_t port);
     ~RtpAudioPacketSender() noexcept;

@@ -57,14 +57,23 @@ int main() {
     std::atomic<bool> isPlaying{ false };
 
     try {
-        std::cout << "EGO network audio playback\n"
-                  << "The audio file must be PCM WAV: 48 kHz, mono, 16-bit little-endian.\n\n";
-
-        const auto ip = readInput("Enter device IP address: ");
-
+        std::cout << "EGO audio playback validation\n"
+                  << "Network and USB: PCM WAV 16 kHz mono 16-bit.\n\n";
+        const auto mode = readInput("Connection [u]sb / [n]etwork: ");
         ob::Context context;
-        std::cout << "Connecting to network device at " << ip << ':' << defaultDevicePort << " ..." << std::endl;
-        auto device = ob::DataAcquisitionDevice::fromDevice(context.createNetDevice(ip.c_str(), defaultDevicePort));
+        std::shared_ptr<ob::Device> rawDevice;
+        if(mode == "u" || mode == "U") {
+            auto list = context.queryDeviceList();
+            if(list->getCount() == 0) throw std::runtime_error("No USB EGO device found");
+            rawDevice = list->getDevice(0);
+            std::cout << "Using first connected USB device." << std::endl;
+        }
+        else {
+            const auto ip = readInput("Enter device IP address: ");
+            std::cout << "Connecting to network device at " << ip << ':' << defaultDevicePort << " ..." << std::endl;
+            rawDevice = context.createNetDevice(ip.c_str(), defaultDevicePort);
+        }
+        auto device = ob::DataAcquisitionDevice::fromDevice(rawDevice);
 
         printVolumeRange(device);
 
@@ -85,7 +94,16 @@ int main() {
         };
 
         auto startPlayback = [&](const std::string &filePath) {
-            stopPlayback();
+            // A naturally completed file deliberately leaves the USB output
+            // session enabled.  Do not turn it off before the next file: this
+            // is the intended fast-path for consecutive playAudioFile calls.
+            // Only interrupt an actually active playback.
+            if(isPlaying) {
+                stopPlayback();
+            }
+            else if(playThread.joinable()) {
+                playThread.join();
+            }
             isPlaying = true;
             playThread = std::thread([&device, &isPlaying, filePath]() {
                 try {

@@ -24,7 +24,7 @@
 #include "component/fwrecord/FwRecordingPartListParser.hpp"
 #include "ICustomMetadataManager.hpp"
 #include "component/fwlog/FirmwareLogManager.hpp"
-#include "component/audio/INetworkAudioPlayer.hpp"
+#include "component/audio/IAudioPlayer.hpp"
 #include "hid/EgoStateService.hpp"
 #include "hid/BatteryInfoService.hpp"
 #include "hid/DirectionKeyService.hpp"
@@ -690,9 +690,12 @@ HANDLE_EXCEPTIONS_NO_RETURN(device)
 void ob_device_play_audio_file(ob_device *device, const char *file_path, ob_error **error) BEGIN_API_CALL {
     VALIDATE_NOT_NULL(device);
     VALIDATE_NOT_NULL(file_path);
-    auto player = device->device->getComponentT<libobsensor::INetworkAudioPlayer>(libobsensor::OB_DEV_COMPONENT_NETWORK_AUDIO_PLAYER, false);
+    auto player = device->device->getComponentT<libobsensor::IAudioPlayer>(libobsensor::OB_DEV_COMPONENT_NETWORK_AUDIO_PLAYER, false);
     if(!player) {
-        THROW_UNSUPPORTED_OPERATION_EXCEPTION("Network audio playback is not supported by this device or firmware");
+        player = device->device->getComponentT<libobsensor::IAudioPlayer>(libobsensor::OB_DEV_COMPONENT_USB_AUDIO_PLAYER, false);
+    }
+    if(!player) {
+        THROW_UNSUPPORTED_OPERATION_EXCEPTION("Audio playback is not supported by this device or firmware");
     }
     player->playFile(file_path);
 }
@@ -700,9 +703,12 @@ HANDLE_EXCEPTIONS_NO_RETURN(device, file_path)
 
 void ob_device_stop_audio_playback(ob_device *device, ob_error **error) BEGIN_API_CALL {
     VALIDATE_NOT_NULL(device);
-    auto player = device->device->getComponentT<libobsensor::INetworkAudioPlayer>(libobsensor::OB_DEV_COMPONENT_NETWORK_AUDIO_PLAYER, false);
+    auto player = device->device->getComponentT<libobsensor::IAudioPlayer>(libobsensor::OB_DEV_COMPONENT_NETWORK_AUDIO_PLAYER, false);
     if(!player) {
-        THROW_UNSUPPORTED_OPERATION_EXCEPTION("Network audio playback is not supported by this device or firmware");
+        player = device->device->getComponentT<libobsensor::IAudioPlayer>(libobsensor::OB_DEV_COMPONENT_USB_AUDIO_PLAYER, false);
+    }
+    if(!player) {
+        THROW_UNSUPPORTED_OPERATION_EXCEPTION("Audio playback is not supported by this device or firmware");
     }
     player->stop();
 }

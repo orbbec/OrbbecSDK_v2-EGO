@@ -32,6 +32,8 @@
 #include "component/fwrecord/FwRecordingDirectoryManager.hpp"
 #include "component/custommetadata/CustomMetadataManager.hpp"
 #include "component/timezone/HostTimeInfoManager.hpp"
+#include "component/audio/UsbAudioPlayer.hpp"
+#include "usb/uac/IUsbAudioPlaybackPort.hpp"
 #include "common/DeviceSeriesInfo.hpp"
 
 #include "FilterFactory.hpp"
@@ -109,7 +111,31 @@ void EGODevice::init() {
         auto propertyServer = getPropertyServer();
         auto vendorAccessor = getComponentT<VendorPropertyAccessor>(OB_DEV_COMPONENT_MAIN_PROPERTY_ACCESSOR);
         propertyServer->registerProperty(OB_PROP_DEVICE_AUDIO_OUTPUT_ENABLE_BOOL, "rw", "rw", vendorAccessor.get());
+        initUsbAudioPlayback();
     }
+}
+
+void EGODevice::initUsbAudioPlayback() {
+#ifdef OS_IOS
+    // iOS EGO is supported through the network transport only; it does not expose
+    // the USB UAC speaker implementation to the SDK surface.
+    return;
+#else
+    const auto &ports = enumInfo_->getSourcePortInfoList();
+    auto base = std::find_if(ports.begin(), ports.end(), [](const std::shared_ptr<const SourcePortInfo> &p) {
+        return p->portType == SOURCE_PORT_USB_UVC || p->portType == SOURCE_PORT_USB_UAC;
+    });
+    if(base == ports.end()) return;
+    auto source = std::dynamic_pointer_cast<const USBSourcePortInfo>(*base);
+    if(!source) return;
+    auto playback = std::make_shared<USBSourcePortInfo>(*source);
+    playback->portType = SOURCE_PORT_USB_UAC_PLAYBACK;
+    registerComponent(OB_DEV_COMPONENT_USB_AUDIO_PLAYER, [this, playback]() {
+        auto port = std::dynamic_pointer_cast<IUsbAudioPlaybackPort>(getSourcePort(playback));
+        if(!port) THROW_UNSUPPORTED_OPERATION_EXCEPTION("USB UAC playback port is unavailable");
+        return std::make_shared<UsbAudioPlayer>(this, port);
+    });
+#endif
 }
 
 void EGODevice::fetchDeviceInfo() {

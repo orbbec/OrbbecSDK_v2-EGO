@@ -210,17 +210,17 @@ OB_EXPORT void ob_device_clear_ego_recording_result_callback(ob_device *device, 
  *
  * WAV format requirements:
  *   - Encoding:     PCM (uncompressed, format tag 1)
- *   - Sample rate:  48000 Hz
  *   - Channels:     Mono (1 channel)
  *   - Bit depth:    16-bit little-endian
+ *   - Sample rate:  16000 Hz
  *
  * This call blocks until playback finishes or ob_device_stop_audio_playback() is called from another thread.
- * Multiple consecutive calls are supported without calling stop in between; the device receiver
- * remains open across calls and is only closed when ob_device_stop_audio_playback() is called.
+ * Multiple consecutive calls are supported without calling stop in between; the output session
+ * remains enabled across calls and is only closed when ob_device_stop_audio_playback() is called.
  */
 OB_EXPORT void ob_device_play_audio_file(ob_device *device, const char *file_path, ob_error **error);
 
-/** @brief Stop the active network audio playback. */
+/** @brief Stop the active EGO audio playback and close its output session. */
 OB_EXPORT void ob_device_stop_audio_playback(ob_device *device, ob_error **error);
 
 #ifdef __cplusplus
