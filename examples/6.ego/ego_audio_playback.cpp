@@ -12,6 +12,7 @@
 #include <stdexcept>
 #include <string>
 #include <thread>
+#include <utility>
 
 namespace {
 
@@ -50,6 +51,99 @@ void setVolume(const std::shared_ptr<ob::DataAcquisitionDevice> &device, int32_t
     std::cout << "Volume set to " << value << " (range: " << range.min << " ~ " << range.max << ")" << std::endl;
 }
 
+class EgoDataStreams {
+public:
+    explicit EgoDataStreams(std::shared_ptr<ob::Device> device) : device_(std::move(device)) {}
+    ~EgoDataStreams() noexcept { stop(); }
+
+    bool isRunning() const { return running_; }
+
+    void start() {
+        if(running_) {
+            return;
+        }
+
+        // Resolve every profile before starting any stream, so a missing exact
+        // H264 profile never leaves a partially-started data set behind.
+        leftColor_  = device_->getSensor(OB_SENSOR_COLOR_LEFT);
+        rightColor_ = device_->getSensor(OB_SENSOR_COLOR_RIGHT);
+        audio_      = device_->getSensor(OB_SENSOR_AUDIO);
+        accel_      = device_->getSensor(OB_SENSOR_ACCEL);
+        gyro_       = device_->getSensor(OB_SENSOR_GYRO);
+        if(!leftColor_ || !rightColor_ || !audio_ || !accel_ || !gyro_) {
+            throw std::runtime_error("EGO must expose left/right color, audio, accel and gyro sensors");
+        }
+
+        const auto leftProfile  = leftColor_->getStreamProfileList()->getVideoStreamProfile(1600, 1200, OB_FORMAT_H264, 30);
+        const auto rightProfile = rightColor_->getStreamProfileList()->getVideoStreamProfile(1600, 1200, OB_FORMAT_H264, 30);
+        const auto audioProfile = audio_->getStreamProfileList()->getProfile(0);
+        const auto accelProfile = accel_->getStreamProfileList()->getProfile(0);
+        const auto gyroProfile  = gyro_->getStreamProfileList()->getProfile(0);
+
+        leftFrames_ = rightFrames_ = audioFrames_ = accelFrames_ = gyroFrames_ = 0;
+        try {
+            leftColor_->start(leftProfile, [this](std::shared_ptr<ob::Frame>) { ++leftFrames_; });
+            leftStarted_ = true;
+            rightColor_->start(rightProfile, [this](std::shared_ptr<ob::Frame>) { ++rightFrames_; });
+            rightStarted_ = true;
+            audio_->start(audioProfile, [this](std::shared_ptr<ob::Frame> frame) {
+                if(frame && frame->getDataSize() > 0) {
+                    ++audioFrames_;
+                }
+            });
+            audioStarted_ = true;
+            accel_->start(accelProfile, [this](std::shared_ptr<ob::Frame>) { ++accelFrames_; });
+            accelStarted_ = true;
+            gyro_->start(gyroProfile, [this](std::shared_ptr<ob::Frame>) { ++gyroFrames_; });
+            gyroStarted_ = true;
+            running_ = true;
+        }
+        catch(...) {
+            stop();
+            throw;
+        }
+    }
+
+    void stop() noexcept {
+        stopSensor(gyro_, gyroStarted_);
+        stopSensor(accel_, accelStarted_);
+        stopSensor(audio_, audioStarted_);
+        stopSensor(rightColor_, rightStarted_);
+        stopSensor(leftColor_, leftStarted_);
+        running_ = false;
+    }
+
+    void printCounts() const {
+        std::cout << "Data frames: left=" << leftFrames_.load() << ", right=" << rightFrames_.load() << ", audio=" << audioFrames_.load()
+                  << ", accel=" << accelFrames_.load() << ", gyro=" << gyroFrames_.load() << std::endl;
+    }
+
+private:
+    static void stopSensor(const std::shared_ptr<ob::Sensor> &sensor, bool &started) noexcept {
+        if(!started) {
+            return;
+        }
+        try {
+            sensor->stop();
+        }
+        catch(const ob::Error &e) {
+            std::cerr << "Data stream stop error: " << e.what() << std::endl;
+        }
+        catch(const std::exception &e) {
+            std::cerr << "Data stream stop error: " << e.what() << std::endl;
+        }
+        catch(...) {
+            std::cerr << "Data stream stop error: unknown exception" << std::endl;
+        }
+        started = false;
+    }
+
+    std::shared_ptr<ob::Device> device_;
+    std::shared_ptr<ob::Sensor> leftColor_, rightColor_, audio_, accel_, gyro_;
+    bool leftStarted_ = false, rightStarted_ = false, audioStarted_ = false, accelStarted_ = false, gyroStarted_ = false, running_ = false;
+    std::atomic<uint64_t> leftFrames_{ 0 }, rightFrames_{ 0 }, audioFrames_{ 0 }, accelFrames_{ 0 }, gyroFrames_{ 0 };
+};
+
 }  // namespace
 
 int main() {
@@ -74,6 +168,9 @@ int main() {
             rawDevice = context.createNetDevice(ip.c_str(), defaultDevicePort);
         }
         auto device = ob::DataAcquisitionDevice::fromDevice(rawDevice);
+        // fromDevice transfers the underlying Device handle, so all sensor
+        // access must use the resulting DataAcquisitionDevice instance.
+        EgoDataStreams dataStreams(device);
 
         printVolumeRange(device);
 
@@ -83,6 +180,7 @@ int main() {
                   << "  v <value>     Set volume (e.g. v 80)\n"
                   << "  v+            Increase volume by one step\n"
                   << "  v-            Decrease volume by one step\n"
+                  << "  d             Toggle left/right H264, audio and IMU data streams (no rendering)\n"
                   << "  q             Stop and quit\n\n";
 
         auto stopPlayback = [&]() {
@@ -122,7 +220,31 @@ int main() {
 
             if(input == "q" || input == "Q") {
                 stopPlayback();
+                dataStreams.stop();
                 break;
+            }
+
+            if(input == "d" || input == "D") {
+                try {
+                    if(dataStreams.isRunning()) {
+                        dataStreams.stop();
+                        dataStreams.printCounts();
+                        std::cout << "Data streams stopped." << std::endl;
+                    }
+                    else {
+                        dataStreams.start();
+                        std::cout << "Data streams started: left/right 1600x1200 H264 @ 30 fps, audio, accel and gyro (no rendering)." << std::endl;
+                    }
+                }
+                catch(const ob::Error &e) {
+                    dataStreams.stop();
+                    std::cerr << "Data stream error: " << e.what() << std::endl;
+                }
+                catch(const std::exception &e) {
+                    dataStreams.stop();
+                    std::cerr << "Data stream error: " << e.what() << std::endl;
+                }
+                continue;
             }
 
             if(input == "s" || input == "S") {
