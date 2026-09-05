@@ -32,7 +32,7 @@ static const uint16_t EGO_RIGHT_COLOR_RTSP_PORT = 8889;
 static const uint16_t EGO_RTSP_AUDIO_PORT       = 8890;
 static const uint16_t EGO_IMU_TCP_PORT          = 8900;  // private TCP IMU data stream (parallel to RTSP)
 // EGODepth's DMC640 IMU packs up to 10 groups (64B each) plus the 8B HID header per TCP packet.
-static const uint32_t EGODEPTH_IMU_TCP_PACKET_SIZE      = 648;
+static const uint32_t EGODEPTH_IMU_TCP_PACKET_SIZE      = 328;
 static const uint16_t EGOPRO_SIDE_LEFT_COLOR_RTSP_PORT  = 8891;
 static const uint16_t EGOPRO_SIDE_RIGHT_COLOR_RTSP_PORT = 8892;
 // EGODepth-only RTSP streams. Color group Left/Right reuse 8888/8889; Top color reuses 8891 and the single
