@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cstring>
 #include <fstream>
 #include <utility>
@@ -111,7 +112,14 @@ void UsbAudioPlayer::playFile(const std::string &path) {
         if((wav.dataBytes & 1) != 0) {
             THROW_INVALID_PARAM_EXCEPTION("WAV PCM data must contain whole 16 kHz PCM frames");
         }
-        if(!enabled_){setOutputEnabled(true); port_->openSession(); enabled_=true;}
+        if(!enabled_) {
+            const auto outputEnableStart = std::chrono::steady_clock::now();
+            setOutputEnabled(true);
+            const auto outputEnableMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - outputEnableStart).count();
+            LOG_DEBUG("UAC playback: property 304 enabled in {} ms; opening UAC playback session immediately", outputEnableMs);
+            port_->openSession();
+            enabled_ = true;
+        }
         port_->beginPlayback(gen);
         uint32_t remaining = wav.dataBytes;
         std::array<uint8_t, 640> pcm{};  // 20 ms at 16 kHz mono S16LE.

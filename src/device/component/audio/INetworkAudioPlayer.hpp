@@ -13,8 +13,8 @@ class INetworkAudioPlayer : public IAudioPlayer {
 public:
     ~INetworkAudioPlayer() noexcept override = default;
 
-    virtual void playFile(const std::string &filePath) = 0;
-    virtual void stop()                                = 0;
+    void playFile(const std::string &filePath) override = 0;
+    void stop() override                                = 0;
 };
 
 }  // namespace libobsensor

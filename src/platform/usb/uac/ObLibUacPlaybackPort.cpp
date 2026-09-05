@@ -7,6 +7,8 @@
 #include "logger/Logger.hpp"
 #include "usb/enumerator/UsbEnumeratorLibusb.hpp"
 
+#include <chrono>
+#include <string>
 #include <utility>
 
 namespace libobsensor {
@@ -15,6 +17,30 @@ constexpr uint8_t kAudioClass = 1, kAudioStreaming = 2, kCsInterface = 0x24, kFo
 constexpr int kTransfers = 4, kPackets = 8;
 constexpr uint32_t kSampleRate = 16000;
 uint32_t readLe24(const uint8_t *p) { return uint32_t(p[0]) | (uint32_t(p[1]) << 8) | (uint32_t(p[2]) << 16); }
+
+const char *transferStatusName(libusb_transfer_status status) {
+    switch(status) {
+    case LIBUSB_TRANSFER_COMPLETED: return "completed";
+    case LIBUSB_TRANSFER_ERROR: return "error";
+    case LIBUSB_TRANSFER_TIMED_OUT: return "timed_out";
+    case LIBUSB_TRANSFER_CANCELLED: return "cancelled";
+    case LIBUSB_TRANSFER_STALL: return "stall";
+    case LIBUSB_TRANSFER_NO_DEVICE: return "no_device";
+    case LIBUSB_TRANSFER_OVERFLOW: return "overflow";
+    default: return "unknown";
+    }
+}
+
+void logFailedIsoPackets(const libusb_transfer *transfer) {
+    for(int i = 0; i < transfer->num_iso_packets; ++i) {
+        const auto &packet = transfer->iso_packet_desc[i];
+        if(packet.status != LIBUSB_TRANSFER_COMPLETED) {
+            LOG_WARN("UAC playback: ISO OUT packet failed: endpoint={}, packet={}, status={} ({}), actual_length={}, expected_length={}",
+                     static_cast<unsigned int>(transfer->endpoint), i, static_cast<int>(packet.status), transferStatusName(packet.status),
+                     packet.actual_length, packet.length);
+        }
+    }
+}
 }  // namespace
 
 ObLibUacPlaybackPort::ObLibUacPlaybackPort(std::shared_ptr<IUsbDevice> dev, std::shared_ptr<const USBSourcePortInfo> info)
@@ -22,6 +48,12 @@ ObLibUacPlaybackPort::ObLibUacPlaybackPort(std::shared_ptr<IUsbDevice> dev, std:
     auto libusbDev = std::dynamic_pointer_cast<UsbDeviceLibusb>(usbDev_);
     if(!libusbDev) THROW_INVALID_PARAM_EXCEPTION("UAC playback requires a libusb-backed USB device");
     handle_ = libusbDev->getLibusbDeviceHandle(); context_ = libusbDev->getLibusbContext();
+#if defined(__ANDROID__)
+    const auto logLevelResult = libusb_set_option(context_, LIBUSB_OPTION_LOG_LEVEL, LIBUSB_LOG_LEVEL_ERROR);
+    if(logLevelResult != LIBUSB_SUCCESS) {
+        LOG_WARN("UAC playback: unable to enable libusb error logging: result={} ({})", logLevelResult, libusb_error_name(logLevelResult));
+    }
+#endif
 }
 ObLibUacPlaybackPort::~ObLibUacPlaybackPort() noexcept { closeSession(); }
 std::shared_ptr<const SourcePortInfo> ObLibUacPlaybackPort::getSourcePortInfo() const { return portInfo_; }
@@ -52,7 +84,11 @@ void ObLibUacPlaybackPort::parseTopology() {
             if((ep.bEndpointAddress & LIBUSB_ENDPOINT_DIR_MASK) == LIBUSB_ENDPOINT_OUT
                && (ep.bmAttributes & LIBUSB_TRANSFER_TYPE_MASK) == LIBUSB_TRANSFER_TYPE_ISOCHRONOUS) {
                 interface_ = alt.bInterfaceNumber; altSetting_ = alt.bAlternateSetting; endpoint_ = ep.bEndpointAddress;
-                packetBytes_ = ep.wMaxPacketSize & 0x07ff; found = packetBytes_ >= 32; break;
+                packetBytes_ = ep.wMaxPacketSize & 0x07ff; found = packetBytes_ >= 32;
+                LOG_DEBUG("UAC playback: selected ISO OUT endpoint: interface={}, alt_setting={}, endpoint={}, max_packet_size={}, attributes={}, interval={}, sync_endpoint={}",
+                          static_cast<unsigned int>(interface_), static_cast<unsigned int>(altSetting_), static_cast<unsigned int>(endpoint_), packetBytes_,
+                          static_cast<unsigned int>(ep.bmAttributes), static_cast<unsigned int>(ep.bInterval), static_cast<unsigned int>(ep.bSynchAddress));
+                break;
             }
         }
     }
@@ -62,24 +98,32 @@ void ObLibUacPlaybackPort::parseTopology() {
 
 void ObLibUacPlaybackPort::openSession() {
     if(sessionOpen_) return;
+    const auto sessionStart = std::chrono::steady_clock::now();
     parseTopology();
     if(libusb_kernel_driver_active(handle_, interface_) == 1) {
         if(libusb_detach_kernel_driver(handle_, interface_) != LIBUSB_SUCCESS) THROW_IO_EXCEPTION("UAC playback: detach kernel driver failed");
         detached_ = true;
     }
-    if(libusb_claim_interface(handle_, interface_) != LIBUSB_SUCCESS) {
+    const auto claimResult = libusb_claim_interface(handle_, interface_);
+    if(claimResult != LIBUSB_SUCCESS) {
         if(detached_) {
             libusb_attach_kernel_driver(handle_, interface_);
             detached_ = false;
         }
-        THROW_IO_EXCEPTION("UAC playback: claim interface failed");
+        THROW_IO_EXCEPTION("UAC playback: claim interface failed: " + std::string(libusb_error_name(claimResult)));
     }
     claimed_ = true;
-    if(libusb_set_interface_alt_setting(handle_, interface_, altSetting_) != LIBUSB_SUCCESS) { closeSession(); THROW_IO_EXCEPTION("UAC playback: select streaming alternate setting failed"); }
+    const auto altSettingResult = libusb_set_interface_alt_setting(handle_, interface_, altSetting_);
+    if(altSettingResult != LIBUSB_SUCCESS) { closeSession(); THROW_IO_EXCEPTION("UAC playback: select streaming alternate setting failed: " + std::string(libusb_error_name(altSettingResult))); }
     uint8_t rate[3] = { 0x80, 0x3e, 0 };
-    if(libusb_control_transfer(handle_, LIBUSB_ENDPOINT_OUT | LIBUSB_REQUEST_TYPE_CLASS | LIBUSB_RECIPIENT_ENDPOINT, 0x01, 0x0100, endpoint_, rate,
-                               sizeof(rate), 1000) < 0) { closeSession(); THROW_IO_EXCEPTION("UAC playback: select 16 kHz sampling frequency failed"); }
+    const auto requestType = static_cast<uint8_t>(static_cast<uint8_t>(LIBUSB_ENDPOINT_OUT) | static_cast<uint8_t>(LIBUSB_REQUEST_TYPE_CLASS)
+                                                  | static_cast<uint8_t>(LIBUSB_RECIPIENT_ENDPOINT));
+    const auto samplingRateResult = libusb_control_transfer(handle_, requestType, 0x01, 0x0100, endpoint_, rate, sizeof(rate), 1000);
+    if(samplingRateResult < 0) { closeSession(); THROW_IO_EXCEPTION("UAC playback: select 16 kHz sampling frequency failed: " + std::string(libusb_error_name(samplingRateResult))); }
     sessionOpen_ = true; eventThread_ = std::thread(&ObLibUacPlaybackPort::eventLoop, this);
+    const auto sessionSetupMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - sessionStart).count();
+    LOG_DEBUG("UAC playback: session opened in {} ms: interface={}, alt_setting={}, endpoint={}, SET_CUR_result={}", sessionSetupMs,
+              static_cast<unsigned int>(interface_), static_cast<unsigned int>(altSetting_), static_cast<unsigned int>(endpoint_), samplingRateResult);
 }
 
 void ObLibUacPlaybackPort::beginPlayback(uint64_t generation) {
@@ -95,8 +139,15 @@ void ObLibUacPlaybackPort::beginPlayback(uint64_t generation) {
         libusb_fill_iso_transfer(transfer, handle_, endpoint_, buffers_[i].data(), int(buffers_[i].size()), kPackets, &ObLibUacPlaybackPort::onTransfer, this, 1000);
         libusb_set_iso_packet_lengths(transfer, packetBytes_); transfers_[i] = transfer;
         const auto audioBytes = fillTransfer(transfer);
-        if(libusb_submit_transfer(transfer) == LIBUSB_SUCCESS) { std::lock_guard<std::mutex> cb(cbMutex_); submittedAudioBytes_[transfer] = audioBytes; ++inflight_; }
-        else { libusb_free_transfer(transfer); transfers_[i] = nullptr; LOG_WARN("UAC playback: submit ISO transfer failed"); }
+        const auto submitResult = libusb_submit_transfer(transfer);
+        if(submitResult == LIBUSB_SUCCESS) {
+            std::lock_guard<std::mutex> cb(cbMutex_); submittedAudioBytes_[transfer] = audioBytes; ++inflight_;
+        }
+        else {
+            LOG_WARN("UAC playback: initial ISO OUT transfer submission failed: endpoint={}, transfer={}, libusb_result={} ({})",
+                     static_cast<unsigned int>(endpoint_), i, submitResult, libusb_error_name(submitResult));
+            libusb_free_transfer(transfer); transfers_[i] = nullptr;
+        }
     }
     if(inflight_ == 0) {
         playing_ = false;
@@ -152,12 +203,23 @@ size_t ObLibUacPlaybackPort::fillTransfer(libusb_transfer *transfer) {
 void ObLibUacPlaybackPort::handleTransfer(libusb_transfer *transfer) {
     { std::lock_guard<std::mutex> cb(cbMutex_); submittedAudioBytes_[transfer] = 0; }
     bool resubmit = false; size_t audioBytes = 0;
-    { std::lock_guard<std::mutex> lock(mutex_); if(playing_ && (transfer->status == LIBUSB_TRANSFER_COMPLETED || transfer->status == LIBUSB_TRANSFER_TIMED_OUT)) { audioBytes = fillTransfer(transfer); resubmit = true; } drainCv_.notify_all(); }
+    bool wasPlaying = false;
+    { std::lock_guard<std::mutex> lock(mutex_); wasPlaying = playing_; if(wasPlaying && (transfer->status == LIBUSB_TRANSFER_COMPLETED || transfer->status == LIBUSB_TRANSFER_TIMED_OUT)) { audioBytes = fillTransfer(transfer); resubmit = true; } drainCv_.notify_all(); }
     if(resubmit) {
+        logFailedIsoPackets(transfer);
         // Publish the next payload before submitting it.  drain() must not observe an
         // empty queue during this small window and cancel the last real PCM packet.
         { std::lock_guard<std::mutex> cb(cbMutex_); submittedAudioBytes_[transfer] = audioBytes; }
-        if(libusb_submit_transfer(transfer) == LIBUSB_SUCCESS) return;
+        const auto submitResult = libusb_submit_transfer(transfer);
+        if(submitResult == LIBUSB_SUCCESS) return;
+        LOG_WARN("UAC playback: ISO OUT transfer resubmission failed: endpoint={}, status={} ({}), libusb_result={} ({})",
+                 static_cast<unsigned int>(transfer->endpoint), static_cast<int>(transfer->status), transferStatusName(transfer->status), submitResult,
+                 libusb_error_name(submitResult));
+    }
+    else if(wasPlaying) {
+        LOG_WARN("UAC playback: ISO OUT transfer stopped: endpoint={}, status={} ({})", static_cast<unsigned int>(transfer->endpoint),
+                 static_cast<int>(transfer->status), transferStatusName(transfer->status));
+        logFailedIsoPackets(transfer);
     }
     {
         std::lock_guard<std::mutex> lock(mutex_);
