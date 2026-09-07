@@ -352,17 +352,17 @@ int main(void) try {
     std::shared_ptr<ob::Config> config = std::make_shared<ob::Config>();
     std::string                  windowTitle;
     if(hasColor) {
-        config->enableVideoStream(OB_STREAM_COLOR, OB_WIDTH_ANY, OB_HEIGHT_ANY, OB_FPS_ANY, OB_FORMAT_MJPG);
+        config->enableVideoStream(OB_STREAM_COLOR, OB_WIDTH_ANY, OB_HEIGHT_ANY, OB_FPS_ANY, OB_FORMAT_H264);
         windowTitle = "EGO/Wrist: Color (+ optional Audio)";
         std::cout << "Enabled COLOR stream." << std::endl;
     }
     else if(hasLeftColor || hasRightColor) {
         if(hasLeftColor) {
-            config->enableVideoStream(OB_STREAM_COLOR_LEFT, OB_WIDTH_ANY, OB_HEIGHT_ANY, OB_FPS_ANY, OB_FORMAT_MJPG);
+            config->enableVideoStream(OB_STREAM_COLOR_LEFT, OB_WIDTH_ANY, OB_HEIGHT_ANY, OB_FPS_ANY, OB_FORMAT_H264);
             std::cout << "Enabled COLOR_LEFT stream." << std::endl;
         }
         if(hasRightColor) {
-            config->enableVideoStream(OB_STREAM_COLOR_RIGHT, OB_WIDTH_ANY, OB_HEIGHT_ANY, OB_FPS_ANY, OB_FORMAT_MJPG);
+            config->enableVideoStream(OB_STREAM_COLOR_RIGHT, OB_WIDTH_ANY, OB_HEIGHT_ANY, OB_FPS_ANY, OB_FORMAT_H264);
             std::cout << "Enabled COLOR_RIGHT stream." << std::endl;
         }
         windowTitle = (hasLeftColor && hasRightColor) ? "EGO: Dual Color (+ optional Audio)" : "EGO/Wrist: Color (+ optional Audio)";
