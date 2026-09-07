@@ -841,6 +841,7 @@ typedef enum {
     OB_PROP_EGO_CLEAR_PAIRING_INT = 302,
 
     /**
+<<<<<<< HEAD
      * @brief Enable device audio output.
      *
      * @attention Read and write.
@@ -853,6 +854,16 @@ typedef enum {
      * @attention Read and write.
      */
     OB_PROP_DEVICE_AUDIO_OUTPUT_VOLUME_INT = 305,
+=======
+     * @brief Clear saved Wi-Fi provisioning information on an Ego or Wrist device.
+     *
+     * Set the value to 1 to clear the saved Wi-Fi credentials and disable
+     * automatic reconnection after reboot.
+     *
+     * @attention Write only.
+     */
+    OB_PROP_EGO_CLEAR_WIFI_CONFIG_INT = 303,
+>>>>>>> f36ce6cd (Add Ego Wi-Fi configuration clear support)
 
     /**
      * @brief Baseline calibration parameters

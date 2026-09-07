@@ -45,6 +45,7 @@ static_assert(sizeof(ob_fw_recording_mcap_topic) % 2 == 0, "MCAP topic protocol 
 constexpr size_t kDeviceUserNameBufferSize = 32;
 constexpr size_t kEgoPairingPayloadHeaderSize = 8;
 constexpr int32_t kEgoClearPairingValue = 1;
+constexpr int32_t kEgoClearWifiConfigValue = 1;
 
 uint16_t readLittleEndianUint16(const uint8_t *data) {
     return static_cast<uint16_t>(data[0]) | (static_cast<uint16_t>(data[1]) << 8);
@@ -776,6 +777,14 @@ void ob_device_clear_ego_pairing(ob_device *device, ob_error **error) BEGIN_API_
 
     auto propertyServer = device->device->getPropertyServer();
     propertyServer->setPropertyValueT<int32_t>(OB_PROP_EGO_CLEAR_PAIRING_INT, kEgoClearPairingValue, libobsensor::PROP_ACCESS_USER);
+}
+HANDLE_EXCEPTIONS_NO_RETURN(device)
+
+void ob_device_clear_ego_wifi_config(ob_device *device, ob_error **error) BEGIN_API_CALL {
+    VALIDATE_NOT_NULL(device);
+
+    auto propertyServer = device->device->getPropertyServer();
+    propertyServer->setPropertyValueT<int32_t>(OB_PROP_EGO_CLEAR_WIFI_CONFIG_INT, kEgoClearWifiConfigValue, libobsensor::PROP_ACCESS_USER);
 }
 HANDLE_EXCEPTIONS_NO_RETURN(device)
 
