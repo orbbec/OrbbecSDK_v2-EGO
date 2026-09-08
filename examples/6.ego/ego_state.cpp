@@ -5,6 +5,8 @@
 
 #include <libobsensor/ObSensor.hpp>
 
+#include "utils.hpp"
+
 #include <cstdlib>
 #include <iostream>
 #include <memory>
@@ -15,6 +17,12 @@
 namespace {
 
 constexpr uint16_t kDefaultDevicePort = 8090;
+constexpr OBPropertyID kRecordingDirectoryPropertyId = OB_STRUCT_FW_RECORDING_DIRECTORY;
+constexpr OBPropertyID kRecordingDestinationPropertyId = OB_PROP_RECORDING_DESTINATION_INT;
+constexpr OBPropertyID kRecordingActionPropertyId    = OB_PROP_RECORDING_ACTION_INT;
+// Temporary verification directory. Replace it with the recording task directory under test.
+constexpr const char kRecordingSessionTestDirectory[] = "recording/session_test";
+constexpr const char kNewRecordingSessionTestDirectory[] = "recording/new_session_test";
 
 const char *egoWorkStateToString(OBEgoWorkState state) {
     switch(state) {
@@ -45,6 +53,23 @@ const char *egoWorkStateToString(OBEgoWorkState state) {
     }
 }
 
+const char *recordingSessionStatusToString(OBRecordingSessionStatus status) {
+    switch(status) {
+    case OB_RECORDING_NOT_STARTED:
+        return "NOT_STARTED";
+    case OB_RECORDING:
+        return "RECORDING";
+    case OB_RECORDING_STOPPED:
+        return "STOPPED";
+    case OB_RECORDING_ABNORMAL:
+        return "ABNORMAL";
+    case OB_RECORDING_NOT_FOUND:
+        return "NOT_FOUND";
+    default:
+        return "UNKNOWN";
+    }
+}
+
 void printState(const char *source, const OBEgoStateReport &state, std::mutex &outputMutex) {
     std::lock_guard<std::mutex> lock(outputMutex);
     std::cout << source << ": protocol=" << state.protocol_version << " sequence=" << state.sequence
@@ -54,6 +79,64 @@ void printState(const char *source, const OBEgoStateReport &state, std::mutex &o
         std::cout << " recordingDurationMs=" << state.recording_duration_ms;
     }
     std::cout << std::endl;
+}
+
+void queryRecordingSessionResult(const std::shared_ptr<ob::DataAcquisitionDevice> &device, std::mutex &outputMutex) {
+    try {
+        const auto result = device->getRecordingSessionResult(kRecordingSessionTestDirectory);
+        std::lock_guard<std::mutex> lock(outputMutex);
+        std::cout << "Recording session result: directory=" << kRecordingSessionTestDirectory << " fileExists=" << result.fileExists
+                  << " recordingDuration=" << result.recordingDuration << "s"
+                  << " recordingStatus=" << recordingSessionStatusToString(result.recordingStatus) << std::endl;
+    }
+    catch(const ob::Error &error) {
+        std::lock_guard<std::mutex> lock(outputMutex);
+        std::cerr << "Recording session result query failed: " << error.what() << std::endl;
+    }
+}
+
+void setRecordingTaskDirectory(const std::shared_ptr<ob::DataAcquisitionDevice> &device, const char *directory, std::mutex &outputMutex) {
+    if(!device->isPropertySupported(kRecordingDirectoryPropertyId, OB_PERMISSION_WRITE)) {
+        std::lock_guard<std::mutex> lock(outputMutex);
+        std::cerr << "Firmware recording directory is not supported by this device or firmware." << std::endl;
+        return;
+    }
+
+    try {
+        device->setFwRecordingDirectory(directory);
+        std::lock_guard<std::mutex> lock(outputMutex);
+        std::cout << "Recording task directory set to: " << directory << std::endl;
+    }
+    catch(const ob::Error &error) {
+        std::lock_guard<std::mutex> lock(outputMutex);
+        std::cerr << "Failed to set recording task directory: " << error.what() << std::endl;
+    }
+}
+
+void sendRecordingAction(const std::shared_ptr<ob::DataAcquisitionDevice> &device, OBRecordingAction action, std::mutex &outputMutex) {
+    if(!device->isPropertySupported(kRecordingActionPropertyId, OB_PERMISSION_WRITE)) {
+        std::lock_guard<std::mutex> lock(outputMutex);
+        std::cerr << "Firmware recording action is not supported by this device or firmware." << std::endl;
+        return;
+    }
+
+    try {
+        if(action == OB_RECORDING_ACTION_START && device->isPropertySupported(kRecordingDestinationPropertyId, OB_PERMISSION_WRITE)) {
+            device->setIntProperty(kRecordingDestinationPropertyId, static_cast<int32_t>(OB_RECORDING_DESTINATION_SD_CARD));
+        }
+        device->setIntProperty(kRecordingActionPropertyId, static_cast<int32_t>(action));
+        std::lock_guard<std::mutex> lock(outputMutex);
+        if(action == OB_RECORDING_ACTION_START) {
+            std::cout << "SD-card recording start requested." << std::endl;
+        }
+        else {
+            std::cout << "Recording stop requested." << std::endl;
+        }
+    }
+    catch(const ob::Error &error) {
+        std::lock_guard<std::mutex> lock(outputMutex);
+        std::cerr << "Failed to " << (action == OB_RECORDING_ACTION_START ? "start" : "stop") << " recording: " << error.what() << std::endl;
+    }
 }
 
 std::string readInput(const char *prompt) {
@@ -110,21 +193,49 @@ int main() try {
         std::cerr << "Unable to register Ego state callback: " << error.what() << std::endl;
     }
 
-    std::cout << "Commands: g = get current state directly, q = quit." << std::endl;
-    for(std::string input; std::getline(std::cin, input);) {
-        if(input == "q" || input == "Q") {
+    std::cout << "Hotkeys: d = set test directory, n = set new directory, s = start recording, t = stop recording, "
+                 "r = query recording session result, g = get current state, q = quit."
+              << std::endl;
+    while(true) {
+        const auto key = ob_smpl::waitForKeyPressed();
+        if(key == 'q' || key == 'Q') {
             break;
         }
-        if(input != "g" && input != "G") {
-            std::cout << "Unknown command. Use g or q." << std::endl;
-            continue;
-        }
-        try {
-            printState("Direct", device->getEgoState(), *outputMutex);
-        }
-        catch(const ob::Error &error) {
-            std::lock_guard<std::mutex> lock(*outputMutex);
-            std::cerr << "Direct state query failed: " << error.what() << std::endl;
+
+        switch(key) {
+        case 'd':
+        case 'D':
+            setRecordingTaskDirectory(device, kRecordingSessionTestDirectory, *outputMutex);
+            break;
+        case 'n':
+        case 'N':
+            setRecordingTaskDirectory(device, kNewRecordingSessionTestDirectory, *outputMutex);
+            break;
+        case 's':
+        case 'S':
+            sendRecordingAction(device, OB_RECORDING_ACTION_START, *outputMutex);
+            break;
+        case 't':
+        case 'T':
+            sendRecordingAction(device, OB_RECORDING_ACTION_STOP, *outputMutex);
+            break;
+        case 'g':
+        case 'G':
+            try {
+                printState("Direct", device->getEgoState(), *outputMutex);
+            }
+            catch(const ob::Error &error) {
+                std::lock_guard<std::mutex> lock(*outputMutex);
+                std::cerr << "Direct state query failed: " << error.what() << std::endl;
+            }
+            break;
+        case 'r':
+        case 'R':
+            queryRecordingSessionResult(device, *outputMutex);
+            break;
+        default:
+            std::cout << "Unknown hotkey. Use d, n, s, t, r, g, or q." << std::endl;
+            break;
         }
     }
 

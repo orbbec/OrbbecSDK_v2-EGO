@@ -147,6 +147,24 @@ public:
     }
 
     /**
+     * @brief Query the device-side result for a recording session.
+     *
+     * @param[in] recordingTaskDirectory UTF-8 recording task directory supplied when the session was created.
+     * @return The current device-side recording session result. recordingDuration is in seconds.
+     */
+    OBRecordingSessionResult getRecordingSessionResult(const std::string &recordingTaskDirectory) const {
+        if(recordingTaskDirectory.find('\0') != std::string::npos) {
+            throw std::invalid_argument("recording task directory must not contain embedded null characters");
+        }
+
+        OBRecordingSessionResult result{};
+        ob_error                *error = nullptr;
+        ob_device_get_recording_session_result(impl_, recordingTaskDirectory.c_str(), &result, &error);
+        Error::handle(&error);
+        return result;
+    }
+
+    /**
      * @brief Set the persistent user-defined device name.
      */
     void setDeviceUserName(const std::string &name) const {

@@ -22,6 +22,7 @@
 #include "IFrameTimestamp.hpp"
 #include "component/fwrecord/FwRecordProfileManager.hpp"
 #include "component/fwrecord/FwRecordingPartListParser.hpp"
+#include "component/fwrecord/RecordingSessionResultManager.hpp"
 #include "ICustomMetadataManager.hpp"
 #include "component/fwlog/FirmwareLogManager.hpp"
 #include "component/audio/IAudioPlayer.hpp"
@@ -688,6 +689,20 @@ void ob_device_clear_license_info(ob_device *device, ob_error **error) BEGIN_API
     manager->clearLicenseInfo();
 }
 HANDLE_EXCEPTIONS_NO_RETURN(device)
+void ob_device_get_recording_session_result(ob_device *device, const char *storage_path, ob_recording_session_result *result,
+                                            ob_error **error) BEGIN_API_CALL {
+    VALIDATE_NOT_NULL(device);
+    VALIDATE_NOT_NULL(storage_path);
+    VALIDATE_NOT_NULL(result);
+    auto manager =
+        device->device->getComponentT<libobsensor::RecordingSessionResultManager>(libobsensor::OB_DEV_COMPONENT_RECORDING_SESSION_RESULT_MANAGER, false);
+    if(!manager) {
+        THROW_UNSUPPORTED_OPERATION_EXCEPTION("Recording session result query is not supported by this device or firmware");
+    }
+    *result = manager->getRecordingSessionResult(storage_path);
+}
+HANDLE_EXCEPTIONS_NO_RETURN(device, storage_path, result)
+
 void ob_device_play_audio_file(ob_device *device, const char *file_path, ob_error **error) BEGIN_API_CALL {
     VALIDATE_NOT_NULL(device);
     VALIDATE_NOT_NULL(file_path);

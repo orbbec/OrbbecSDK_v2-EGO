@@ -1052,6 +1052,17 @@ typedef enum {
     OB_STRUCT_EGO_STATE_REPORT = 1106,
 
     /**
+     * @brief Recording session result query.
+     *
+     * @details Set a UTF-8 storage path to select the session to query, then
+     *          get the result for that selected path. This does not modify the
+     *          firmware recording directory.
+     *
+     * @attention Read and write.
+     */
+    OB_STRUCT_RECORDING_SESSION_RESULT = 1107,
+
+    /**
      * @brief Color camera auto exposure
      */
     OB_PROP_COLOR_AUTO_EXPOSURE_BOOL = 2000,

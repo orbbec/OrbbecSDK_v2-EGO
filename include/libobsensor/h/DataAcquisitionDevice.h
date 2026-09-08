@@ -78,6 +78,21 @@ OB_EXPORT void ob_device_start_firmware_log_export(ob_device *device, ob_fw_log_
 OB_EXPORT void ob_device_stop_firmware_log_export(ob_device *device, ob_error **error);
 
 /**
+ * @brief Query a device-side recording session by its storage path.
+ *
+ * @details Each call sends the path to the device and then reads the result
+ *          from the device control channel. No SDK recording-session cache is
+ *          used. This API is supported only by applicable Ego-series devices.
+ *
+ * @param[in] device The data-acquisition device object.
+ * @param[in] storage_path UTF-8 recording task directory supplied when the session was created.
+ * @param[out] result The current device-side recording session result.
+ * @param[out] error Pointer to an error object that will be set if the query fails.
+ */
+OB_EXPORT void ob_device_get_recording_session_result(ob_device *device, const char *storage_path, ob_recording_session_result *result,
+                                                       ob_error **error);
+
+/**
  * @brief Get the firmware recording profile list saved on the device.
  *
  * @param[in] device The device object.

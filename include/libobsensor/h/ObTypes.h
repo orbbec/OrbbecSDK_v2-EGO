@@ -2163,6 +2163,29 @@ typedef enum {
 } OBRecordingAction,
     ob_recording_action;
 
+/**
+ * @brief Device-side recording session status.
+ */
+typedef enum {
+    OB_RECORDING_NOT_STARTED = 0, /**< The recording session exists but has not started. */
+    OB_RECORDING             = 1, /**< Recording, stopping, or final file saving is in progress. */
+    OB_RECORDING_STOPPED     = 2, /**< Recording completed normally. */
+    OB_RECORDING_ABNORMAL    = 3, /**< Recording was interrupted or terminated abnormally. */
+    OB_RECORDING_NOT_FOUND   = 4, /**< No recording session exists for the queried storage path. */
+} OBRecordingSessionStatus,
+    ob_recording_session_status;
+
+/**
+ * @brief Device-side result for one recording session.
+ */
+typedef struct {
+    bool                     fileExists;        /**< Whether a recording file currently exists at the queried path. */
+    uint64_t                 recordingDuration; /**< Recording duration, in seconds. */
+    OBRecordingSessionStatus recordingStatus;   /**< Current or final recording session status. */
+    uint8_t                  reserved;          /**< Reserved. */
+} OBRecordingSessionResult,
+    ob_recording_session_result;
+
 /* Backward compatibility */
 typedef OBRecordingAction OBRecordingPrompt;
 typedef OBRecordingAction ob_recording_prompt;
