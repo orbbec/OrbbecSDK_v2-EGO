@@ -17,6 +17,16 @@
 
 #include <thread>
 
+#ifndef SHUT_WR
+#ifdef _WIN32
+#define SHUT_WR SD_SEND
+#define SHUT_RD SD_RECEIVE
+#define SHUT_RDWR SD_BOTH
+#else
+#error "SHUT_WR is not defined and this is not a Windows platform"
+#endif
+#endif
+
 namespace libobsensor {
 
 VendorTCPClient::VendorTCPClient(std::string localAddress, std::string localMac, std::string address, uint16_t port, uint32_t connectTimeout,
@@ -316,14 +326,12 @@ void VendorTCPClient::socketClose() {
         // overwrite the thread-local last-error, so deferring GET_LAST_ERROR() could report a stale code.
         auto rst     = closesocket(socketFd_);
         auto lastErr = GET_LAST_ERROR();
-
         if(rst < 0) {
             LOG_ERROR("close socket failed! socket={0}, err_code={1}", socketFd_, lastErr);
         }
-
+        LOG_DEBUG("TCP client socket closed! socket={}", socketFd_);
         socketFd_ = INVALID_SOCKET;
     }
-    LOG_DEBUG("TCP client socket closed! socket={}", socketFd_);
 }
 
 void VendorTCPClient::socketReconnect() {
@@ -432,12 +440,17 @@ void VendorTCPClient::write(const uint8_t *data, const uint32_t dataLen, utils::
 void VendorTCPClient::flush() {
     std::lock_guard<std::mutex> lock(tcpMtx_);
     {
-        if(socketFd_) {
+        if(socketFd_ != INVALID_SOCKET) {
             LOG_DEBUG("TCP client socket flush.");
             flushed_ = true;
-            LOG_DEBUG("TCP client socket flush end.");
-            shutdown(socketFd_, SD_BOTH);
-            LOG_DEBUG("TCP client socket shutdown end.");
+            shutdown(socketFd_, SHUT_WR);
+            char buf[1024];
+            utils::Timer t;
+            while (recv(socketFd_, buf, sizeof(buf), 0) > 0) {
+                // drop unused data
+            }
+            auto duration = t.touchMs();
+            LOG_INFO("flush recv duration:{}", duration);
             socketClose();
         }
     }

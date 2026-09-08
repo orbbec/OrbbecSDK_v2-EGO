@@ -49,6 +49,7 @@ void NetDataStreamPort::stopStream() {
     }
 
     if(tcpClient_) {
+        tcpClient_->flush();
         tcpClient_.reset();
     }
 }

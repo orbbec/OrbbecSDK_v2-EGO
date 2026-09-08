@@ -14,7 +14,12 @@ VendorNetDataPort::VendorNetDataPort(std::shared_ptr<const NetSourcePortInfo> po
     tcpClient_ = std::make_shared<VendorTCPClient>(noConstPortInfo->localAddress, noConstPortInfo->localMac, noConstPortInfo->address, noConstPortInfo->port);
 }
 
-VendorNetDataPort::~VendorNetDataPort() noexcept {}
+VendorNetDataPort::~VendorNetDataPort() noexcept {
+    if(tcpClient_) {
+        tcpClient_->flush();
+        tcpClient_.reset();
+    }
+}
 
 void VendorNetDataPort::setTcpTimeouts(uint32_t connectTimeoutMs, uint32_t commTimeoutMs) {
     std::lock_guard<std::mutex> lock(tcpMtx_);
