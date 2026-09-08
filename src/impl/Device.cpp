@@ -43,9 +43,9 @@ static_assert(sizeof(ob_fw_recording_mcap_topic) == 130, "MCAP topic protocol it
 static_assert(sizeof(ob_fw_recording_mcap_topic) % 2 == 0, "MCAP topic protocol item must have an even byte length");
 
 constexpr size_t kDeviceUserNameBufferSize = 32;
-constexpr size_t kEgoPairingPayloadHeaderSize = 8;
-constexpr int32_t kEgoClearPairingValue = 1;
-constexpr int32_t kEgoClearWifiConfigValue = 1;
+constexpr size_t kBluetoothPairingPayloadHeaderSize = 8;
+constexpr int32_t kBluetoothClearPairingValue = 1;
+constexpr int32_t kClearWifiConfigValue = 1;
 
 uint16_t readLittleEndianUint16(const uint8_t *data) {
     return static_cast<uint16_t>(data[0]) | (static_cast<uint16_t>(data[1]) << 8);
@@ -56,9 +56,9 @@ uint32_t readLittleEndianUint32(const uint8_t *data) {
            | (static_cast<uint32_t>(data[3]) << 24);
 }
 
-OBEgoPairingInfo parseEgoPairingInfo(const std::vector<uint8_t> &payload) {
-    if(payload.size() < kEgoPairingPayloadHeaderSize) {
-        THROW_IO_EXCEPTION_WITH_ERROR("Ego pairing payload is shorter than the header", OB_ERROR_DEVICE_RESPONSE_WRONG_DATA_SIZE);
+OBBluetoothPairingInfo parseBluetoothPairingInfo(const std::vector<uint8_t> &payload) {
+    if(payload.size() < kBluetoothPairingPayloadHeaderSize) {
+        THROW_IO_EXCEPTION_WITH_ERROR("Bluetooth pairing payload is shorter than the header", OB_ERROR_DEVICE_RESPONSE_WRONG_DATA_SIZE);
     }
 
     const auto pairingState = payload[0];
@@ -66,51 +66,51 @@ OBEgoPairingInfo parseEgoPairingInfo(const std::vector<uint8_t> &payload) {
     const auto reserved = readLittleEndianUint16(payload.data() + 2);
     const auto pairingTimeS = readLittleEndianUint32(payload.data() + 4);
 
-    if(pairingState != OB_EGO_PAIRING_STATE_UNPAIRED && pairingState != OB_EGO_PAIRING_STATE_VALID
-       && pairingState != OB_EGO_PAIRING_STATE_INVALID) {
-        THROW_INVALID_DATA_EXCEPTION("Invalid Ego pairing state");
+    if(pairingState != OB_BLUETOOTH_PAIRING_STATE_UNPAIRED && pairingState != OB_BLUETOOTH_PAIRING_STATE_VALID
+       && pairingState != OB_BLUETOOTH_PAIRING_STATE_INVALID) {
+        THROW_INVALID_DATA_EXCEPTION("Invalid Bluetooth pairing state");
     }
     if(reserved != 0) {
-        THROW_INVALID_DATA_EXCEPTION("Ego pairing payload reserved field is non-zero");
+        THROW_INVALID_DATA_EXCEPTION("Bluetooth pairing payload reserved field is non-zero");
     }
-    if(pairingCount > OB_EGO_PAIRING_MAX_COUNT) {
-        THROW_INVALID_DATA_EXCEPTION("Ego pairing record count exceeds the maximum");
+    if(pairingCount > OB_BLUETOOTH_PAIRED_DEVICE_MAX_COUNT) {
+        THROW_INVALID_DATA_EXCEPTION("Bluetooth pairing record count exceeds the maximum");
     }
-    if(pairingState == OB_EGO_PAIRING_STATE_UNPAIRED && (pairingCount != 0 || pairingTimeS != 0)) {
-        THROW_INVALID_DATA_EXCEPTION("Unpaired Ego device has pairing records or pairing time");
+    if(pairingState == OB_BLUETOOTH_PAIRING_STATE_UNPAIRED && (pairingCount != 0 || pairingTimeS != 0)) {
+        THROW_INVALID_DATA_EXCEPTION("Unpaired device has Bluetooth pairing records or pairing time");
     }
-    if(pairingState != OB_EGO_PAIRING_STATE_UNPAIRED && pairingCount == 0) {
-        THROW_INVALID_DATA_EXCEPTION("Paired Ego device has no pairing records");
+    if(pairingState != OB_BLUETOOTH_PAIRING_STATE_UNPAIRED && pairingCount == 0) {
+        THROW_INVALID_DATA_EXCEPTION("Paired device has no Bluetooth pairing records");
     }
 
-    OBEgoPairingInfo result{};
+    OBBluetoothPairingInfo result{};
     result.pairing_state = pairingState;
-    result.pairing_count = pairingCount;
+    result.paired_device_count = pairingCount;
     result.pairing_time_s = pairingTimeS;
 
-    size_t offset = kEgoPairingPayloadHeaderSize;
+    size_t offset = kBluetoothPairingPayloadHeaderSize;
     for(uint8_t index = 0; index < pairingCount; ++index) {
         if(payload.size() - offset < sizeof(uint16_t)) {
-            THROW_IO_EXCEPTION_WITH_ERROR("Ego pairing payload is missing a Bluetooth name length", OB_ERROR_DEVICE_RESPONSE_WRONG_DATA_SIZE);
+            THROW_IO_EXCEPTION_WITH_ERROR("Bluetooth pairing payload is missing a device name length", OB_ERROR_DEVICE_RESPONSE_WRONG_DATA_SIZE);
         }
 
         const auto nameLength = readLittleEndianUint16(payload.data() + offset);
         offset += sizeof(uint16_t);
-        if(nameLength == 0 || nameLength > OB_EGO_BT_NAME_MAX_SIZE) {
-            THROW_INVALID_DATA_EXCEPTION("Ego pairing Bluetooth name length is invalid");
+        if(nameLength == 0 || nameLength > OB_BLUETOOTH_DEVICE_NAME_MAX_SIZE) {
+            THROW_INVALID_DATA_EXCEPTION("Bluetooth pairing device name length is invalid");
         }
         if(payload.size() - offset < nameLength) {
-            THROW_IO_EXCEPTION_WITH_ERROR("Ego pairing payload Bluetooth name is truncated", OB_ERROR_DEVICE_RESPONSE_WRONG_DATA_SIZE);
+            THROW_IO_EXCEPTION_WITH_ERROR("Bluetooth pairing payload device name is truncated", OB_ERROR_DEVICE_RESPONSE_WRONG_DATA_SIZE);
         }
 
-        auto &record = result.records[index];
+        auto &record = result.paired_devices[index];
         record.name_length = nameLength;
-        std::memcpy(record.bluetooth_name, payload.data() + offset, nameLength);
+        std::memcpy(record.device_name, payload.data() + offset, nameLength);
         offset += nameLength;
     }
 
     if(payload.size() - offset > 1) {
-        THROW_INVALID_DATA_EXCEPTION("Ego pairing payload has unexpected trailing data");
+        THROW_INVALID_DATA_EXCEPTION("Bluetooth pairing payload has unexpected trailing data");
     }
     return result;
 }
@@ -762,29 +762,29 @@ uint32_t ob_device_get_device_user_name(const ob_device *device, char *name, uin
 }
 HANDLE_EXCEPTIONS_AND_RETURN(0, device, name, name_capacity)
 
-void ob_device_get_ego_pairing_info(ob_device *device, ob_ego_pairing_info *info, ob_error **error) BEGIN_API_CALL {
+void ob_device_get_bluetooth_pairing_info(ob_device *device, ob_bluetooth_pairing_info *info, ob_error **error) BEGIN_API_CALL {
     VALIDATE_NOT_NULL(device);
     VALIDATE_NOT_NULL(info);
 
     auto propertyServer = device->device->getPropertyServer();
-    auto pairingData = propertyServer->getStructureData(OB_STRUCT_EGO_PAIRING_INFO, libobsensor::PROP_ACCESS_USER);
-    *info = parseEgoPairingInfo(pairingData);
+    auto pairingData = propertyServer->getStructureData(OB_STRUCT_BLUETOOTH_PAIRING_INFO, libobsensor::PROP_ACCESS_USER);
+    *info = parseBluetoothPairingInfo(pairingData);
 }
 HANDLE_EXCEPTIONS_NO_RETURN(device, info)
 
-void ob_device_clear_ego_pairing(ob_device *device, ob_error **error) BEGIN_API_CALL {
+void ob_device_clear_bluetooth_pairing(ob_device *device, ob_error **error) BEGIN_API_CALL {
     VALIDATE_NOT_NULL(device);
 
     auto propertyServer = device->device->getPropertyServer();
-    propertyServer->setPropertyValueT<int32_t>(OB_PROP_EGO_CLEAR_PAIRING_INT, kEgoClearPairingValue, libobsensor::PROP_ACCESS_USER);
+    propertyServer->setPropertyValueT<int32_t>(OB_PROP_BLUETOOTH_CLEAR_PAIRING_INT, kBluetoothClearPairingValue, libobsensor::PROP_ACCESS_USER);
 }
 HANDLE_EXCEPTIONS_NO_RETURN(device)
 
-void ob_device_clear_ego_wifi_config(ob_device *device, ob_error **error) BEGIN_API_CALL {
+void ob_device_clear_wifi_config(ob_device *device, ob_error **error) BEGIN_API_CALL {
     VALIDATE_NOT_NULL(device);
 
     auto propertyServer = device->device->getPropertyServer();
-    propertyServer->setPropertyValueT<int32_t>(OB_PROP_EGO_CLEAR_WIFI_CONFIG_INT, kEgoClearWifiConfigValue, libobsensor::PROP_ACCESS_USER);
+    propertyServer->setPropertyValueT<int32_t>(OB_PROP_CLEAR_WIFI_CONFIG_INT, kClearWifiConfigValue, libobsensor::PROP_ACCESS_USER);
 }
 HANDLE_EXCEPTIONS_NO_RETURN(device)
 

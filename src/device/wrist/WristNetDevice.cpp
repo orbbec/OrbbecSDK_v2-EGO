@@ -366,9 +366,9 @@ void WristNetDevice::initProperties() {
     auto recordingDirectoryAccessor = std::make_shared<FwRecordingDirectoryManager>(this, vendorPropertyAccessor);
     propertyServer->registerProperty(OB_STRUCT_FW_RECORDING_DIRECTORY, "rw", "rw", recordingDirectoryAccessor);
     propertyServer->registerProperty(OB_STRUCT_DEVICE_USER_NAME, "rw", "rw", vendorPropertyAccessor);
-    propertyServer->registerProperty(OB_STRUCT_EGO_PAIRING_INFO, "r", "r", vendorPropertyAccessor);
-    propertyServer->registerProperty(OB_PROP_EGO_CLEAR_PAIRING_INT, "w", "w", vendorPropertyAccessor);
-    propertyServer->registerProperty(OB_PROP_EGO_CLEAR_WIFI_CONFIG_INT, "w", "w", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_STRUCT_BLUETOOTH_PAIRING_INFO, "r", "r", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_PROP_BLUETOOTH_CLEAR_PAIRING_INT, "w", "w", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_PROP_CLEAR_WIFI_CONFIG_INT, "w", "w", vendorPropertyAccessor);
     auto customMetadataManager = std::make_shared<CustomMetadataManager>(this, vendorPropertyAccessor);
     propertyServer->registerProperty(OB_STRUCT_CUSTOM_METADATA_JSON, "w", "w", customMetadataManager);
     registerComponent(OB_DEV_COMPONENT_CUSTOM_METADATA_MANAGER, customMetadataManager);

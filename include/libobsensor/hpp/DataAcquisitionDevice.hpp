@@ -167,25 +167,34 @@ public:
     }
 
     /**
-     * @brief Get the parsed Ego device pairing information.
+     * @brief Get the parsed Bluetooth pairing information.
      *
-     * @details Bluetooth names are not null terminated. Use pairing_count and
-     * each record's name_length to access the valid records and bytes.
+     * @details Bluetooth names are not null terminated. Use paired_device_count and
+     * each paired device's name_length to access the valid records and bytes.
      */
-    OBEgoPairingInfo getEgoPairingInfo() const {
-        OBEgoPairingInfo info{};
+    OBBluetoothPairingInfo getBluetoothPairingInfo() const {
+        OBBluetoothPairingInfo info{};
         ob_error        *error = nullptr;
-        ob_device_get_ego_pairing_info(impl_, &info, &error);
+        ob_device_get_bluetooth_pairing_info(impl_, &info, &error);
         Error::handle(&error);
         return info;
     }
 
     /**
-     * @brief Clear all pairing records stored by the Ego device.
+     * @brief Clear all Bluetooth pairing records stored by the device.
      */
-    void clearEgoPairing() const {
+    void clearBluetoothPairing() const {
         ob_error *error = nullptr;
-        ob_device_clear_ego_pairing(impl_, &error);
+        ob_device_clear_bluetooth_pairing(impl_, &error);
+        Error::handle(&error);
+    }
+
+    /**
+     * @brief Clear saved Wi-Fi provisioning information on this Ego or Wrist device.
+     */
+    void clearWifiConfig() const {
+        ob_error *error = nullptr;
+        ob_device_clear_wifi_config(impl_, &error);
         Error::handle(&error);
     }
 

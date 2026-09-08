@@ -235,18 +235,6 @@ OB_EXPORT void ob_device_read_license_info(const ob_device *device, char *licens
 OB_EXPORT void ob_device_clear_license_info(ob_device *device, ob_error **error);
 
 /**
- * @brief Clear saved Wi-Fi provisioning information on an Ego or Wrist device.
- *
- * @details The firmware removes the persisted Wi-Fi credentials and disables
- *          automatic reconnection after reboot. This call only affects the
- *          device passed to the API.
- *
- * @param[in] device The device object.
- * @param[out] error Pointer to an error object that will be set if an error occurs.
- */
-OB_EXPORT void ob_device_clear_ego_wifi_config(ob_device *device, ob_error **error);
-
-/**
  * @brief Get raw data of a device property.
  *
  * @param[in] device The device object.

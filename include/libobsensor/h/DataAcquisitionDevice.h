@@ -28,25 +28,36 @@ OB_EXPORT void ob_device_set_device_user_name(ob_device *device, const char *nam
 OB_EXPORT uint32_t ob_device_get_device_user_name(const ob_device *device, char *name, uint32_t name_capacity, ob_error **error);
 
 /**
- * @brief Get the Ego device pairing information.
+ * @brief Get Bluetooth pairing information stored by the device.
  *
  * @details The returned Bluetooth names are not null terminated. Use
- * @ref ob_ego_pairing_info::pairing_count and each record's @ref name_length
+ * @ref ob_bluetooth_pairing_info::paired_device_count and each record's @ref name_length
  * to access the valid records and bytes.
  *
  * @param[in] device The device object.
  * @param[out] info The parsed pairing information.
  * @param[out] error Pointer to an error object that will be set if an error occurs.
  */
-OB_EXPORT void ob_device_get_ego_pairing_info(ob_device *device, ob_ego_pairing_info *info, ob_error **error);
+OB_EXPORT void ob_device_get_bluetooth_pairing_info(ob_device *device, ob_bluetooth_pairing_info *info, ob_error **error);
 
 /**
- * @brief Clear all pairing records stored by the Ego device.
+ * @brief Clear all Bluetooth pairing records stored by the device.
  *
  * @param[in] device The device object.
  * @param[out] error Pointer to an error object that will be set if an error occurs.
  */
-OB_EXPORT void ob_device_clear_ego_pairing(ob_device *device, ob_error **error);
+OB_EXPORT void ob_device_clear_bluetooth_pairing(ob_device *device, ob_error **error);
+
+/**
+ * @brief Clear saved Wi-Fi provisioning information on an Ego or Wrist device.
+ *
+ * The firmware removes persisted Wi-Fi credentials and disables automatic
+ * reconnection after reboot. This call only affects the specified device.
+ *
+ * @param[in] device The device object.
+ * @param[out] error Pointer to an error object that will be set if an error occurs.
+ */
+OB_EXPORT void ob_device_clear_wifi_config(ob_device *device, ob_error **error);
 
 /**
  * @brief Start exporting firmware log files.

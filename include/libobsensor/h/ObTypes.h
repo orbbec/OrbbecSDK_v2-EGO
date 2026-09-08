@@ -2349,48 +2349,48 @@ typedef enum {
 } OBEgoStateFlag,
     ob_ego_state_flag;
 
-#define OB_EGO_PAIRING_MAX_COUNT 8U
-#define OB_EGO_BT_NAME_MAX_SIZE  32U
+#define OB_BLUETOOTH_PAIRED_DEVICE_MAX_COUNT 8U
+#define OB_BLUETOOTH_DEVICE_NAME_MAX_SIZE    32U
 
 /**
- * @brief Ego device pairing state.
+ * @brief Bluetooth pairing state.
  */
 typedef enum {
-    OB_EGO_PAIRING_STATE_UNPAIRED = 0, /**< No pairing records are stored. */
-    OB_EGO_PAIRING_STATE_VALID    = 1, /**< Stored pairing records are valid. */
-    OB_EGO_PAIRING_STATE_INVALID  = 2, /**< Stored pairing records are invalid. */
-} OBEgoPairingState,
-    ob_ego_pairing_state;
+    OB_BLUETOOTH_PAIRING_STATE_UNPAIRED = 0, /**< No pairing records are stored. */
+    OB_BLUETOOTH_PAIRING_STATE_VALID    = 1, /**< Stored pairing records are valid. */
+    OB_BLUETOOTH_PAIRING_STATE_INVALID  = 2, /**< Stored pairing records are invalid. */
+} OBBluetoothPairingState,
+    ob_bluetooth_pairing_state;
 
 /**
  * @brief A paired device Bluetooth name.
  *
  * @details The name is not null terminated. Only the first @ref name_length
- * bytes in @ref bluetooth_name are valid.
+ * bytes in @ref device_name are valid.
  */
 typedef struct {
     uint16_t name_length;
-    uint8_t  bluetooth_name[OB_EGO_BT_NAME_MAX_SIZE];
-} OBEgoPairingRecord,
-    ob_ego_pairing_record;
+    uint8_t  device_name[OB_BLUETOOTH_DEVICE_NAME_MAX_SIZE];
+} OBBluetoothPairedDevice,
+    ob_bluetooth_paired_device;
 
 /**
- * @brief Parsed Ego device pairing information.
+ * @brief Parsed Bluetooth pairing information.
  *
- * @details records[0] is the main Ego device Bluetooth name. The remaining
- * records are slave device names in the order returned by firmware. When this
- * API is used on a slave device, records[0] is the paired Ego main device and
- * records[1] is that slave device itself. This is an SDK result structure, not
- * the variable-length firmware payload.
+ * @details paired_devices[0] is the main Ego device Bluetooth name. The
+ * remaining entries are slave device names in the order returned by firmware.
+ * When this API is used on a slave device, paired_devices[0] is the paired Ego
+ * main device and paired_devices[1] is that slave device itself. This is an
+ * SDK result structure, not the variable-length firmware payload.
  */
 typedef struct {
-    uint8_t             pairing_state;
-    uint8_t             pairing_count;
-    uint16_t            reserved;
-    uint32_t            pairing_time_s;
-    OBEgoPairingRecord  records[OB_EGO_PAIRING_MAX_COUNT];
-} OBEgoPairingInfo,
-    ob_ego_pairing_info;
+    uint8_t                 pairing_state;
+    uint8_t                 paired_device_count;
+    uint16_t                reserved;
+    uint32_t                pairing_time_s;
+    OBBluetoothPairedDevice paired_devices[OB_BLUETOOTH_PAIRED_DEVICE_MAX_COUNT];
+} OBBluetoothPairingInfo,
+    ob_bluetooth_pairing_info;
 
 /**
  * @brief Ego device error flags reported through HID. Multiple flags can be set at the same time.
