@@ -35,6 +35,7 @@
 
 #include "firmwareupdater/FirmwareUpdater.hpp"
 #include "monitor/DeviceMonitor.hpp"
+#include "monitor/DeviceActivityRecorder.hpp"
 
 #if defined(BUILD_NET_PAL)
 #include "ethernet/RTSPStreamPort.hpp"
@@ -95,6 +96,15 @@ void WristNetDevice::init() {
         TRY_EXECUTE({ firmwareUpdater = std::make_shared<FirmwareUpdater>(this); })
         return firmwareUpdater;
     });
+
+    registerComponent(
+        OB_DEV_COMPONENT_DEVICE_ACTIVITY_RECORDER,
+        [this]() {
+            std::shared_ptr<DeviceActivityRecorder> activityRecorder;
+            TRY_EXECUTE({ activityRecorder = std::make_shared<DeviceActivityRecorder>(this); })
+            return activityRecorder;
+        },
+        false);
 
     auto hostTimeInfoManager = std::make_shared<HostTimeInfoManager>(this);
     registerComponent(OB_DEV_COMPONENT_HOST_TIME_INFO_MANAGER, hostTimeInfoManager);

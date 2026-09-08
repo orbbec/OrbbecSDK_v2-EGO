@@ -38,6 +38,7 @@
 
 #include "firmwareupdater/FirmwareUpdater.hpp"
 #include "monitor/DeviceMonitor.hpp"
+#include "monitor/DeviceActivityRecorder.hpp"
 
 #if defined(BUILD_NET_PAL)
 #include "ethernet/RTSPStreamPort.hpp"
@@ -104,6 +105,15 @@ void EgoProNetDevice::init() {
         TRY_EXECUTE({ firmwareUpdater = std::make_shared<FirmwareUpdater>(this); })
         return firmwareUpdater;
     });
+
+    registerComponent(
+        OB_DEV_COMPONENT_DEVICE_ACTIVITY_RECORDER,
+        [this]() {
+            std::shared_ptr<DeviceActivityRecorder> activityRecorder;
+            TRY_EXECUTE({ activityRecorder = std::make_shared<DeviceActivityRecorder>(this); })
+            return activityRecorder;
+        },
+        false);
 
     auto hostTimeInfoManager = std::make_shared<HostTimeInfoManager>(this);
     registerComponent(OB_DEV_COMPONENT_HOST_TIME_INFO_MANAGER, hostTimeInfoManager);
@@ -598,7 +608,7 @@ void EgoProNetDevice::initSensorStreamProfile(std::shared_ptr<ISensor> sensor) {
         }
     }
 
-    if(profileList.empty() && (streamType == OB_STREAM_COLOR_LEFT || streamType == OB_STREAM_COLOR_RIGHT)) {
+    if(profileList.empty() && (streamType == OB_STREAM_COLOR_LEFT || streamType == OB_STREAM_COLOR_RIGHT || streamType == OB_STREAM_COLOR_SIDE_LEFT || streamType == OB_STREAM_COLOR_SIDE_RIGHT)) {
         // Firmware has not yet implemented OB_RAW_DATA_STREAM_PROFILE_LIST; provide a minimal
         // hardcoded fallback so the RTSP stream can be opened for early bring-up testing.
         // profileList.push_back(StreamProfileFactory::createVideoStreamProfile(streamType, OB_FORMAT_MJPG, 1600, 1300, 30));
