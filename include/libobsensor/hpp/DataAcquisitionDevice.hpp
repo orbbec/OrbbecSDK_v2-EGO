@@ -419,6 +419,19 @@ public:
     }
 
     /**
+     * @brief Read the current Ego device state directly from the device.
+     *
+     * @return The same state report type delivered to an Ego state callback.
+     */
+    OBEgoStateReport getEgoState() const {
+        OBEgoStateReport state{};
+        ob_error        *error = nullptr;
+        ob_device_get_ego_state(impl_, &state, &error);
+        Error::handle(&error);
+        return state;
+    }
+
+    /**
      * @brief Set the callback invoked when a firmware recording result is ready.
      */
     void setEgoRecordingResultCallback(EgoRecordingResultCallback callback) {

@@ -117,6 +117,12 @@ void WristNetDevice::init() {
         }
     })
     CATCH_EXCEPTION_AND_EXECUTE({ LOG_WARN("Failed to initialize host time information for Wrist network device"); })
+
+    if(getFirmwareVersionInt() > 10102) {
+        auto propertyServer = getPropertyServer();
+        auto vendorAccessor = getComponentT<VendorPropertyAccessor>(OB_DEV_COMPONENT_MAIN_PROPERTY_ACCESSOR);
+        propertyServer->registerProperty(OB_STRUCT_EGO_STATE_REPORT, "r", "r", vendorAccessor.get());
+    }
 }
 
 void WristNetDevice::fetchDeviceInfo() {

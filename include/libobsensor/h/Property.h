@@ -1042,6 +1042,16 @@ typedef enum {
     OB_STRUCT_BLUETOOTH_PAIRING_INFO = 1104,
 
     /**
+     * @brief Current Ego device state report.
+     *
+     * The firmware returns an @ref ob_ego_state_report payload. Supported by
+     * Ego and Wrist series firmware newer than 1.1.2.
+     *
+     * @attention Read only.
+     */
+    OB_STRUCT_EGO_STATE_REPORT = 1106,
+
+    /**
      * @brief Color camera auto exposure
      */
     OB_PROP_COLOR_AUTO_EXPOSURE_BOOL = 2000,

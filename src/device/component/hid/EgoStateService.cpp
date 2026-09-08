@@ -109,6 +109,18 @@ void EgoStateService::clearCallback() {
     stopBackendIfUnused();
 }
 
+OBEgoStateReport EgoStateService::getState() const {
+    auto propertyServer = owner_->getPropertyServer();
+    const auto data = propertyServer->getStructureData(OB_STRUCT_EGO_STATE_REPORT, PROP_ACCESS_INTERNAL);
+    if(data.size() != sizeof(OBEgoStateReport)) {
+        THROW_IO_EXCEPTION_WITH_ERROR("Invalid Ego state report response size", OB_ERROR_DEVICE_RESPONSE_WRONG_DATA_SIZE);
+    }
+
+    OBEgoStateReport state{};
+    std::memcpy(&state, data.data(), sizeof(state));
+    return state;
+}
+
 void EgoStateService::setRecordingResultCallback(EgoRecordingResultCallback callback) {
     {
         std::lock_guard<std::mutex> lock(mutex_);

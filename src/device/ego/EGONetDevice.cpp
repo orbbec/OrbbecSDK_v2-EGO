@@ -89,6 +89,12 @@ void EGONetDevice::init() {
         initNetworkAudio();
     }
 
+    if(getFirmwareVersionInt() > 10102) {
+        auto propertyServer = getPropertyServer();
+        auto vendorAccessor = getComponentT<VendorPropertyAccessor>(OB_DEV_COMPONENT_MAIN_PROPERTY_ACCESSOR);
+        propertyServer->registerProperty(OB_STRUCT_EGO_STATE_REPORT, "r", "r", vendorAccessor.get());
+    }
+
     if(!inRecoveryMode_) {
         initSensorList();
 

@@ -114,6 +114,12 @@ void EGODevice::init() {
         propertyServer->registerProperty(OB_PROP_DEVICE_AUDIO_OUTPUT_VOLUME_INT, "rw", "rw", vendorAccessor.get());
         initUsbAudioPlayback();
     }
+
+    if(getFirmwareVersionInt() > 10102) {
+        auto propertyServer = getPropertyServer();
+        auto vendorAccessor = getComponentT<VendorPropertyAccessor>(OB_DEV_COMPONENT_MAIN_PROPERTY_ACCESSOR);
+        propertyServer->registerProperty(OB_STRUCT_EGO_STATE_REPORT, "r", "r", vendorAccessor.get());
+    }
 }
 
 void EGODevice::initUsbAudioPlayback() {

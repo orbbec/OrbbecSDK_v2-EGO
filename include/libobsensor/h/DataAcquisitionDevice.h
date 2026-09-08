@@ -206,6 +206,18 @@ OB_EXPORT void ob_device_set_ego_state_callback(ob_device *device, ob_ego_state_
 OB_EXPORT void ob_device_clear_ego_state_callback(ob_device *device, ob_error **error);
 
 /**
+ * @brief Read the current Ego device state directly from the device.
+ *
+ * This API returns the same @ref ob_ego_state_report type as the Ego state
+ * callback, but does not require registering a callback.
+ *
+ * @param[in] device The device object.
+ * @param[out] state Current Ego device state.
+ * @param[out] error Pointer to an error object that will be set if an error occurs.
+ */
+OB_EXPORT void ob_device_get_ego_state(ob_device *device, ob_ego_state_report *state, ob_error **error);
+
+/**
  * @brief Set the callback invoked when an Ego firmware recording result is ready.
  */
 OB_EXPORT void ob_device_set_ego_recording_result_callback(ob_device *device, ob_ego_recording_result_callback callback, void *user_data,

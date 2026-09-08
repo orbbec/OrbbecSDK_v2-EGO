@@ -36,6 +36,7 @@ public:
 
     void     setCallback(EgoStateCallback callback);
     void     clearCallback();
+    OBEgoStateReport getState() const;
     void     setRecordingResultCallback(EgoRecordingResultCallback callback);
     void     clearRecordingResultCallback();
     IDevice *getOwner() const override;

@@ -1139,6 +1139,14 @@ void ob_device_clear_ego_state_callback(ob_device *device, ob_error **error) BEG
 }
 HANDLE_EXCEPTIONS_NO_RETURN(device)
 
+void ob_device_get_ego_state(ob_device *device, ob_ego_state_report *state, ob_error **error) BEGIN_API_CALL {
+    VALIDATE_NOT_NULL(device);
+    VALIDATE_NOT_NULL(state);
+    auto egoStateService = device->device->getComponentT<libobsensor::EgoStateService>(libobsensor::OB_DEV_COMPONENT_EGO_STATE_SERVICE);
+    *state = egoStateService->getState();
+}
+HANDLE_EXCEPTIONS_NO_RETURN(device, state)
+
 void ob_device_set_ego_recording_result_callback(ob_device *device, ob_ego_recording_result_callback callback, void *user_data,
                                                   ob_error **error) BEGIN_API_CALL {
     VALIDATE_NOT_NULL(device);
