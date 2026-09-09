@@ -6,44 +6,7 @@
 #include "utils/Utils.hpp"
 #include "environment/EnvConfig.hpp"
 
-#include <chrono>
-#include <ctime>
-
-#if !defined(_WIN32) && !defined(__GLIBC__)
-// glibc already declares timegm in <time.h> (with throw()); redeclaring it here
-// would conflict on its exception specifier. Only declare as a fallback for
-// libc implementations that do not expose it.
-extern "C" time_t timegm(struct tm *timeptr);
-#endif
-
 namespace libobsensor {
-
-namespace {
-
-uint64_t getLocalTimeUs(uint64_t utcUs) {
-    std::time_t utcTime = static_cast<std::time_t>(utcUs / 1000000);
-    std::tm     localTm{};
-
-#ifdef _WIN32
-    localtime_s(&localTm, &utcTime);
-#else
-    localtime_r(&utcTime, &localTm);
-#endif
-
-    auto localTime =
-#ifdef _WIN32
-        _mkgmtime(&localTm);
-#else
-        timegm(&localTm);
-#endif
-    if(localTime == static_cast<std::time_t>(-1)) {
-        return 0;
-    }
-
-    return static_cast<uint64_t>(localTime) * 1000000 + utcUs % 1000000;
-}
-
-}  // namespace
 
 HostTimestampProvider ::HostTimestampProvider() {
     loadConfig();
@@ -77,28 +40,15 @@ OBClockType HostTimestampProvider::getClockType() const {
     return clockType_.load(std::memory_order_relaxed);
 }
 
-uint64_t HostTimestampProvider::getTimeUs(OBTimestampTimeBase timeBase) const {
-    if(getClockType() == OB_CLOCK_TYPE_MONOTONIC) {
-        return utils::getSteadyTimeUs();
-    }
-
-    if(timeBase == OB_TIMESTAMP_TIME_BASE_LOCAL) {
-        auto tp = std::chrono::system_clock::now();
-        auto us = std::chrono::duration_cast<std::chrono::microseconds>(tp.time_since_epoch()).count();
-        return getLocalTimeUs(static_cast<uint64_t>(us));
-    }
-    return utils::getNowTimesUs();
+uint64_t HostTimestampProvider::getTimeUs() const {
+    return (getClockType() == OB_CLOCK_TYPE_MONOTONIC) ? utils::getSteadyTimeUs() : utils::getNowTimesUs();
 }
 
-uint64_t HostTimestampProvider::getTimeMs(OBTimestampTimeBase timeBase) const {
-    if(getClockType() == OB_CLOCK_TYPE_MONOTONIC) {
-        return utils::getSteadyTimeMs();
-    }
-
-    return getTimeUs(timeBase) / 1000;
+uint64_t HostTimestampProvider::getTimeMs() const {
+    return (getClockType() == OB_CLOCK_TYPE_MONOTONIC) ? utils::getSteadyTimeMs() : utils::getNowTimesMs();
 }
 
-void HostTimestampProvider::applyHostTimestamp(const std::shared_ptr<Frame> &frame, OBTimestampTimeBase timeBase) const {
+void HostTimestampProvider::applyHostTimestamp(const std::shared_ptr<Frame> &frame) const {
     if(!frame) {
         return;
     }
@@ -109,22 +59,6 @@ void HostTimestampProvider::applyHostTimestamp(const std::shared_ptr<Frame> &fra
         frame->setSystemTimeStampUsec(steadyTime);
         if(frame->isDeviceTimestampFromHost()) {
             frame->setTimeStampUsec(steadyTime);
-        }
-        return;
-    }
-
-    if(timeBase == OB_TIMESTAMP_TIME_BASE_LOCAL) {
-        auto systemTime = frame->getSystemTimeStampUsec();
-        if(systemTime == 0) {
-            systemTime = utils::getNowTimesUs();
-        }
-
-        auto localTime = getLocalTimeUs(systemTime);
-        if(localTime > 0) {
-            frame->setSystemTimeStampUsec(localTime);
-            if(frame->isDeviceTimestampFromHost()) {
-                frame->setTimeStampUsec(localTime);
-            }
         }
     }
 }

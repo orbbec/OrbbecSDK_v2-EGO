@@ -107,8 +107,6 @@ void EGONetDevice::init() {
 
         deviceTimeFreq_ = 1000000;
 
-        setTimestampTimeBase(OB_TIMESTAMP_TIME_BASE_LOCAL);
-
         // auto algParamManager = std::make_shared<EGOAlgParamManager>(this);
         // registerComponent(OB_DEV_COMPONENT_ALG_PARAM_MANAGER, algParamManager);
 

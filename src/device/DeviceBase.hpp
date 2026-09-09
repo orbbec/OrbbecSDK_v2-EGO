@@ -113,13 +113,6 @@ public:
     bool hasWriteAccess() const override;
     void updateDepthPostProcessingFilterList() override;
 
-    OBTimestampTimeBase getTimestampTimeBase() const override {
-        return timestampTimeBase_.load();
-    }
-    void setTimestampTimeBase(OBTimestampTimeBase timeBase) override {
-        timestampTimeBase_.store(timeBase);
-    }
-
 protected:
     // implement on subclass, and must be called to initialize the device info on construction
     virtual void        fetchDeviceInfo();
@@ -153,8 +146,6 @@ protected:
     std::atomic<bool>               isPlaybackDevice_{ false };
     std::atomic<bool>               hasAccessControl_{ false };
     std::atomic<OBDeviceAccessMode> accessMode_{ OB_DEVICE_DEFAULT_ACCESS };
-
-    std::atomic<OBTimestampTimeBase> timestampTimeBase_{ OB_TIMESTAMP_TIME_BASE_UTC };
 
     // Post processing filter list
     std::map<OBSensorType, std::vector<std::shared_ptr<IFilter>>> recommendedPostFilters_;

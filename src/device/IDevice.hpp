@@ -153,20 +153,6 @@ public:
         return 65535;
     }
 
-    /**
-     * @brief Get the realtime timestamp time base for this device.
-     */
-    virtual OBTimestampTimeBase getTimestampTimeBase() const {
-        return OB_TIMESTAMP_TIME_BASE_UTC;
-    }
-
-    /**
-     * @brief Override the realtime timestamp time base for this device.
-     */
-    virtual void setTimestampTimeBase(OBTimestampTimeBase timeBase) {
-        (void)timeBase;
-    }
-
 public:
     // templated functions
     template <typename T> DeviceComponentPtr<T> getComponentT(DeviceComponentId compId, bool throwExIfNotFound = true) {

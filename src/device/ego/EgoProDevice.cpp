@@ -80,9 +80,6 @@ void EgoProDevice::init() {
     deviceTimeFreq_ = 1000000;
     frameTimeFreq_  = 1000000;
 
-    // EGO Pro uses UTC Unix epoch time base for frame system timestamps and device clock sync.
-    setTimestampTimeBase(OB_TIMESTAMP_TIME_BASE_UTC);
-
     // auto algParamManager = std::make_shared<EGOAlgParamManager>(this);
     // registerComponent(OB_DEV_COMPONENT_ALG_PARAM_MANAGER, algParamManager);
 

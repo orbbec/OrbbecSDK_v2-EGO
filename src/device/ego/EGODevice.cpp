@@ -85,10 +85,6 @@ void EGODevice::init() {
     deviceTimeFreq_ = 1000000;
     frameTimeFreq_  = 1000000;
 
-    // EGO records to SD card using SDK-synced time; use host local wall-clock so on-device
-    // recording timestamps match the host local time.
-    setTimestampTimeBase(OB_TIMESTAMP_TIME_BASE_LOCAL);
-
     // auto algParamManager = std::make_shared<EGOAlgParamManager>(this);
     // registerComponent(OB_DEV_COMPONENT_ALG_PARAM_MANAGER, algParamManager);
 

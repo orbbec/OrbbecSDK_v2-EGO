@@ -35,28 +35,25 @@ public:
     OBClockType getClockType() const;
 
     /**
-     * @brief Get current host time in microseconds using an explicit time base.
+     * @brief Get current host time in microseconds for the selected clock type.
      *
-     * @param timeBase Time base to apply for the realtime clock.
      * @return Current time in microseconds.
      */
-    uint64_t getTimeUs(OBTimestampTimeBase timeBase) const;
+    uint64_t getTimeUs() const;
 
     /**
-     * @brief Get current host time in milliseconds using an explicit time base.
+     * @brief Get current host time in milliseconds for the selected clock type.
      *
-     * @param timeBase Time base to apply for the realtime clock.
      * @return Current time in milliseconds.
      */
-    uint64_t getTimeMs(OBTimestampTimeBase timeBase) const;
+    uint64_t getTimeMs() const;
 
     /**
-     * @brief Apply frame timestamp using an explicit time base.
+     * @brief Apply frame timestamp.
      *
      * @param frame Target frame.
-     * @param timeBase Time base to apply for the realtime clock.
      */
-    void applyHostTimestamp(const std::shared_ptr<Frame> &frame, OBTimestampTimeBase timeBase) const;
+    void applyHostTimestamp(const std::shared_ptr<Frame> &frame) const;
 
 private:
     void loadConfig();
