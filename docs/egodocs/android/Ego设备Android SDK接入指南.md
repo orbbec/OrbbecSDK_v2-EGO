@@ -38,7 +38,7 @@
 11. [EGO 固件升级](#11-ego-固件升级)
 12. [EGO 固件日志导出](#12-ego-固件日志导出)
 13. [EGO 音频播放](#13-ego-音频播放)
-14. [EGO 蓝牙配对信息](#14-ego-蓝牙配对信息)
+14. [蓝牙配对与 Wi-Fi 配置清理](#14-蓝牙配对与-wi-fi-配置清理)
 15. [SDK 错误码捕获与处理](#15-sdk-错误码捕获与处理)
 
 ---
@@ -1940,6 +1940,7 @@ private void handleEgoState(EgoStateReport state) {
 | --- | --- | --- | --- |
 | 本次录制结果 | `setEgoRecordingResultCallback(...)` | `EgoStateReport` 快照、目录、最终分片名及各自有效标志 | 在发送 START 前注册；业务主路径。 |
 | 最近分片补查 | `getFwRecordingPartList()` | 当前设备保存的最近一次分片目录名 | 用户主动刷新、诊断或补查。 |
+| 指定目录的录制会话查询 | `getRecordingSessionResult(String)` | 文件是否存在、录制时长（秒）和会话状态 | 按设置录制时使用的目录查询其当前或最终状态。 |
 
 ```java
 import android.util.Log;
@@ -1990,6 +1991,92 @@ List<String> partNames = device.getFwRecordingPartList();
 for (String partName : partNames) {
     Log.i("EgoRecording", "latest part=" + partName);
 }
+```
+
+`getRecordingSessionResult(String recordingTaskDirectory)` 按创建录制会话时使用的设备端目录查询结果。
+目录必须与录制时设置的目录完全一致；建议在设置成功后保存设备回读的规范化目录，并在应用工作线程中调用。
+返回的 `RecordingSessionResult` 提供 `isFileExists()`、`getRecordingDuration()`（秒）、
+`getRecordingStatus()` 和 `getRawRecordingStatus()`。状态包括 `NOT_STARTED`、`RECORDING`、`STOPPED`、
+`ABNORMAL`、`NOT_FOUND`。
+
+| `RecordingSessionStatus` | raw 值 | 含义 |
+| --- | ---: | --- |
+| `NOT_STARTED` | 0 | 会话已创建但尚未开始录制。 |
+| `RECORDING` | 1 | 正在录制、停止处理中或正在保存最终文件。 |
+| `STOPPED` | 2 | 录制已正常完成。 |
+| `ABNORMAL` | 3 | 录制被中断或异常终止。 |
+| `NOT_FOUND` | 4 | 未找到该录制目录对应的会话。 |
+
+#### 返回字段与判定方式
+
+| `RecordingSessionResult` 方法 | 类型/单位 | 客户端处理建议 |
+| --- | --- | --- |
+| `isFileExists()` | `boolean` | 查询时设备端是否存在对应录制文件。它只表示文件当前是否存在，不能单独用于判断录制是否正常完成。 |
+| `getRecordingDuration()` | `long`，秒 | 设备端会话的录制时长。与 `EgoStateReport.getRecordingDurationMs()` 的毫秒单位不同。状态未开始、未找到或时长尚不可用时，不能只凭时长为 `0` 判断结果。 |
+| `getRecordingStatus()` | `RecordingSessionStatus` | 业务判断应优先使用此类型化状态。`STOPPED` 表示正常完成，`ABNORMAL` 表示异常终止，`NOT_FOUND` 表示路径没有对应会话。 |
+| `getRawRecordingStatus()` | `int` | 与上表的 raw 值一一对应；用于日志、协议联调或跨版本诊断。 |
+
+建议同时记录 `fileExists`、录制时长和会话状态。例如，`STOPPED` 才表示会话正常完成；
+`fileExists` 仅辅助判断文件在查询时是否存在。`RECORDING` 同时覆盖录制、停止处理和最终文件保存过程，
+因此收到该状态时不应假定文件已可供业务读取。
+
+#### 支持范围、参数和异常
+
+当前核心 SDK 仅在 Wrist / Wrist 网络设备且固件版本大于 `10102` 时注册该能力；其他设备或固件会抛出
+`OBException`（不支持操作）。
+
+- `recordingTaskDirectory` 必须使用**创建该录制会话时设置的设备端目录**；它不是 Android 本地文件路径。
+  设置目录成功后，建议保存设备回读的规范化目录，再将同一个值用于查询。
+- 目录不能为空、必须是有效 UTF-8，编码后最长 `480` 字节，单个路径段最长 `255` 字节；不允许空路径段、
+  `.` / `..` 路径段、反斜杠 `\`、控制字符或内嵌空字符。
+- Java 侧传入 `null`、空字符串或内嵌 `\0` 会抛出 `IllegalArgumentException`；其他路径格式错误、设备不支持、
+  通信失败或设备断开会抛出 `OBException`。可通过 `OBException.getStatus()` 和 `getStatusCode()` 记录 SDK 错误。
+- 该接口是一次同步设备查询，不注册回调，也不等待下一次录制结束。请在应用工作线程调用；持续获知录制完成事件
+  仍应使用 `setEgoRecordingResultCallback(...)`。
+
+```java
+import android.util.Log;
+
+import com.orbbec.obsensor.OBException;
+import com.orbbec.obsensor.types.RecordingSessionResult;
+import com.orbbec.obsensor.types.RecordingSessionStatus;
+
+// recordingDirectory 使用设置固件录制目录时的最终值。
+try {
+    RecordingSessionResult result =
+            device.getRecordingSessionResult(recordingDirectory);
+    Log.i("EgoRecording", "fileExists=" + result.isFileExists()
+            + ", duration=" + result.getRecordingDuration() + " s"
+            + ", status=" + result.getRecordingStatus()
+            + ", rawStatus=" + result.getRawRecordingStatus());
+
+    if (result.getRecordingStatus() == RecordingSessionStatus.STOPPED) {
+        // 会话正常完成；如 fileExists 为 true，可继续执行文件相关业务。
+    } else if (result.getRecordingStatus() == RecordingSessionStatus.ABNORMAL) {
+        // 录制异常终止；结合状态回调中的错误标志进行排查。
+    }
+} catch (IllegalArgumentException e) {
+    // 目录参数非法。
+} catch (OBException e) {
+    // 不支持、通信失败或设备断开等 SDK 错误。
+}
+```
+
+### 9.8 主动读取当前 EGO 状态
+
+`getEgoState()` 直接向设备读取一次当前 `EgoStateReport`，适用于页面打开后的初始展示、用户主动刷新或诊断。
+它不会注册状态回调，也不能替代 `setEgoStateCallback(...)` 对录制过程的持续监听；应在应用工作线程调用。
+设备不支持 EGO 状态服务或查询失败时会抛出 `OBException`。
+
+```java
+import android.util.Log;
+
+import com.orbbec.obsensor.types.EgoStateReport;
+
+EgoStateReport state = device.getEgoState();
+Log.i("EgoState", "workState=" + state.getWorkState()
+        + ", sequence=" + state.getSequence()
+        + ", storageFree=" + state.getStorageFreeBytes());
 ```
 
 ## 10. HID 方向键事件
@@ -2435,7 +2522,7 @@ private void stopEgoAudio(Device device) {
 
 页面退出、设备断开或释放设备前应先调用 `stopAudioPlayback()`，再等待播放线程退出；`Device.close()` 也会尝试停止正在进行的音频播放，但显式停止有助于业务状态同步。
 
-## 14. EGO 蓝牙配对信息
+## 14. 蓝牙配对与 Wi-Fi 配置清理
 
 本章说明读取和清除 Ego 设备保存的蓝牙配对记录。该能力独立于视频、音频流；应在已获取有效 `Device` 后，于设备工作线程串行调用。
 
@@ -2443,36 +2530,37 @@ private void stopEgoAudio(Device device) {
 
 | API | 说明 |
 |-----|------|
-| `Device.getEgoPairingInfo()` | 读取配对状态、配对时间和蓝牙名称列表。 |
-| `Device.clearEgoPairing()` | 清除设备保存的全部蓝牙配对记录。 |
-| `EgoPairingInfo.getPairingState()` | 返回配对状态：未配对（0）、有效（1）或无效（2）。 |
-| `EgoPairingInfo.getPairingTimeS()` | 返回设备报告的配对时间，单位秒。 |
-| `EgoPairingInfo.getBluetoothNames()` | 返回蓝牙名称列表，顺序与设备固件返回顺序一致。 |
+| `Device.getBluetoothPairingInfo()` | 读取配对状态、配对时间和蓝牙名称列表。 |
+| `Device.clearBluetoothPairing()` | 清除设备保存的全部蓝牙配对记录。 |
+| `Device.clearWifiConfig()` | 清除设备保存的 Wi-Fi 配置信息。 |
+| `BluetoothPairingInfo.getPairingState()` | 返回配对状态：未配对（0）、有效（1）或无效（2）。 |
+| `BluetoothPairingInfo.getPairingTimeS()` | 返回设备报告的配对时间，单位秒。 |
+| `BluetoothPairingInfo.getPairedDeviceNames()` | 返回蓝牙名称列表，顺序与设备固件返回顺序一致。 |
 
 ### 14.2 读取配对信息
 
 ```java
 import com.orbbec.obsensor.Device;
-import com.orbbec.obsensor.types.EgoPairingInfo;
+import com.orbbec.obsensor.types.BluetoothPairingInfo;
 
 import java.util.List;
 
-EgoPairingInfo pairingInfo = device.getEgoPairingInfo();
+BluetoothPairingInfo pairingInfo = device.getBluetoothPairingInfo();
 int pairingState = pairingInfo.getPairingState();
 long pairingTimeS = pairingInfo.getPairingTimeS();
-List<String> bluetoothNames = pairingInfo.getBluetoothNames();
+List<String> bluetoothNames = pairingInfo.getPairedDeviceNames();
 ```
 
 名称列表中的第一个记录为主 Ego 设备名称；其余记录为设备返回的从设备名称。对于从设备，第一个记录为已配对的主 Ego 设备，第二个记录为该从设备自身。
 
 ### 14.3 清除配对记录
 
-`clearEgoPairing()` 会清除设备内全部配对记录。该操作会影响后续蓝牙连接，应由应用在用户确认后调用；调用完成后重新读取 `getEgoPairingInfo()` 确认结果。
+`clearBluetoothPairing()` 会清除设备内全部配对记录。该操作会影响后续蓝牙连接，应由应用在用户确认后调用；调用完成后重新读取 `getBluetoothPairingInfo()` 确认结果。
 
 ```java
 // 在用户确认后、设备工作线程中执行。
-device.clearEgoPairing();
-EgoPairingInfo clearedInfo = device.getEgoPairingInfo();
+device.clearBluetoothPairing();
+BluetoothPairingInfo clearedInfo = device.getBluetoothPairingInfo();
 ```
 
 不支持该能力的设备或固件会抛出 `OBException`；应用应捕获异常并隐藏或禁用配对管理入口。
