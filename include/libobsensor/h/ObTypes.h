@@ -1526,6 +1526,7 @@ typedef enum {
     OB_POWER_LINE_FREQ_MODE_CLOSE = 0,  ///< Close
     OB_POWER_LINE_FREQ_MODE_50HZ  = 1,  ///< 50Hz
     OB_POWER_LINE_FREQ_MODE_60HZ  = 2,  ///< 60Hz
+    OB_POWER_LINE_FREQ_MODE_AUTO  = 3,   ///< auto
 } ob_power_line_freq_mode,
     OBPowerLineFreqMode;
 
