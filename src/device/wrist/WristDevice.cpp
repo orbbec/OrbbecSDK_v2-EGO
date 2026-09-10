@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 #include "WristDevice.hpp"
-#include "ego/EGOColorVideoSensor.hpp"
+#include "ego/EGOVideoSensor.hpp"
 #include "ego/EGOStreamStrategy.hpp"
 #include "DevicePids.hpp"
 #include "environment/EnvConfig.hpp"
@@ -238,7 +238,7 @@ void WristDevice::initSensorList() {
             OB_DEV_COMPONENT_COLOR_SENSOR,
             [this, colorPortInfo]() {
                 auto port   = getSourcePort(colorPortInfo);
-                auto sensor = std::make_shared<EGOColorVideoSensor>(this, OB_SENSOR_COLOR, port);
+                auto sensor = std::make_shared<EGOVideoSensor>(this, OB_SENSOR_COLOR, port, OB_PROP_STOP_COLOR_STREAM_BOOL);
 
                 sensor->enableTimestampAnomalyDetection(false);
 

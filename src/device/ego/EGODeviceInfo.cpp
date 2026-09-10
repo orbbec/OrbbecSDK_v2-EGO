@@ -6,6 +6,8 @@
 #include "EGONetDevice.hpp"
 #include "EgoProDevice.hpp"
 #include "EgoProNetDevice.hpp"
+#include "UMIFingerDevice.hpp"
+#include "UMIFingerNetDevice.hpp"
 #include "DevicePids.hpp"
 #include "common/DeviceSeriesInfo.hpp"
 #include "utils/Utils.hpp"
@@ -29,6 +31,13 @@ static const uint16_t EGO_RTSP_AUDIO_PORT               = 8890;
 static const uint16_t EGO_IMU_TCP_PORT                  = 8900;  // private TCP IMU data stream (parallel to RTSP)
 static const uint16_t EGOPRO_SIDE_LEFT_COLOR_RTSP_PORT  = 8891;
 static const uint16_t EGOPRO_SIDE_RIGHT_COLOR_RTSP_PORT = 8892;
+
+// UMI Finger three-camera network ports (Color / IR-Left / Audio / IR-Right / IMU); see design doc section 5.1.
+static const uint16_t UMI_COLOR_RTSP_PORT    = 8888;
+static const uint16_t UMI_IR_LEFT_RTSP_PORT  = 8889;
+static const uint16_t UMI_RTSP_AUDIO_PORT    = 8890;
+static const uint16_t UMI_IR_RIGHT_RTSP_PORT = 8891;
+static const uint16_t UMI_IMU_TCP_PORT       = 8900;  // private TCP IMU data stream (accel/gyro)
 
 // EGO and EGOPro are split into separate series lists (EGODevPids / EGOProDevPids) so that
 // device-class selection is driven by list membership instead of a hardcoded PID. Enumeration
@@ -90,6 +99,9 @@ std::shared_ptr<IDevice> EGODeviceInfo::createDevice(OBDeviceAccessMode accessMo
         if(isEgoProDevice(vid_, pid_)) {
             device = std::make_shared<EgoProNetDevice>(shared_from_this());
         }
+        else if(pid_ == OB_DEVICE_UMI_PID) {
+            device = std::make_shared<UMIFingerNetDevice>(shared_from_this());
+        }
         else {
             device = std::make_shared<EGONetDevice>(shared_from_this());
         }
@@ -97,6 +109,9 @@ std::shared_ptr<IDevice> EGODeviceInfo::createDevice(OBDeviceAccessMode accessMo
     else {
         if(isEgoProDevice(vid_, pid_)) {
             device = std::make_shared<EgoProDevice>(shared_from_this());
+        }
+        else if(pid_ == OB_DEVICE_UMI_PID) {
+            device = std::make_shared<UMIFingerDevice>(shared_from_this());
         }
         else {
             device = std::make_shared<EGODevice>(shared_from_this());
@@ -155,6 +170,24 @@ std::vector<std::shared_ptr<IDeviceEnumInfo>> EGODeviceInfo::pickNetDevices(cons
     while(iter != groups.end()) {
         if(iter->size() >= 1) {
             auto portInfo = std::dynamic_pointer_cast<const NetSourcePortInfo>(iter->front());
+
+            if(portInfo->pid == OB_DEVICE_UMI_PID) {
+                // UMI Finger: 1 Color + 2 IR, each on its own RTSP port (1:1 stream -> port).
+                iter->emplace_back(std::make_shared<RTSPStreamPortInfo>(*portInfo, UMI_COLOR_RTSP_PORT, portInfo->port, OB_STREAM_COLOR));
+                iter->emplace_back(std::make_shared<RTSPStreamPortInfo>(*portInfo, UMI_IR_LEFT_RTSP_PORT, portInfo->port, OB_STREAM_IR_LEFT));
+                iter->emplace_back(std::make_shared<RTSPStreamPortInfo>(*portInfo, UMI_IR_RIGHT_RTSP_PORT, portInfo->port, OB_STREAM_IR_RIGHT));
+
+                // Audio is an independent RTSP stream
+                iter->emplace_back(std::make_shared<RTSPStreamPortInfo>(*portInfo, UMI_RTSP_AUDIO_PORT, portInfo->port, OB_STREAM_AUDIO));
+
+                // IMU (accel/gyro) over an independent private TCP data stream
+                iter->emplace_back(std::make_shared<NetDataStreamPortInfo>(*portInfo, UMI_IMU_TCP_PORT, portInfo->port));
+
+                auto deviceEnumInfo = std::make_shared<EGODeviceInfo>(*iter);
+                egoDeviceInfos.push_back(deviceEnumInfo);
+                iter++;
+                continue;
+            }
 
             iter->emplace_back(std::make_shared<RTSPStreamPortInfo>(*portInfo, EGO_LEFT_COLOR_RTSP_PORT, portInfo->port, OB_STREAM_COLOR_LEFT));
             iter->emplace_back(std::make_shared<RTSPStreamPortInfo>(*portInfo, EGO_RIGHT_COLOR_RTSP_PORT, portInfo->port, OB_STREAM_COLOR_RIGHT));

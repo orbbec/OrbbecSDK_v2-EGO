@@ -198,6 +198,13 @@
             <Name>EGOPro</Name>
             <Manufacturer>Orbbec</Manufacturer>
         </EGOPro>
+        <UMI>
+            <!-- TN2611 UMI Finger three-camera (1 Color + 2 IR) + IMU + audio device. -->
+            <VID>0x2BC5</VID>
+            <PID>0x1202</PID>
+            <Name>UMI</Name>
+            <Manufacturer>Orbbec</Manufacturer>
+        </UMI>
         <WristCam>
             <VID>0x2BC5</VID>
             <PID>0x1203</PID>
@@ -290,6 +297,7 @@
     <EGODeviceList>
         <!-- EGO series devices (dual-RGB, per-interface UVC endpoints) -->
         <Device>EGO</Device>
+        <Device>UMI</Device>
         <!-- More devices can be added here -->
     </EGODeviceList>
 

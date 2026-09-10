@@ -9,8 +9,8 @@ target_sources(
              ${CMAKE_CURRENT_LIST_DIR}/EGODevice.cpp
              ${CMAKE_CURRENT_LIST_DIR}/EgoProDevice.hpp
              ${CMAKE_CURRENT_LIST_DIR}/EgoProDevice.cpp
-             ${CMAKE_CURRENT_LIST_DIR}/EGOColorVideoSensor.hpp
-             ${CMAKE_CURRENT_LIST_DIR}/EGOColorVideoSensor.cpp
+             ${CMAKE_CURRENT_LIST_DIR}/EGOVideoSensor.hpp
+             ${CMAKE_CURRENT_LIST_DIR}/EGOVideoSensor.cpp
              ${CMAKE_CURRENT_LIST_DIR}/EGOStreamStrategy.hpp
              ${CMAKE_CURRENT_LIST_DIR}/EGOStreamStrategy.cpp
              ${CMAKE_CURRENT_LIST_DIR}/EGOProColorDemuxer.hpp
@@ -19,6 +19,10 @@ target_sources(
              ${CMAKE_CURRENT_LIST_DIR}/EGONetDevice.cpp
              ${CMAKE_CURRENT_LIST_DIR}/EgoProNetDevice.hpp
              ${CMAKE_CURRENT_LIST_DIR}/EgoProNetDevice.cpp
+             ${CMAKE_CURRENT_LIST_DIR}/UMIFingerDevice.hpp
+             ${CMAKE_CURRENT_LIST_DIR}/UMIFingerDevice.cpp
+             ${CMAKE_CURRENT_LIST_DIR}/UMIFingerNetDevice.hpp
+             ${CMAKE_CURRENT_LIST_DIR}/UMIFingerNetDevice.cpp
              ${CMAKE_CURRENT_LIST_DIR}/EGODeviceInfo.hpp
              ${CMAKE_CURRENT_LIST_DIR}/EGODeviceInfo.cpp
              ${CMAKE_CURRENT_LIST_DIR}/EGOAlgParamManager.hpp

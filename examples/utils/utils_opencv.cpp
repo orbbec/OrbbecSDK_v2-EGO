@@ -484,7 +484,10 @@ cv::Mat CVWindow::visualize(std::shared_ptr<const ob::Frame> frame) {
         }
         else if(videoFrame->getFormat() == OB_FORMAT_MJPG) {
             cv::Mat rawMat(1, videoFrame->getDataSize(), CV_8UC1, videoFrame->getData());
-            rstMat = cv::imdecode(rawMat, 1);
+            // IR frames are grayscale JPEGs: imdecode with IMREAD_COLOR (1) always produces a 3-channel
+            // BGR image, which would make the GRAY2RGB conversion below fail (VScn::contains(scn)).
+            // Decode as grayscale so the frame stays single-channel.
+            rstMat = cv::imdecode(rawMat, cv::IMREAD_GRAYSCALE);
             cv::cvtColor(rstMat, rstMat, cv::COLOR_GRAY2RGB);
         }
         if(showSyncTimeInfo_ && !rstMat.empty()) {

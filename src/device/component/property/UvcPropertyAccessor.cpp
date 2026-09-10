@@ -29,6 +29,8 @@ uint32_t convertToUvcCompatibleID(uint32_t propertyId) {
     case OB_PROP_DEPTH_GAIN_INT:
     case OB_PROP_IR_GAIN_INT:
         return OB_PROP_COLOR_GAIN_INT;
+    case OB_PROP_IR_BRIGHTNESS_INT:
+        return OB_PROP_COLOR_BRIGHTNESS_INT;
     case OB_PROP_COLOR_AUTO_WHITE_BALANCE_BOOL:
     case OB_PROP_COLOR_WHITE_BALANCE_INT:
     case OB_PROP_COLOR_BRIGHTNESS_INT:
@@ -42,7 +44,6 @@ uint32_t convertToUvcCompatibleID(uint32_t propertyId) {
     case OB_PROP_COLOR_BACKLIGHT_COMPENSATION_INT:
     case OB_PROP_COLOR_HUE_INT:
     case OB_PROP_COLOR_POWER_LINE_FREQUENCY_INT:
-    case OB_PROP_IR_BRIGHTNESS_INT:
     case OB_PROP_COLOR_AE_MAX_EXPOSURE_INT:  // todo: not supported yet
     case OB_PROP_IR_AE_MAX_EXPOSURE_INT:
     case OB_PROP_COLOR_HDR_BOOL:

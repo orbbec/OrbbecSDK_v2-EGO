@@ -1,7 +1,7 @@
 // Copyright (c) Orbbec Inc. All Rights Reserved.
 // Licensed under the MIT License.
 
-#include "EGOColorVideoSensor.hpp"
+#include "EGOVideoSensor.hpp"
 
 #include "usb/uvc/UvcDevicePort.hpp"
 #include "property/VendorPropertyAccessor.hpp"
@@ -10,17 +10,17 @@
 
 namespace libobsensor {
 
-EGOColorVideoSensor::EGOColorVideoSensor(IDevice *owner, OBSensorType sensorType, const std::shared_ptr<ISourcePort> &backend)
-    : VideoSensor(owner, sensorType, backend) {
+EGOVideoSensor::EGOVideoSensor(IDevice *owner, OBSensorType sensorType, const std::shared_ptr<ISourcePort> &backend, uint32_t stopStreamPropertyId)
+    : VideoSensor(owner, sensorType, backend), stopStreamPropertyId_(stopStreamPropertyId) {
     // The base VideoSensor constructor already called trySendStopStreamVendorCmd() to clear any stream
     // left over from a previous crash, but a virtual call during base construction does NOT reach a
     // derived override (the vtable still points to the base), so only the base (no-op for EGO) version
-    // ran. Repeat it now that the object is fully constructed, so the stop actually goes out on this
-    // color's own interface XU.
-    TRY_EXECUTE({ trySendStopStreamVendorCmd(); })
+    // ran. Repeat it now that the object is fully constructed, so the configured stop command goes
+    // out on this sensor's own interface XU.
+    TRY_EXECUTE({ trySendStopStreamVendorCmd(); });
 }
 
-EGOColorVideoSensor::~EGOColorVideoSensor() noexcept {
+EGOVideoSensor::~EGOVideoSensor() noexcept {
     // ~VideoSensor() also calls stop() -> trySendStopStreamVendorCmd(), but by the time the base
     // destructor runs the vtable has reverted to the base class, so the per-eye override would not
     // fire. Call stop() here from the most-derived destructor so the override runs. stop() is
@@ -29,7 +29,7 @@ EGOColorVideoSensor::~EGOColorVideoSensor() noexcept {
     TRY_EXECUTE({ stop(); })
 }
 
-void EGOColorVideoSensor::trySendStopStreamVendorCmd() {
+void EGOVideoSensor::trySendStopStreamVendorCmd() {
     auto uvcPort = std::dynamic_pointer_cast<UvcDevicePort>(backend_);
     if(!uvcPort) {
         return;
@@ -40,7 +40,7 @@ void EGOColorVideoSensor::trySendStopStreamVendorCmd() {
     auto            accessor = std::make_shared<VendorPropertyAccessor>(getOwner(), backend_);
     OBPropertyValue value;
     value.intValue = 1;
-    TRY_EXECUTE({ accessor->setPropertyValue(OB_PROP_STOP_COLOR_STREAM_BOOL, value); })
+    TRY_EXECUTE({ accessor->setPropertyValue(stopStreamPropertyId_, value); })
 }
 
 }  // namespace libobsensor

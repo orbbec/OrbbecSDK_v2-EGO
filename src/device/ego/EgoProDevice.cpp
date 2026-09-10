@@ -4,7 +4,7 @@
 #include "EgoProDevice.hpp"
 #include "EGOProColorDemuxer.hpp"
 #include "EGOAlgParamManager.hpp"
-#include "EGOColorVideoSensor.hpp"
+#include "EGOVideoSensor.hpp"
 #include "EGOStreamStrategy.hpp"
 #include "DevicePids.hpp"
 #include "environment/EnvConfig.hpp"
@@ -233,7 +233,7 @@ void EgoProDevice::initSensorList() {
             [this, leftColorPortInfo]() {
                 auto demuxer = getComponentT<EGOProColorDemuxer>(OB_DEV_COMPONENT_EGOPRO_COLOR_DEMUXER);
                 auto port    = demuxer->createVirtualPort(0);
-                auto sensor  = std::make_shared<EGOColorVideoSensor>(this, OB_SENSOR_COLOR_LEFT, port);
+                auto sensor  = std::make_shared<EGOVideoSensor>(this, OB_SENSOR_COLOR_LEFT, port, OB_PROP_STOP_COLOR_STREAM_BOOL);
 
                 sensor->enableTimestampAnomalyDetection(false);
 
@@ -287,7 +287,7 @@ void EgoProDevice::initSensorList() {
                 [this, sensorType, frameProcessorComponent, colorId]() {
                     auto demuxer = getComponentT<EGOProColorDemuxer>(OB_DEV_COMPONENT_EGOPRO_COLOR_DEMUXER);
                     auto port    = demuxer->createVirtualPort(colorId);
-                    auto sensor  = std::make_shared<EGOColorVideoSensor>(this, sensorType, port);
+                    auto sensor  = std::make_shared<EGOVideoSensor>(this, sensorType, port, OB_PROP_STOP_COLOR_STREAM_BOOL);
 
                     sensor->enableTimestampAnomalyDetection(false);
 
@@ -506,8 +506,8 @@ void EgoProDevice::initProperties() {
         });
 
         propertyServer->registerProperty(OB_PROP_COLOR_EXPOSURE_INT, "rw", "rw", vendorPropertyAccessor);
-        // Stop-color is per-eye: EGOColorVideoSensor sends OB_PROP_STOP_COLOR_STREAM_BOOL on each color
-        // sensor's own interface XU, so it is intentionally NOT registered on this device-global accessor.
+        // Stop-color is per-eye: each color EGOVideoSensor sends OB_PROP_STOP_COLOR_STREAM_BOOL on its own
+        // interface XU, so it is intentionally NOT registered on this device-global accessor.
         // TODO:
         propertyServer->registerProperty(OB_STRUCT_VERSION, "", "r", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_STRUCT_HOST_TIME_INFO, "", "w", vendorPropertyAccessor);

@@ -3,7 +3,7 @@
 
 #include "EGODevice.hpp"
 #include "EGOAlgParamManager.hpp"
-#include "EGOColorVideoSensor.hpp"
+#include "EGOVideoSensor.hpp"
 #include "EGOStreamStrategy.hpp"
 #include "DevicePids.hpp"
 #include "environment/EnvConfig.hpp"
@@ -288,7 +288,7 @@ void EGODevice::initSensorList() {
             OB_DEV_COMPONENT_LEFT_COLOR_SENSOR,
             [this, leftColorPortInfo]() {
                 auto port   = getSourcePort(leftColorPortInfo);
-                auto sensor = std::make_shared<EGOColorVideoSensor>(this, OB_SENSOR_COLOR_LEFT, port);
+                auto sensor = std::make_shared<EGOVideoSensor>(this, OB_SENSOR_COLOR_LEFT, port, OB_PROP_STOP_COLOR_STREAM_BOOL);
 
                 sensor->enableTimestampAnomalyDetection(false);
 
@@ -358,7 +358,7 @@ void EGODevice::initSensorList() {
             OB_DEV_COMPONENT_RIGHT_COLOR_SENSOR,
             [this, rightColorPortInfo]() {
                 auto port   = getSourcePort(rightColorPortInfo);
-                auto sensor = std::make_shared<EGOColorVideoSensor>(this, OB_SENSOR_COLOR_RIGHT, port);
+                auto sensor = std::make_shared<EGOVideoSensor>(this, OB_SENSOR_COLOR_RIGHT, port, OB_PROP_STOP_COLOR_STREAM_BOOL);
 
                 sensor->enableTimestampAnomalyDetection(false);
 
@@ -555,8 +555,8 @@ void EGODevice::initProperties() {
 
         propertyServer->registerProperty(OB_PROP_COLOR_EXPOSURE_INT, "rw", "rw", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_PROP_LOCAL_UTC_OFFSET_MINUTES_INT, "", "w", vendorPropertyAccessor);
-        // Stop-color is per-eye: EGOColorVideoSensor sends OB_PROP_STOP_COLOR_STREAM_BOOL on each color
-        // sensor's own interface XU, so it is intentionally NOT registered on this device-global accessor.
+        // Stop-color is per-eye: each color EGOVideoSensor sends OB_PROP_STOP_COLOR_STREAM_BOOL on its own
+        // interface XU, so it is intentionally NOT registered on this device-global accessor.
         // TODO:
         propertyServer->registerProperty(OB_STRUCT_VERSION, "", "r", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_STRUCT_HOST_TIME_INFO, "", "w", vendorPropertyAccessor);

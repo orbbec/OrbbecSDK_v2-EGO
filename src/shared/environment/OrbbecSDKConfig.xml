@@ -3467,6 +3467,36 @@
                 <Format>H264</Format>
             </SideRightColor>
         </EGOPro>
+        <UMI>
+            <!-- TN2611 UMI Finger three-camera (1 Color + 2 IR) device. -->
+            <!-- Resolutions/formats below follow the 0x1202 (bcdDevice 0x0310) firmware: Color(MI_04) streams
+            1600x1200 and the two SLAM/IR cameras (MI_00 left / MI_02 right) stream 1280x960, all in
+            MJPEG/H264/H265; the IR cameras have no raw Y8 output. -->
+            <!-- Default backend for Linux UVC devices. If the LinuxUVCBackend is set to "Auto,"
+            this item will determine the device's speciality. Optional values: V4L2, LibUVC -->
+            <LinuxUVCDefaultBackend>LibUVC</LinuxUVCDefaultBackend>
+
+            <Color>
+                <Width>1600</Width>
+                <Height>1200</Height>
+                <FPS>30</FPS>
+                <Format>MJPG</Format>
+            </Color>
+
+            <LeftIR>
+                <Width>1280</Width>
+                <Height>960</Height>
+                <FPS>30</FPS>
+                <Format>MJPG</Format>
+            </LeftIR>
+
+            <RightIR>
+                <Width>1280</Width>
+                <Height>960</Height>
+                <FPS>30</FPS>
+                <Format>MJPG</Format>
+            </RightIR>
+        </UMI>
         <WristCam>
             <!-- Default backend for Linux UVC devices. If the LinuxUVCBackend is set to "Auto,"
             this item will determine the device's speciality. Optional values: V4L2, LibUVC -->
