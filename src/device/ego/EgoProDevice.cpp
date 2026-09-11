@@ -32,6 +32,7 @@
 #include "component/fwlog/FirmwareLogManager.hpp"
 #include "component/fwrecord/FwRecordProfileManager.hpp"
 #include "component/fwrecord/FwRecordingDirectoryManager.hpp"
+#include "component/fwrecord/RecordingSessionResultManager.hpp"
 #include "component/custommetadata/CustomMetadataManager.hpp"
 #include "component/timezone/HostTimeInfoManager.hpp"
 #include "common/DeviceSeriesInfo.hpp"
@@ -96,6 +97,10 @@ void EgoProDevice::init() {
         auto propertyServer         = getPropertyServer();
         auto vendorPropertyAccessor = getComponentT<VendorPropertyAccessor>(OB_DEV_COMPONENT_MAIN_PROPERTY_ACCESSOR);
         propertyServer->registerProperty(OB_STRUCT_DEVICE_MODEL_TYPE, "r", "r", vendorPropertyAccessor.get());
+        propertyServer->registerProperty(OB_STRUCT_EGO_STATE_REPORT, "r", "r", vendorPropertyAccessor.get());
+        propertyServer->registerProperty(OB_STRUCT_RECORDING_SESSION_RESULT, "", "rw", vendorPropertyAccessor.get());
+        registerComponent(OB_DEV_COMPONENT_RECORDING_SESSION_RESULT_MANAGER,
+                          std::make_shared<RecordingSessionResultManager>(this, vendorPropertyAccessor.get()));
     }
 
 }
