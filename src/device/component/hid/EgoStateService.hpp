@@ -43,6 +43,7 @@ public:
 
 private:
     void onFrame(std::shared_ptr<Frame> frame);
+    void notifyCurrentStateAfterCallbackRegistered();
     void startBackendIfNeeded();
     void stopBackendIfUnused();
     void enqueueRecordingResultTask(const OBEgoStateReport &state);

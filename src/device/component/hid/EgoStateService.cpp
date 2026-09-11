@@ -96,9 +96,38 @@ EgoStateService::~EgoStateService() noexcept {
 void EgoStateService::setCallback(EgoStateCallback callback) {
     {
         std::lock_guard<std::mutex> lock(mutex_);
-        callback_ = callback;
+        callback_ = std::move(callback);
     }
     startBackendIfNeeded();
+    notifyCurrentStateAfterCallbackRegistered();
+}
+
+void EgoStateService::notifyCurrentStateAfterCallbackRegistered() {
+    try {
+        auto propertyServer = owner_->getPropertyServer();
+        if(!propertyServer->isPropertySupported(OB_STRUCT_EGO_STATE_REPORT, PROP_OP_READ, PROP_ACCESS_INTERNAL)) {
+            return;
+        }
+
+        const auto state = getState();
+
+        EgoStateCallback registeredCallback;
+        {
+            std::lock_guard<std::mutex> lock(mutex_);
+            registeredCallback = callback_;
+        }
+
+        if(registeredCallback) {
+            LOG_INFO("Triggering Ego state callback with actively queried state");
+            registeredCallback(state);
+        }
+    }
+    catch(const std::exception &e) {
+        LOG_WARN("Failed to actively query Ego state after callback registration: {}", e.what());
+    }
+    catch(...) {
+        LOG_WARN("Failed to actively query Ego state after callback registration");
+    }
 }
 
 void EgoStateService::clearCallback() {
