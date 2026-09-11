@@ -1063,6 +1063,15 @@ typedef enum {
     OB_STRUCT_RECORDING_SESSION_RESULT = 1107,
 
     /**
+     * @brief Device model type for EgoPro and EgoProNet devices.
+     *
+     * Payload is a null-terminated 32-byte character buffer.
+     *
+     * @attention Read only.
+     */
+    OB_STRUCT_DEVICE_MODEL_TYPE = 1108,
+
+    /**
      * @brief Color camera auto exposure
      */
     OB_PROP_COLOR_AUTO_EXPOSURE_BOOL = 2000,

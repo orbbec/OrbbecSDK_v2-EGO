@@ -185,6 +185,17 @@ public:
     }
 
     /**
+     * @brief Get the device model type.
+     */
+    std::string getDeviceModelType() const {
+        std::array<char, 32> modelType{};
+        ob_error            *error = nullptr;
+        const auto length = ob_device_get_device_model_type(impl_, modelType.data(), static_cast<uint32_t>(modelType.size()), &error);
+        Error::handle(&error);
+        return std::string(modelType.data(), length);
+    }
+
+    /**
      * @brief Get the parsed Bluetooth pairing information.
      *
      * @details Bluetooth names are not null terminated. Use paired_device_count and

@@ -28,6 +28,15 @@ OB_EXPORT void ob_device_set_device_user_name(ob_device *device, const char *nam
 OB_EXPORT uint32_t ob_device_get_device_user_name(const ob_device *device, char *name, uint32_t name_capacity, ob_error **error);
 
 /**
+ * @brief Get the device model type.
+ *
+ * The device returns a fixed 32-byte null-terminated UTF-8 buffer.
+ *
+ * @return Model type length excluding the trailing null character.
+ */
+OB_EXPORT uint32_t ob_device_get_device_model_type(const ob_device *device, char *model_type, uint32_t model_type_capacity, ob_error **error);
+
+/**
  * @brief Get Bluetooth pairing information stored by the device.
  *
  * @details The returned Bluetooth names are not null terminated. Use

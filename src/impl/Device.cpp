@@ -44,6 +44,7 @@ static_assert(sizeof(ob_fw_recording_mcap_topic) == 130, "MCAP topic protocol it
 static_assert(sizeof(ob_fw_recording_mcap_topic) % 2 == 0, "MCAP topic protocol item must have an even byte length");
 
 constexpr size_t kDeviceUserNameBufferSize = 32;
+constexpr size_t kDeviceModelTypeBufferSize = 32;
 constexpr size_t kBluetoothPairingPayloadHeaderSize = 8;
 constexpr int32_t kBluetoothClearPairingValue = 1;
 constexpr int32_t kClearWifiConfigValue = 1;
@@ -776,6 +777,36 @@ uint32_t ob_device_get_device_user_name(const ob_device *device, char *name, uin
     return nameLength;
 }
 HANDLE_EXCEPTIONS_AND_RETURN(0, device, name, name_capacity)
+
+uint32_t ob_device_get_device_model_type(const ob_device *device, char *model_type, uint32_t model_type_capacity, ob_error **error) BEGIN_API_CALL {
+    VALIDATE_NOT_NULL(device);
+
+    auto propertyServer = device->device->getPropertyServer();
+    auto modelTypeData  = propertyServer->getStructureData(OB_STRUCT_DEVICE_MODEL_TYPE, libobsensor::PROP_ACCESS_USER);
+    if(modelTypeData.size() != kDeviceModelTypeBufferSize) {
+        THROW_INVALID_DATA_EXCEPTION("Invalid device model type payload size");
+    }
+
+    const auto terminator = std::find(modelTypeData.begin(), modelTypeData.end(), static_cast<uint8_t>(0));
+    if(terminator == modelTypeData.end()) {
+        THROW_INVALID_DATA_EXCEPTION("Device model type is not null terminated");
+    }
+    const auto modelTypeLength = static_cast<uint32_t>(std::distance(modelTypeData.begin(), terminator));
+
+    if(model_type == nullptr && model_type_capacity == 0) {
+        return modelTypeLength;
+    }
+
+    VALIDATE_NOT_NULL(model_type);
+    if(model_type_capacity < modelTypeLength + 1) {
+        THROW_INVALID_PARAM_EXCEPTION("Device model type output buffer is too small");
+    }
+
+    std::memcpy(model_type, modelTypeData.data(), modelTypeLength);
+    model_type[modelTypeLength] = '\0';
+    return modelTypeLength;
+}
+HANDLE_EXCEPTIONS_AND_RETURN(0, device, model_type, model_type_capacity)
 
 void ob_device_get_bluetooth_pairing_info(ob_device *device, ob_bluetooth_pairing_info *info, ob_error **error) BEGIN_API_CALL {
     VALIDATE_NOT_NULL(device);
