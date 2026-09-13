@@ -49,6 +49,14 @@ ob_stream_profile *ob_create_gyro_stream_profile(ob_gyro_full_scale_range full_s
 }
 HANDLE_EXCEPTIONS_AND_RETURN(nullptr, full_scale_range, sample_rate)
 
+ob_stream_profile *ob_create_mag_stream_profile(ob_mag_full_scale_range full_scale_range, ob_mag_sample_rate sample_rate, ob_error **error) BEGIN_API_CALL {
+    auto profile         = libobsensor::StreamProfileFactory::createMagStreamProfile(full_scale_range, sample_rate);
+    auto profileImpl     = new ob_stream_profile();
+    profileImpl->profile = profile;
+    return profileImpl;
+}
+HANDLE_EXCEPTIONS_AND_RETURN(nullptr, full_scale_range, sample_rate)
+
 ob_stream_profile *ob_create_lidar_stream_profile(ob_lidar_scan_rate scan_rate, ob_format format, ob_error **error) BEGIN_API_CALL {
     auto profile         = libobsensor::StreamProfileFactory::createLiDARStreamProfile(scan_rate, format);
     auto profileImpl     = new ob_stream_profile();
@@ -330,6 +338,26 @@ void ob_gyro_stream_set_intrinsic(ob_stream_profile *profile, ob_gyro_intrinsic 
     gyroProfile->bindIntrinsic(intrinsic);
 }
 HANDLE_EXCEPTIONS_NO_RETURN(profile /*, intrinsic*/)  // TODO: add ob_gyro_intrinsic operator<<
+
+ob_mag_full_scale_range ob_mag_stream_profile_get_full_scale_range(const ob_stream_profile *profile, ob_error **error) BEGIN_API_CALL {
+    VALIDATE_NOT_NULL(profile);
+    if(!profile->profile->is<libobsensor::MagStreamProfile>()) {
+        THROW_UNSUPPORTED_OPERATION_EXCEPTION("It's not a mag stream profile!");
+    }
+    auto magProfile = profile->profile->as<libobsensor::MagStreamProfile>();
+    return magProfile->getFullScaleRange();
+}
+HANDLE_EXCEPTIONS_AND_RETURN(ob_mag_full_scale_range(), profile)
+
+ob_mag_sample_rate ob_mag_stream_profile_get_sample_rate(const ob_stream_profile *profile, ob_error **error) BEGIN_API_CALL {
+    VALIDATE_NOT_NULL(profile);
+    if(!profile->profile->is<libobsensor::MagStreamProfile>()) {
+        THROW_UNSUPPORTED_OPERATION_EXCEPTION("It's not a mag stream profile!");
+    }
+    auto magProfile = profile->profile->as<libobsensor::MagStreamProfile>();
+    return magProfile->getSampleRate();
+}
+HANDLE_EXCEPTIONS_AND_RETURN(ob_mag_sample_rate(), profile)
 
 ob_lidar_scan_rate ob_lidar_stream_profile_get_scan_rate(const ob_stream_profile *profile, ob_error **error) BEGIN_API_CALL {
     VALIDATE_NOT_NULL(profile);

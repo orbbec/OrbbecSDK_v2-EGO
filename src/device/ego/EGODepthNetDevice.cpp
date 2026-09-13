@@ -338,7 +338,7 @@ void EGODepthNetDevice::initSensorList() {
                 auto port                 = getSourcePort(imuPortInfo);
                 auto imuStreamer          = getComponentT<ImuStreamer>(OB_DEV_COMPONENT_IMU_STREAMER);
                 auto imuStreamerSharedPtr = imuStreamer.get();
-                auto sensor               = std::make_shared<MagSensor>(this, port, imuStreamerSharedPtr);
+                auto sensor               = std::make_shared<MagSensor>(this, port, imuStreamerSharedPtr, true);
 
                 sensor->enableTimestampAnomalyDetection(false);
 
@@ -413,6 +413,14 @@ void EGODepthNetDevice::initProperties() {
     propertyServer->registerProperty(OB_STRUCT_GET_GYRO_PRESETS_FULL_SCALE_LIST, "", "r", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_PROP_ACCEL_SWITCH_BOOL, "", "rw", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_PROP_GYRO_SWITCH_BOOL, "", "rw", vendorPropertyAccessor);
+    // Magnetometer counterpart of the accel/gyro properties above. MagSensor reads the current
+    // odr / full-scale-range and the preset lists from these, and writes them back on stream start,
+    // so they must be registered or the magnetometer stream fails with "Property not writable".
+    propertyServer->registerProperty(OB_PROP_MAG_ODR_INT, "rw", "rw", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_PROP_MAG_FULL_SCALE_INT, "rw", "rw", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_STRUCT_GET_MAG_PRESETS_ODR_LIST, "", "r", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_STRUCT_GET_MAG_PRESETS_FULL_SCALE_LIST, "", "r", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_PROP_MAG_SWITCH_BOOL, "", "rw", vendorPropertyAccessor);
 
     propertyServer->registerProperty(OB_RAW_DATA_ALIGN_CALIB_YAML, "r", "r", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_RAW_DATA_IMU_CALIB_YAML, "r", "r", vendorPropertyAccessor);

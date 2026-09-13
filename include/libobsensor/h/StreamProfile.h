@@ -63,6 +63,17 @@ OB_EXPORT ob_stream_profile *ob_create_accel_stream_profile(ob_accel_full_scale_
 OB_EXPORT ob_stream_profile *ob_create_gyro_stream_profile(ob_gyro_full_scale_range full_scale_range, ob_gyro_sample_rate sample_rate, ob_error **error);
 
 /**
+ * @brief Create a mag stream profile object
+ *
+ * @param[in] full_scale_range Mag full scale range
+ * @param[in] sample_rate Mag sample rate
+ * @param[out] error Pointer to an error object that will be set if an error occurs.
+ *
+ * @return ob_stream_profile* return the mag stream profile object
+ */
+OB_EXPORT ob_stream_profile *ob_create_mag_stream_profile(ob_mag_full_scale_range full_scale_range, ob_mag_sample_rate sample_rate, ob_error **error);
+
+/**
  * @brief Create a LiDAR stream profile object
  *
  * @param[in] scan_rate The scan rate of LiDAR
@@ -362,6 +373,26 @@ OB_EXPORT ob_gyro_intrinsic ob_gyro_stream_get_intrinsic(const ob_stream_profile
  * @param[out] error Pointer to an error object that will be set if an error occurs.
  */
 OB_EXPORT void ob_gyro_stream_set_intrinsic(ob_stream_profile *profile, ob_gyro_intrinsic intrinsic, ob_error **error);
+
+/**
+ * @brief Get the full-scale range of the magnetometer stream.
+ *
+ * @param[in] profile Stream profile object. If the profile is not for the magnetometer stream, an error will be returned.
+ * @param[out] error Pointer to an error object that will be set if an error occurs.
+ *
+ * @return The full-scale range of the magnetometer stream.
+ */
+OB_EXPORT ob_mag_full_scale_range ob_mag_stream_profile_get_full_scale_range(const ob_stream_profile *profile, ob_error **error);
+
+/**
+ * @brief Get the sampling frequency of the magnetometer stream.
+ *
+ * @param[in] profile Stream profile object. If the profile is not for the magnetometer stream, an error will be returned.
+ * @param[out] error Pointer to an error object that will be set if an error occurs.
+ *
+ * @return The sampling frequency of the magnetometer stream.
+ */
+OB_EXPORT ob_mag_sample_rate ob_mag_stream_profile_get_sample_rate(const ob_stream_profile *profile, ob_error **error);
 
 /**
  * @brief Get the scan rate of the LiDAR stream.

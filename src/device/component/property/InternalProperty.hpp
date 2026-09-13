@@ -24,7 +24,6 @@ typedef enum {
     OB_PROP_STOP_CONFIDENCE_STREAM_BOOL     = 228, /**<Disable the confidence stream*/
     OB_PROP_COMPAT_VERSION_INT              = 237, /**< Firmware compatibility version*/
     OB_PROP_HOST_PLATFORM_INT               = 278, /**< Host platform information*/
-    OB_PROP_NET_AUDIO_PLAYER_RTP_PORT_INT   = 306, /**< EGONet RTP audio player port, SDK internal only */
 
     OB_STRUCT_DEVICE_UPGRADE_STATUS    = 1006, /**< Firmware upgrade status, read only*/
     OB_PROP_START_COLOR_STREAM_BOOL    = 125,  /**< Start or stop color stream */
@@ -42,6 +41,11 @@ typedef enum {
     OB_PROP_ACCEL_ODR_INT        = 2022, /**< get/set the current sampling rate of the accelerometer*/
     OB_PROP_GYRO_FULL_SCALE_INT  = 2023, /**< get/set current gyroscope range*/
     OB_PROP_ACCEL_FULL_SCALE_INT = 2024, /**< get/set current accelerometer range*/
+    OB_PROP_MAG_SWITCH_BOOL      = 2041, /**< Magnetometer switch*/
+    OB_PROP_MAG_ODR_INT          = 2042, /**< get/set current magnetometer sampling rate*/
+    OB_PROP_MAG_FULL_SCALE_INT   = 2043, /**< get/set current magnetometer range*/
+    OB_STRUCT_GET_MAG_PRESETS_ODR_LIST         = 2044, /**< Get the list of sampling rates supported by the magnetometer*/
+    OB_STRUCT_GET_MAG_PRESETS_FULL_SCALE_LIST  = 2045, /**< Get the range list supported by the magnetometer*/
 
     OB_STRUCT_VERSION                           = 1000, /**< version information*/
     OB_STRUCT_INTERNAL_CAMERA_PARAM             = 1001, /**< Camera intrinsic and extrinsic parameters */
@@ -60,6 +64,7 @@ typedef enum {
     OB_RAW_DATA_DUAL_CAMERA_PARAMS_0      = 4045, /**< Obtain Mx6000 binocular Content0 parameters */
     OB_RAW_DATA_DUAL_CAMERA_PARAMS_1      = 4046, /**< Obtain Mx6000 binocular Content1 parameters */
     OB_RAW_DATA_DUAL_CAMERA_PARAMS_2      = 4047, /**< Obtain Mx6000 binocular Content2 parameters */
+    
 
     OB_PROP_IMU_STREAM_PORT_INT = 3026, /**< set stream port to imu*/
 

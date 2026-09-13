@@ -53,6 +53,10 @@ OBInternalStreamProfile toInternalFwRecordProfile(const ob_fw_record_stream_prof
         internalProfile.profile.gyro.fullScaleRange = profile.profile.gyro.fullScaleRange;
         internalProfile.profile.gyro.sampleRate     = profile.profile.gyro.sampleRate;
     }
+    else if(profile.sensorType == OB_SENSOR_MAG) {
+        internalProfile.profile.mag.fullScaleRange = profile.profile.mag.fullScaleRange;
+        internalProfile.profile.mag.sampleRate     = profile.profile.mag.sampleRate;
+    }
     else {
         std::memcpy(&internalProfile.profile, &profile.profile, sizeof(internalProfile.profile));
     }
@@ -81,6 +85,10 @@ ob_fw_record_stream_profile fromInternalFwRecordProfile(const OBInternalStreamPr
     else if(internalProfile.sensorType == OB_SENSOR_GYRO) {
         profile.profile.gyro.fullScaleRange = internalProfile.profile.gyro.fullScaleRange;
         profile.profile.gyro.sampleRate     = internalProfile.profile.gyro.sampleRate;
+    }
+    else if(internalProfile.sensorType == OB_SENSOR_MAG) {
+        profile.profile.mag.fullScaleRange = internalProfile.profile.mag.fullScaleRange;
+        profile.profile.mag.sampleRate     = internalProfile.profile.mag.sampleRate;
     }
     else {
         std::memcpy(&profile.profile, &internalProfile.profile, sizeof(profile.profile));

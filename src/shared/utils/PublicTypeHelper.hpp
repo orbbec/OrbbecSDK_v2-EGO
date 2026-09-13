@@ -39,6 +39,7 @@ const std::string &obAlignModeToStr(OBAlignMode type);
 const std::string &obImuRateToStr(OBIMUSampleRate type);
 const std::string &GyroFullScaleRangeToStr(OBGyroFullScaleRange range);
 const std::string &AccelFullScaleRangeToStr(OBAccelFullScaleRange params);
+const std::string &MagFullScaleRangeToStr(OBMagFullScaleRange params);
 const std::string &LiDARScanRateToStr(OBLiDARScanRate scanRate);
 const std::string &MetaDataToStr(OBFrameMetadataType params);
 
@@ -50,6 +51,7 @@ OBAlignMode           strToOBAlignMode(const std::string str);
 OBIMUSampleRate       strToObImuRate(const std::string str);
 OBGyroFullScaleRange  strToGyroFullScaleRange(const std::string str);
 OBAccelFullScaleRange strToAccelFullScaleRange(const std::string str);
+OBMagFullScaleRange   strToMagFullScaleRange(const std::string str);
 
 float                 depthPrecisionLevelToUnit(OBDepthPrecisionLevel precision);
 OBDepthPrecisionLevel depthUnitToPrecisionLevel(float unit);

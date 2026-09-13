@@ -261,6 +261,16 @@ OB_EXPORT void ob_config_enable_accel_stream(ob_config *config, ob_accel_full_sc
 OB_EXPORT void ob_config_enable_gyro_stream(ob_config *config, ob_gyro_full_scale_range full_scale_range, ob_gyro_sample_rate sample_rate, ob_error **error);
 
 /**
+ * @brief Enable magnetometer stream with specified parameters
+ *
+ * @param[in] config The pipeline configuration object
+ * @param[in] full_scale_range The full scale range of the magnetometer
+ * @param[in] sample_rate The sample rate of the magnetometer
+ * @param[out] error Pointer to an error object that will be set if an error occurs.
+ */
+OB_EXPORT void ob_config_enable_mag_stream(ob_config *config, ob_mag_full_scale_range full_scale_range, ob_mag_sample_rate sample_rate, ob_error **error);
+
+/**
  * @brief Enable LiDAR stream with specified parameters
  *
  * @param[in] config The pipeline configuration object

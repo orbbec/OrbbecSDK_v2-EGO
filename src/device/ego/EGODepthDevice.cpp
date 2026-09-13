@@ -554,7 +554,7 @@ void EGODepthDevice::initSensorList() {
                 auto port                 = getSourcePort(imuPortInfo);
                 auto imuStreamer          = getComponentT<ImuStreamer>(OB_DEV_COMPONENT_IMU_STREAMER);
                 auto imuStreamerSharedPtr = imuStreamer.get();
-                auto sensor               = std::make_shared<MagSensor>(this, port, imuStreamerSharedPtr);
+                auto sensor               = std::make_shared<MagSensor>(this, port, imuStreamerSharedPtr, true);
 
                 sensor->enableTimestampAnomalyDetection(false);
 
@@ -662,6 +662,14 @@ void EGODepthDevice::initProperties() {
         propertyServer->registerProperty(OB_STRUCT_GET_GYRO_PRESETS_FULL_SCALE_LIST, "", "rw", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_PROP_ACCEL_SWITCH_BOOL, "", "rw", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_PROP_GYRO_SWITCH_BOOL, "", "rw", vendorPropertyAccessor);
+        // Magnetometer counterpart of the accel/gyro properties above. MagSensor reads the current
+        // odr / full-scale-range and the preset lists from these, and writes them back on stream start,
+        // so they must be registered or the magnetometer stream fails with "Property not writable".
+        propertyServer->registerProperty(OB_PROP_MAG_ODR_INT, "rw", "rw", vendorPropertyAccessor);
+        propertyServer->registerProperty(OB_PROP_MAG_FULL_SCALE_INT, "rw", "rw", vendorPropertyAccessor);
+        propertyServer->registerProperty(OB_STRUCT_GET_MAG_PRESETS_ODR_LIST, "", "rw", vendorPropertyAccessor);
+        propertyServer->registerProperty(OB_STRUCT_GET_MAG_PRESETS_FULL_SCALE_LIST, "", "rw", vendorPropertyAccessor);
+        propertyServer->registerProperty(OB_PROP_MAG_SWITCH_BOOL, "", "rw", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_PROP_FW_RECORDING_STATE_BOOL, "", "r", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_PROP_FW_RECORDING_FILE_SPLIT_DURATION_MIN_INT, "rw", "rw", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_PROP_RECORDING_DESTINATION_INT, "rw", "rw", vendorPropertyAccessor);

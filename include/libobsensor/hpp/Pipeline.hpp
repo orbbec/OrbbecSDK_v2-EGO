@@ -175,6 +175,22 @@ public:
     }
 
     /**
+     * @brief Enable a magnetometer stream to be used in the pipeline.
+     *
+     * This function allows users to enable a magnetometer stream with customizable parameters.
+     * If no parameters are specified, the stream will be enabled with default settings.
+     * Users who wish to set custom full-scale ranges or sample rates should refer to the product manual, as available settings vary by device model.
+     *
+     * @param[in] fullScaleRange The full-scale range of the magnetometer (default is OB_MAG_FULL_SCALE_RANGE_ANY, which selects the default range).
+     * @param[in] sampleRate The sample rate of the magnetometer (default is OB_MAG_SAMPLE_RATE_ANY, which selects the default rate).
+     */
+    void enableMagStream(OBMagFullScaleRange fullScaleRange = OB_MAG_FULL_SCALE_RANGE_ANY, OBMagSampleRate sampleRate = OB_MAG_SAMPLE_RATE_ANY) const {
+        ob_error *error = nullptr;
+        ob_config_enable_mag_stream(impl_, fullScaleRange, sampleRate, &error);
+        Error::handle(&error);
+    }
+
+    /**
      * @brief Enable a LiDAR stream to be used in the pipeline.
      *
      * This function allows users to enable a LiDAR stream with customizable parameters.

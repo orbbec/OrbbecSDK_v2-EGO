@@ -231,6 +231,11 @@ void ob_config_enable_gyro_stream(ob_config *config, ob_gyro_full_scale_range fu
 }
 HANDLE_EXCEPTIONS_NO_RETURN(config, full_scale_range, sample_rate)
 
+void ob_config_enable_mag_stream(ob_config *config, ob_mag_full_scale_range full_scale_range, ob_mag_sample_rate sample_rate, ob_error **error) BEGIN_API_CALL {
+    config->config->enableMagStream(full_scale_range, sample_rate);
+}
+HANDLE_EXCEPTIONS_NO_RETURN(config, full_scale_range, sample_rate)
+
 void ob_config_enable_lidar_stream(ob_config *config, ob_lidar_scan_rate scan_rate, ob_format format, ob_error **error) BEGIN_API_CALL {
     config->config->enableLiDARStream(scan_rate, format);
 }

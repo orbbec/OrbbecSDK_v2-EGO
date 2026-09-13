@@ -22,7 +22,7 @@ std::shared_ptr<StreamProfile> createStreamProfile(OBStreamType streamType, OBFo
     case OB_STREAM_GYRO:
         return createGyroStreamProfile(OB_GYRO_FULL_SCALE_RANGE_ANY, OB_GYRO_SAMPLE_RATE_ANY);
     case OB_STREAM_MAG:
-        return createMagStreamProfile(OB_SAMPLE_RATE_UNKNOWN);
+        return createMagStreamProfile(OB_MAG_FULL_SCALE_RANGE_ANY, OB_MAG_SAMPLE_RATE_ANY);
     case OB_STREAM_LIDAR:
         return createLiDARStreamProfile(OB_LIDAR_SCAN_ANY, frameFormat);
     case OB_STREAM_AUDIO:
@@ -98,12 +98,12 @@ std::shared_ptr<GyroStreamProfile> createGyroStreamProfile(std::shared_ptr<LazyS
     return gsp;
 }
 
-std::shared_ptr<MagStreamProfile> createMagStreamProfile(OBIMUSampleRate sampleRate) {
-    return createMagStreamProfile(std::shared_ptr<LazySensor>(), sampleRate);
+std::shared_ptr<MagStreamProfile> createMagStreamProfile(OBMagFullScaleRange fullScaleRange, OBMagSampleRate sampleRate) {
+    return createMagStreamProfile(std::shared_ptr<LazySensor>(), fullScaleRange, sampleRate);
 }
 
-std::shared_ptr<MagStreamProfile> createMagStreamProfile(std::shared_ptr<LazySensor> owner, OBIMUSampleRate sampleRate) {
-    auto msp = std::make_shared<MagStreamProfile>(owner, sampleRate);
+std::shared_ptr<MagStreamProfile> createMagStreamProfile(std::shared_ptr<LazySensor> owner, OBMagFullScaleRange fullScaleRange, OBMagSampleRate sampleRate) {
+    auto msp = std::make_shared<MagStreamProfile>(owner, fullScaleRange, sampleRate);
     return msp;
 }
 

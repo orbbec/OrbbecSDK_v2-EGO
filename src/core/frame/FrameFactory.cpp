@@ -110,7 +110,7 @@ std::shared_ptr<Frame> FrameFactory::createFrameFromUserBuffer(OBFrameType frame
         break;
     case OB_FRAME_MAG:
         frame = std::make_shared<MagFrame>(buffer, bufferSize, bufferReclaimFunc);
-        sp    = StreamProfileFactory::createMagStreamProfile(OB_SAMPLE_RATE_1_5625_HZ);
+        sp    = StreamProfileFactory::createMagStreamProfile(OB_MAG_FS_4G, OB_SAMPLE_RATE_1_5625_HZ);
         break;
     case OB_FRAME_LIDAR_POINTS:
         // TODO: OB_LIDAR_SCAN_ANY is invalid here, need to get the real scan rate from user or device
@@ -151,7 +151,7 @@ std::shared_ptr<Frame> FrameFactory::createFrameFromUserBuffer(OBFrameType frame
         sp = StreamProfileFactory::createGyroStreamProfile(OB_GYRO_FS_16dps, OB_SAMPLE_RATE_1_5625_HZ);
         break;
     case OB_FRAME_MAG:
-        sp = StreamProfileFactory::createMagStreamProfile(OB_SAMPLE_RATE_1_5625_HZ);
+        sp = StreamProfileFactory::createMagStreamProfile(OB_MAG_FS_4G, OB_SAMPLE_RATE_1_5625_HZ);
         break;
     case OB_FRAME_LIDAR_POINTS:
         // TODO: OB_LIDAR_SCAN_ANY is invalid here, need to get the real scan rate from user or device

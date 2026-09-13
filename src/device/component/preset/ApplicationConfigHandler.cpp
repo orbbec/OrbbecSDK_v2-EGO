@@ -207,6 +207,11 @@ ExportValue profileToExportValue(const std::shared_ptr<const StreamProfile> &pro
         fields.emplace_back(makeField(kSampleRate, utils::mapIMUSampleRateToValue(gsp->getSampleRate())));
         fields.emplace_back(makeField(kFullScaleRange, utils::GyroFullScaleRangeToStr(gsp->getFullScaleRange())));
     }
+    else if(profile->is<MagStreamProfile>()) {
+        auto msp = profile->as<MagStreamProfile>();
+        fields.emplace_back(makeField(kSampleRate, utils::mapIMUSampleRateToValue(msp->getSampleRate())));
+        fields.emplace_back(makeField(kFullScaleRange, utils::MagFullScaleRangeToStr(msp->getFullScaleRange())));
+    }
     else {
         fields.emplace_back(makeField(kFormat, utils::obFormatToStr(profile->getFormat())));
     }
@@ -240,6 +245,16 @@ std::shared_ptr<const StreamProfile> findProfile(IDevice *owner, OBSensorType se
         auto sampleRate         = static_cast<OBGyroSampleRate>(utils::mapValueToIMUSampleRate(profileJson[kSampleRate].asFloat()));
         auto range              = utils::strToGyroFullScaleRange(profileJson[kFullScaleRange].asString());
         auto matchedProfileList = matchGyroStreamProfile(list, range, sampleRate);
+        return matchedProfileList.empty() ? nullptr : matchedProfileList[0];
+    }
+    else if(sensorType == OB_SENSOR_MAG) {
+        if(!profileJson.isMember(kSampleRate) || !profileJson.isMember(kFullScaleRange)) {
+            return nullptr;
+        }
+
+        auto sampleRate         = static_cast<OBMagSampleRate>(utils::mapValueToIMUSampleRate(profileJson[kSampleRate].asFloat()));
+        auto range              = utils::strToMagFullScaleRange(profileJson[kFullScaleRange].asString());
+        auto matchedProfileList = matchMagStreamProfile(list, range, sampleRate);
         return matchedProfileList.empty() ? nullptr : matchedProfileList[0];
     }
 
@@ -369,7 +384,7 @@ void applyApplicationConfigJsonV1(ApplicationConfig &config, IDevice *owner, con
             if(!profileJson.isObject()) {
                 THROW_INVALID_PARAM_EXCEPTION("Node type mismatch in " + context + ": " + std::string(kProfile));
             }
-            if(sensorType == OB_SENSOR_ACCEL || sensorType == OB_SENSOR_GYRO) {
+            if(sensorType == OB_SENSOR_ACCEL || sensorType == OB_SENSOR_GYRO || sensorType == OB_SENSOR_MAG) {
                 requireRequiredFields(profileJson, kImuProfileFields, context + " profile");
             }
             else if(ob_is_video_sensor_type(sensorType)) {

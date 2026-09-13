@@ -50,6 +50,10 @@ const char *ob_accel_range_type_to_string(OBAccelFullScaleRange type) {
     return libobsensor::utils::AccelFullScaleRangeToStr(type).c_str();
 }
 
+const char *ob_mag_range_type_to_string(OBMagFullScaleRange type) {
+    return libobsensor::utils::MagFullScaleRangeToStr(type).c_str();
+}
+
 const char *ob_lidar_scan_rate_type_to_string(OBLiDARScanRate type) {
     return libobsensor::utils::LiDARScanRateToStr(type).c_str();
 }

@@ -113,6 +113,17 @@ public:
     }
 
     /**
+     * @brief Convert OBMagFullScaleRange to " string " type and then return.
+     *
+     * @param[in] type OBMagFullScaleRange type.
+     *
+     * @return OBMagFullScaleRange of "string" type.
+     */
+    static std::string convertOBMagFullScaleRangeTypeToString(const OBMagFullScaleRange &type) {
+        return ob_mag_range_type_to_string(type);
+    }
+
+    /**
      * @brief Convert OBLiDARScanRate to " string " type and then return.
      *
      * @param[in] type OBLiDARScanRate type.

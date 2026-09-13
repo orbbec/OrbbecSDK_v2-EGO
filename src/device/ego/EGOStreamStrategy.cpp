@@ -184,6 +184,24 @@ void EGOStreamStrategy::validateRecordingProfile(const std::shared_ptr<const Str
                                        << utils::obStreamToStr(profile->getType()) << ", sampleRate=" << utils::obImuRateToStr(gyro->getSampleRate())
                                        << ", fullScaleRange=" << utils::GyroFullScaleRangeToStr(gyro->getFullScaleRange()));
     }
+
+    if(profile->is<MagStreamProfile>()) {
+        auto mag            = profile->as<MagStreamProfile>();
+        auto fullScaleRange = static_cast<uint16_t>(mag->getFullScaleRange());
+        auto sampleRate     = static_cast<uint16_t>(mag->getSampleRate());
+
+        auto matched = std::any_of(recordingProfiles.begin(), recordingProfiles.end(), [&](const OBInternalStreamProfile &item) {
+            return sameSensor(item) && item.profile.mag.fullScaleRange == fullScaleRange && item.profile.mag.sampleRate == sampleRate;
+        });
+        if(matched) {
+            return;
+        }
+
+        THROW_UNSUPPORTED_OPERATION_EXCEPTION(
+            utils::string::to_string() << "Device is recording to SD card. The IMU stream profile must match the SD recording profile. stream="
+                                       << utils::obStreamToStr(profile->getType()) << ", sampleRate=" << utils::obImuRateToStr(mag->getSampleRate())
+                                       << ", fullScaleRange=" << utils::MagFullScaleRangeToStr(mag->getFullScaleRange()));
+    }
 }
 
 }  // namespace libobsensor

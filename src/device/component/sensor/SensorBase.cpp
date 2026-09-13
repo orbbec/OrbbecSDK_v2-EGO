@@ -142,6 +142,15 @@ void SensorBase::updateDefaultStreamProfile(const std::shared_ptr<const StreamPr
                 break;
             }
         }
+        else if((*iter)->is<MagStreamProfile>() && profile->is<MagStreamProfile>()) {
+            auto msp    = (*iter)->as<MagStreamProfile>();
+            auto mspCmp = profile->as<MagStreamProfile>();
+            if(msp->getFullScaleRange() == mspCmp->getFullScaleRange() && msp->getSampleRate() == mspCmp->getSampleRate()) {
+                defaultProfile = *iter;
+                streamProfileList_.erase(iter);
+                break;
+            }
+        }
         else if((*iter)->is<LiDARStreamProfile>() && profile->is<LiDARStreamProfile>()) {
             auto lsp    = (*iter)->as<LiDARStreamProfile>();
             auto lspCmp = profile->as<LiDARStreamProfile>();
@@ -217,6 +226,9 @@ void SensorBase::updateStreamState(OBStreamState state) {
                 }
                 else if(activatedStreamProfile_->is<GyroStreamProfile>()) {
                     fps = static_cast<uint32_t>(utils::mapIMUSampleRateToValue(activatedStreamProfile_->as<GyroStreamProfile>()->getSampleRate()));
+                }
+                else if(activatedStreamProfile_->is<MagStreamProfile>()) {
+                    fps = static_cast<uint32_t>(utils::mapIMUSampleRateToValue(activatedStreamProfile_->as<MagStreamProfile>()->getSampleRate()));
                 }
                 timestampAnomalyDetector_->setCurrentFps(fps);
             }
@@ -538,6 +550,7 @@ void SensorBase::validateDeviceState(const std::shared_ptr<const StreamProfile> 
             break;
         case OB_STREAM_ACCEL:
         case OB_STREAM_GYRO:
+        case OB_STREAM_MAG:
             flag |= DEVICE_ERROR_IMU_SENSOR;
             break;
         case OB_STREAM_DEPTH:

@@ -403,6 +403,40 @@ public:
     explicit MagStreamProfile(const ob_stream_profile_t *impl) : StreamProfile(impl) {}
 
     ~MagStreamProfile() noexcept override = default;
+
+    /**
+     * @brief Return the full scale range.
+     *
+     * @return OBMagFullScaleRange Return the scale range value.
+     */
+    OBMagFullScaleRange getFullScaleRange() const {
+        ob_error *error          = nullptr;
+        auto      fullScaleRange = ob_mag_stream_profile_get_full_scale_range(impl_, &error);
+        Error::handle(&error);
+        return fullScaleRange;
+    }
+
+    /**
+     * @brief Return the sampling frequency.
+     *
+     * @return OBMagSampleRate Return the sampling frequency.
+     */
+    OBMagSampleRate getSampleRate() const {
+        ob_error *error      = nullptr;
+        auto      sampleRate = ob_mag_stream_profile_get_sample_rate(impl_, &error);
+        Error::handle(&error);
+        return sampleRate;
+    }
+
+public:
+    // The following interfaces are deprecated and are retained here for compatibility purposes.
+    OBMagFullScaleRange fullScaleRange() const {
+        return getFullScaleRange();
+    }
+
+    OBMagSampleRate sampleRate() const {
+        return getSampleRate();
+    }
 };
 
 /**

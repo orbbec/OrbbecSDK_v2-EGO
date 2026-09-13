@@ -53,6 +53,8 @@ typedef struct ob_color_preset_list_t             ob_color_preset_list;
 #define OB_ACCEL_SAMPLE_RATE_ANY OB_SAMPLE_RATE_UNKNOWN
 #define OB_GYRO_FULL_SCALE_RANGE_ANY OB_GYRO_FS_UNKNOWN
 #define OB_GYRO_SAMPLE_RATE_ANY OB_SAMPLE_RATE_UNKNOWN
+#define OB_MAG_FULL_SCALE_RANGE_ANY OB_MAG_FS_UNKNOWN
+#define OB_MAG_SAMPLE_RATE_ANY OB_SAMPLE_RATE_UNKNOWN
 #define OB_LIDAR_SCAN_ANY OB_LIDAR_SCAN_UNKNOWN
 
 /**
@@ -344,6 +346,10 @@ typedef struct {
             uint16_t fullScaleRange; /**< enum value of @ref ob_gyro_full_scale_range */
             uint16_t sampleRate;     /**< enum value of @ref ob_gyro_sample_rate */
         } gyro;
+        struct {
+            uint16_t fullScaleRange; /**< enum value of @ref ob_mag_full_scale_range */
+            uint16_t sampleRate;     /**< enum value of @ref ob_mag_sample_rate */
+        } mag;
     } profile;
 } OBFwRecordStreamProfile, ob_fw_record_stream_profile;
 
@@ -790,7 +796,7 @@ typedef enum {
     OB_SAMPLE_RATE_400_HZ    = 16, /**< 400Hz*/
     OB_SAMPLE_RATE_800_HZ    = 17, /**< 800Hz*/
 } OBIMUSampleRate,
-    OBGyroSampleRate, ob_gyro_sample_rate, OBAccelSampleRate, ob_accel_sample_rate, OB_SAMPLE_RATE;
+    OBGyroSampleRate, ob_gyro_sample_rate, OBAccelSampleRate, ob_accel_sample_rate, OBMagSampleRate, ob_mag_sample_rate, OB_SAMPLE_RATE;
 
 /**
  * @brief Enumeration of gyroscope ranges
@@ -825,6 +831,16 @@ typedef enum {
     OB_ACCEL_FS_24g     = 8, /**< 24x the acceleration of gravity */
 } OBAccelFullScaleRange,
     ob_accel_full_scale_range, OB_ACCEL_FULL_SCALE_RANGE;
+
+typedef enum
+{
+    OB_MAG_FS_UNKNOWN = -1,
+    OB_MAG_FS_4G      = 1,   /**< ¡À4 Gauss */
+    OB_MAG_FS_8G      = 2,   /**< ¡À8 Gauss */
+    OB_MAG_FS_12G     = 3,   /**< ¡À12 Gauss */
+    OB_MAG_FS_16G     = 4,   /**< ¡À16 Gauss */
+}OBMagFullScaleRange,
+    ob_mag_full_scale_range, OB_MAG_FULL_SCALE_RANGE;
 
 /**
  * @brief Data structures for accelerometers and gyroscopes

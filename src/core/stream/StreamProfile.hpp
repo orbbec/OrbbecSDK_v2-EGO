@@ -170,19 +170,22 @@ protected:
 /**
  * @brief Class representing a magnetometer stream profile.
  *
- * Magnetometer has no full-scale-range preset; only the sample rate (shared IMU rate enum) is described.
+ * Describes the sample rate and the full-scale range (shared IMU rate enum / magnetometer range enum),
+ * mirroring the accelerometer and gyroscope profiles.
  */
 class MagStreamProfile : public StreamProfile {
 public:
-    MagStreamProfile(std::shared_ptr<LazySensor> owner, OBIMUSampleRate sampleRate);
+    MagStreamProfile(std::shared_ptr<LazySensor> owner, OBMagFullScaleRange fullScaleRange, OBMagSampleRate sampleRate);
     ~MagStreamProfile() noexcept override = default;
 
-    OBIMUSampleRate                getSampleRate() const;
+    OBMagFullScaleRange           getFullScaleRange() const;
+    OBMagSampleRate               getSampleRate() const;
     std::shared_ptr<StreamProfile> clone() const override;
     std::ostream                  &operator<<(std::ostream &os) const override;
 
 protected:
-    OBIMUSampleRate sampleRate_;
+    OBMagFullScaleRange fullScaleRange_;
+    OBMagSampleRate     sampleRate_;
 };
 
 /**
@@ -251,7 +254,8 @@ std::vector<std::shared_ptr<const AccelStreamProfile>> matchAccelStreamProfile(c
 std::vector<std::shared_ptr<const GyroStreamProfile>> matchGyroStreamProfile(const StreamProfileList &profileList, OBGyroFullScaleRange fullScaleRange,
                                                                              OBGyroSampleRate sampleRate);
 
-std::vector<std::shared_ptr<const MagStreamProfile>> matchMagStreamProfile(const StreamProfileList &profileList, OBIMUSampleRate sampleRate);
+std::vector<std::shared_ptr<const MagStreamProfile>> matchMagStreamProfile(const StreamProfileList &profileList, OBMagFullScaleRange fullScaleRange,
+                                                                          OBMagSampleRate sampleRate);
 
 std::vector<std::shared_ptr<const LiDARStreamProfile>> matchLiDARStreamProfile(const StreamProfileList &profileList, OBLiDARScanRate scanRate, OBFormat format);
 

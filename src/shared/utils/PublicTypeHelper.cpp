@@ -501,6 +501,10 @@ const std::map<OBAccelFullScaleRange, std::string> AccelFullScaleRange_Str_Map =
     { OB_ACCEL_FS_3g, "3g" },           { OB_ACCEL_FS_6g, "6g" }, { OB_ACCEL_FS_12g, "12g" }, { OB_ACCEL_FS_24g, "24g" }
 };
 
+const std::map<OBMagFullScaleRange, std::string> MagFullScaleRange_Str_Map = {
+    { OB_MAG_FS_UNKNOWN, "Unknown" }, { OB_MAG_FS_4G, "4Gs" }, { OB_MAG_FS_8G, "8Gs" }, { OB_MAG_FS_12G, "12Gs" }, { OB_MAG_FS_16G, "16Gs" }
+};
+
 const std::map<OBLiDARScanRate, std::string> LiDARScanRate_Str_Map = {
     { OB_LIDAR_SCAN_UNKNOWN, "Unknown" }, { OB_LIDAR_SCAN_5HZ, "5HZ" },   { OB_LIDAR_SCAN_10HZ, "10HZ" }, { OB_LIDAR_SCAN_15HZ, "15HZ" },
     { OB_LIDAR_SCAN_20HZ, "20HZ" },       { OB_LIDAR_SCAN_25HZ, "25HZ" }, { OB_LIDAR_SCAN_30HZ, "30HZ" }, { OB_LIDAR_SCAN_40HZ, "40HZ" },
@@ -650,6 +654,14 @@ const std::string &AccelFullScaleRangeToStr(OBAccelFullScaleRange type) {
     return it->second;
 }
 
+const std::string &MagFullScaleRangeToStr(OBMagFullScaleRange type) {
+    auto it = MagFullScaleRange_Str_Map.find(type);
+    if(it == MagFullScaleRange_Str_Map.end()) {
+        THROW_INVALID_PARAM_EXCEPTION("Unregistered mag full scale range name");
+    }
+    return it->second;
+}
+
 const std::string &LiDARScanRateToStr(OBLiDARScanRate scanRate) {
     auto it = LiDARScanRate_Str_Map.find(scanRate);
     if(it == LiDARScanRate_Str_Map.end()) {
@@ -737,6 +749,15 @@ OBAccelFullScaleRange strToAccelFullScaleRange(const std::string str) {
         }
     }
     THROW_INVALID_PARAM_EXCEPTION("Unregistered accel full scale range type");
+}
+
+OBMagFullScaleRange strToMagFullScaleRange(const std::string str) {
+    for(auto it = MagFullScaleRange_Str_Map.begin(); it != MagFullScaleRange_Str_Map.end(); ++it) {
+        if(it->second == str) {
+            return it->first;
+        }
+    }
+    THROW_INVALID_PARAM_EXCEPTION("Unregistered mag full scale range type");
 }
 
 float depthPrecisionLevelToUnit(OBDepthPrecisionLevel precision) {

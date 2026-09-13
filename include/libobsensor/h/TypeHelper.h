@@ -91,6 +91,15 @@ OB_EXPORT const char* ob_gyro_range_type_to_string(OBGyroFullScaleRange type);
 OB_EXPORT const char* ob_accel_range_type_to_string(OBAccelFullScaleRange type);
 
 /**
+ * @brief Convert OBMagFullScaleRange to " char* " type and then return.
+ *
+ * @param[in] type OBMagFullScaleRange type.
+ *
+ * @return OBMagFullScaleRange of "char*" type.
+ */
+OB_EXPORT const char* ob_mag_range_type_to_string(OBMagFullScaleRange type);
+
+/**
  * @brief Convert OBLiDARScanRate to " char* " type and then return.
  *
  * @param[in] type OBLiDARScanRate type.
