@@ -27,6 +27,10 @@ target_sources(
              ${CMAKE_CURRENT_LIST_DIR}/EGOStreamDemuxer.cpp
              ${CMAKE_CURRENT_LIST_DIR}/EGODepthDevice.hpp
              ${CMAKE_CURRENT_LIST_DIR}/EGODepthDevice.cpp
+             ${CMAKE_CURRENT_LIST_DIR}/EGODepthDepthWorkModeManager.hpp
+             ${CMAKE_CURRENT_LIST_DIR}/EGODepthDepthWorkModeManager.cpp
+             ${CMAKE_CURRENT_LIST_DIR}/EGODepthPresetManager.hpp
+             ${CMAKE_CURRENT_LIST_DIR}/EGODepthPresetManager.cpp
              ${CMAKE_CURRENT_LIST_DIR}/EGODepthNetDevice.hpp
              ${CMAKE_CURRENT_LIST_DIR}/EGODepthNetDevice.cpp
              ${CMAKE_CURRENT_LIST_DIR}/EGODeviceInfo.hpp

@@ -53,7 +53,6 @@ if(${OpenCV_FOUND})
     add_subdirectory(1.stream.callback)
     add_subdirectory(1.stream.multi_streams)
     add_subdirectory(1.stream.decimation)
-    add_subdirectory(6.ego)
     add_subdirectory(2.device.record)
     add_subdirectory(2.device.playback)
     add_subdirectory(3.advanced.common_usages)
@@ -68,7 +67,8 @@ if(${OpenCV_FOUND})
     add_subdirectory(3.advanced.enhanced_depth_filter)
     add_subdirectory(4.misc.save_to_disk)
     add_subdirectory(5.wrapper.opencv)
-
+    add_subdirectory(6.ego)
+    
 endif()
 
 # lidar examples

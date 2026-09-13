@@ -848,6 +848,21 @@ void ob_device_get_raw_data(ob_device *device, ob_property_id property_id, ob_ge
 }
 HANDLE_EXCEPTIONS_NO_RETURN(device, property_id, user_data)
 
+void ob_device_get_structure_data_list_v1_1(ob_device *device, ob_property_id property_id, uint16_t cmd_version, uint8_t *data, uint32_t *data_size,
+                                            ob_error **error) BEGIN_API_CALL {
+    VALIDATE_NOT_NULL(device);
+    VALIDATE_NOT_NULL(data);
+    VALIDATE_NOT_NULL(data_size);
+    auto propServer = device->device->getPropertyServer();
+    auto listData   = propServer->getStructureDataListProtoV1_1(property_id, cmd_version, libobsensor::PROP_ACCESS_USER);
+    if(listData.size() > *data_size) {
+        THROW_INVALID_PARAM_EXCEPTION("data buffer is too small for structure data list");
+    }
+    std::memcpy(data, listData.data(), listData.size());
+    *data_size = static_cast<uint32_t>(listData.size());
+}
+HANDLE_EXCEPTIONS_NO_RETURN(device, property_id, cmd_version, data, data_size)
+
 void ob_device_set_raw_data(ob_device *device, ob_property_id property_id, const uint8_t *data, uint32_t data_size,
                             ob_error **error) BEGIN_API_CALL {
     VALIDATE_NOT_NULL(device);

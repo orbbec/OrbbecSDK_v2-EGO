@@ -2,6 +2,8 @@
 // Licensed under the MIT License.
 
 #include "EGODepthDevice.hpp"
+#include "EGODepthDepthWorkModeManager.hpp"
+#include "EGODepthPresetManager.hpp"
 #include "EGOStreamDemuxer.hpp"
 #include "EGOColorVideoSensor.hpp"
 #include "DevicePids.hpp"
@@ -50,6 +52,8 @@
 #include <tuple>
 #include <vector>
 #include <algorithm>
+#include <cstring>
+#include <utility>
 
 namespace libobsensor {
 
@@ -60,6 +64,38 @@ std::shared_ptr<const StreamProfile> normalizeH265AliasProfile(const std::shared
     }
     return profile;
 }
+
+class EGODepthEffectiveProfileFilter : public IStreamProfileFilter {
+public:
+    EGODepthEffectiveProfileFilter(OBSensorType sensorType, std::vector<OBEffectiveStreamProfile> effectiveProfiles)
+        : sensorType_(sensorType), effectiveProfiles_(std::move(effectiveProfiles)) {}
+
+    StreamProfileList filter(const StreamProfileList &profiles) const override {
+        StreamProfileList filteredProfiles;
+        for(const auto &profile: profiles) {
+            if(!profile->is<VideoStreamProfile>()) {
+                filteredProfiles.push_back(profile);
+                continue;
+            }
+
+            auto videoProfile = profile->as<VideoStreamProfile>();
+            auto format       = videoProfile->getFormat() == OB_FORMAT_HEVC ? OB_FORMAT_H265 : videoProfile->getFormat();
+            for(const auto &effectiveProfile: effectiveProfiles_) {
+                auto effectiveFormat = effectiveProfile.format == OB_FORMAT_HEVC ? OB_FORMAT_H265 : effectiveProfile.format;
+                if(effectiveProfile.sensorType == sensorType_ && effectiveFormat == format && effectiveProfile.width == videoProfile->getWidth()
+                   && effectiveProfile.height == videoProfile->getHeight() && videoProfile->getFps() <= effectiveProfile.maxFps) {
+                    filteredProfiles.push_back(profile);
+                    break;
+                }
+            }
+        }
+        return filteredProfiles;
+    }
+
+private:
+    OBSensorType                          sensorType_;
+    std::vector<OBEffectiveStreamProfile> effectiveProfiles_;
+};
 }  // namespace
 
 EGODepthDevice::EGODepthDevice(const std::shared_ptr<const IDeviceEnumInfo> &info) : DeviceBase(info) {
@@ -74,6 +110,14 @@ EGODepthDevice::~EGODepthDevice() noexcept {}
 void EGODepthDevice::init() {
     initSensorList();
     initProperties();
+
+    // Depth work mode / preset support: Default <-> Factory Calib.
+    // fetchDepthWorkModeList() is fault-tolerant: on firmware without the depth-alg-mode structures the
+    // list stays empty and fixSensorList() keeps the legacy full sensor set unchanged.
+    auto depthWorkModeManager = std::make_shared<EGODepthDepthWorkModeManager>(this);
+    registerComponent(OB_DEV_COMPONENT_DEPTH_WORK_MODE_MANAGER, depthWorkModeManager);
+    auto presetManager = std::make_shared<EGODepthPresetManager>(this);
+    registerComponent(OB_DEV_COMPONENT_PRESET_MANAGER, presetManager);
 
     fetchDeviceInfo();
     fetchExtensionInfo();
@@ -92,6 +136,9 @@ void EGODepthDevice::init() {
     registerComponent(OB_DEV_COMPONENT_HOST_TIME_INFO_MANAGER, hostTimeInfoManager);
     BEGIN_TRY_EXECUTE({ hostTimeInfoManager->setHostTimeInfoToDevice(); })
     CATCH_EXCEPTION_AND_EXECUTE({ LOG_WARN("Failed to initialize host time information for EGODepth device"); })
+
+    // Apply the current depth work mode to the sensor tree (register/trim sensors and components).
+    fixSensorList();
 }
 
 void EGODepthDevice::fetchDeviceInfo() {
@@ -695,6 +742,11 @@ void EGODepthDevice::initProperties() {
         propertyServer->registerProperty(OB_PROP_COLOR_BITRATE_INT, "rw", "rw", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_PROP_COLOR_DYNAMIC_BITRATE_ENABLE_BOOL, "rw", "rw", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_PROP_COLOR_AE_MAX_EXPOSURE_INT, "rw", "rw", vendorPropertyAccessor);
+        // Depth work mode (preset) support: Default <-> Factory Calib
+        propertyServer->registerProperty(OB_RAW_DATA_DEPTH_ALG_MODE_LIST, "r", "r", vendorPropertyAccessor);
+        propertyServer->registerProperty(OB_STRUCT_CURRENT_DEPTH_ALG_MODE, "rw", "rw", vendorPropertyAccessor);
+        // Effective video stream profile list for the current depth work mode.
+        propertyServer->registerProperty(OB_RAW_DATA_EFFECTIVE_VIDEO_STREAM_PROFILE_LIST, "r", "r", vendorPropertyAccessor);
 
         auto heartbeatPropertyAccessor = std::make_shared<HeartbeatPropertyAccessor>(this);
         propertyServer->registerProperty(OB_PROP_HEARTBEAT_BOOL, "rw", "rw", heartbeatPropertyAccessor);
@@ -712,6 +764,66 @@ std::vector<std::shared_ptr<IFilter>> EGODepthDevice::createRecommendedPostProce
     // EGODepth streams have no recommended post-processing filters by default (Depth is output-only).
     utils::unusedVar(type);
     return {};
+}
+
+void EGODepthDevice::fixSensorList() {
+    auto depthWorkModeManager = getComponentT<EGODepthDepthWorkModeManager>(OB_DEV_COMPONENT_DEPTH_WORK_MODE_MANAGER, false);
+    if(!depthWorkModeManager || depthWorkModeManager->getDepthWorkModeList().empty()) {
+        // Firmware does not expose depth work modes: keep the legacy full sensor set unchanged.
+        return;
+    }
+
+    const auto &currentMode = depthWorkModeManager->getCurrentDepthWorkMode();
+    auto        propServer  = getPropertyServer();
+
+    if(std::strcmp(currentMode.name, kEgoDepthFactoryCalibMode) == 0) {
+        // Factory Calib: no Depth stream.
+        deregisterSensor(OB_SENSOR_DEPTH);
+        deregisterComponent(OB_DEV_COMPONENT_DEPTH_FRAME_PROCESSOR);
+        propServer->unregisterProperty(OB_PROP_STOP_DEPTH_STREAM_BOOL);
+    }
+    else {
+        // Default: no left/right IR streams.
+        deregisterSensor(OB_SENSOR_IR_LEFT);
+        deregisterSensor(OB_SENSOR_IR_RIGHT);
+        deregisterComponent(OB_DEV_COMPONENT_LEFT_IR_FRAME_PROCESSOR);
+        deregisterComponent(OB_DEV_COMPONENT_RIGHT_IR_FRAME_PROCESSOR);
+        deregisterComponent(OB_DEV_COMPONENT_EGODEPTH_IR_DEMUXER);
+        // Note: OB_PROP_STOP_IR_STREAM_BOOL is intentionally NOT registered in initProperties() (the IR
+        // demuxer sends it when the last channel of the IR group closes), so nothing to unregister here.
+    }
+
+    std::vector<OBEffectiveStreamProfile> effectiveProfiles;
+    bool                                  effectiveProfilesRead = false;
+    BEGIN_TRY_EXECUTE({
+        effectiveProfiles = (propServer->getStructureDataListProtoV1_1_T<OBEffectiveStreamProfile, 0>(OB_RAW_DATA_EFFECTIVE_VIDEO_STREAM_PROFILE_LIST));
+        effectiveProfilesRead = true;
+    })
+    CATCH_EXCEPTION_AND_EXECUTE({ LOG_WARN("Failed to read effective stream profiles; keeping sensor profiles unfiltered."); })
+
+    if(effectiveProfiles.empty()) {
+        if(effectiveProfilesRead) {
+            LOG_WARN("Firmware returned no effective stream profiles; keeping sensor profiles unfiltered.");
+        }
+        return;
+    }
+
+    for(const auto sensorType: getSensorTypeList()) {
+        bool hasEffectiveProfile = false;
+
+        for(const auto &effectiveProfile: effectiveProfiles) {
+            if(effectiveProfile.sensorType == sensorType) {
+                hasEffectiveProfile = true;
+                break;
+            }
+        }
+        if(!hasEffectiveProfile) {
+            continue;
+        }
+
+        auto sensor = getSensor(sensorType);
+        sensor->setStreamProfileFilter(std::make_shared<EGODepthEffectiveProfileFilter>(sensorType, effectiveProfiles));
+    }
 }
 
 }  // namespace libobsensor

@@ -3,17 +3,135 @@
 
 #include "VendorPropertyAccessor.hpp"
 #include "exception/ObException.hpp"
+#include "logger/Logger.hpp"
 #include "protocol/Protocol.hpp"
 #include "property/InternalProperty.hpp"  // OB_PROP_DEVICE_RESET_BOOL
 
 #include <algorithm>
+#include <iomanip>
 #include <limits>
+#include <sstream>
 
 namespace libobsensor {
 
 const uint32_t DEFAULT_CMD_MAX_DATA_SIZE = 768;
 const size_t   DEFAULT_CMD_BUFFER_SIZE   = OB_PATH_MAX + 16;
 const int      IO_ERROR_MAX_RETRIES      = 3;  // max retries on HP_STATUS_DEVICE_RESPONSE_IO_ERROR
+
+static bool isVendorCmdDebugOpcode(uint16_t opcode) {
+    return opcode == protocol::OPCODE_GET_STRUCTURE_DATA_V1_1 || opcode == protocol::OPCODE_SET_STRUCTURE_DATA_V1_1
+           || opcode == protocol::OPCODE_INIT_READ_STRUCT_DATA_LIST_V1_1 || opcode == protocol::OPCODE_READ_STRUCT_DATA_LIST_V1_1
+           || opcode == protocol::OPCODE_FINISH_READ_STRUCT_DATA_LIST_V1_1;
+}
+
+static uint16_t getReqOpcode(const uint8_t *reqData, uint16_t reqDataSize) {
+    if(reqData == nullptr || reqDataSize < sizeof(protocol::ReqHeader)) {
+        return 0xffff;
+    }
+    return reinterpret_cast<const protocol::ReqHeader *>(reqData)->opcode;
+}
+
+static std::string protocolBytesToHex(const uint8_t *data, size_t size, size_t maxBytes = 64) {
+    std::ostringstream oss;
+    size_t            limit = size < maxBytes ? size : maxBytes;
+    for(size_t i = 0; i < limit; ++i) {
+        oss << std::hex << std::setfill('0') << std::setw(2) << static_cast<int>(data[i]);
+        if(i + 1 < limit) {
+            oss << ' ';
+        }
+    }
+    if(size > limit) {
+        oss << "...(" << std::dec << size << " bytes total)";
+    }
+    return oss.str();
+}
+
+static void logVendorCmdRequest(uint32_t propertyId, const uint8_t *reqData, uint16_t reqDataSize) {
+    if(reqData == nullptr || reqDataSize < sizeof(protocol::ReqHeader)) {
+        return;
+    }
+    auto *req = reinterpret_cast<const protocol::ReqHeader *>(reqData);
+    if(!isVendorCmdDebugOpcode(req->opcode)) {
+        return;
+    }
+
+    std::string payloadHex = protocolBytesToHex(reqData + sizeof(protocol::ReqHeader), reqDataSize - sizeof(protocol::ReqHeader));
+    if(req->opcode == protocol::OPCODE_READ_STRUCT_DATA_LIST_V1_1 && reqDataSize >= sizeof(protocol::GetStructureDataListReq)) {
+        auto *listReq = reinterpret_cast<const protocol::GetStructureDataListReq *>(reqData);
+        LOG_DEBUG("Vendor cmd TX: propertyId={}, opcode={}(0x{:02x}) READ_STRUCT_DATA_LIST, magic=0x{:04x}, sizeInHalfWords={}, requestId={}, offset={}, "
+                  "size={}, reqSize={}, payloadHex=[{}]",
+                  propertyId, req->opcode, req->opcode, req->magic, req->sizeInHalfWords, req->requestId, listReq->offset, listReq->size, reqDataSize,
+                  payloadHex);
+    }
+    else if(req->opcode == protocol::OPCODE_INIT_READ_STRUCT_DATA_LIST_V1_1) {
+        LOG_DEBUG("Vendor cmd TX: propertyId={}, opcode={}(0x{:02x}) INIT_READ_STRUCT_DATA_LIST, magic=0x{:04x}, sizeInHalfWords={}, requestId={}, "
+                  "reqSize={}, payloadHex=[{}]",
+                  propertyId, req->opcode, req->opcode, req->magic, req->sizeInHalfWords, req->requestId, reqDataSize, payloadHex);
+    }
+    else if(req->opcode == protocol::OPCODE_FINISH_READ_STRUCT_DATA_LIST_V1_1) {
+        LOG_DEBUG("Vendor cmd TX: propertyId={}, opcode={}(0x{:02x}) FINISH_READ_STRUCT_DATA_LIST, magic=0x{:04x}, sizeInHalfWords={}, requestId={}, "
+                  "reqSize={}, payloadHex=[{}]",
+                  propertyId, req->opcode, req->opcode, req->magic, req->sizeInHalfWords, req->requestId, reqDataSize, payloadHex);
+    }
+    else {
+        LOG_DEBUG("Vendor cmd TX: propertyId={}, opcode={}(0x{:02x}), magic=0x{:04x}, sizeInHalfWords={}, requestId={}, reqSize={}, payloadHex=[{}]",
+                  propertyId, req->opcode, req->opcode, req->magic, req->sizeInHalfWords, req->requestId, reqDataSize, payloadHex);
+    }
+}
+
+static void logVendorCmdResp(uint32_t propertyId, uint16_t reqOpcode, const uint8_t *respData, uint16_t respDataSize) {
+    if(!isVendorCmdDebugOpcode(reqOpcode)) {
+        return;
+    }
+
+    if(respData == nullptr || respDataSize < sizeof(protocol::RespHeader)) {
+        LOG_DEBUG("Vendor cmd RX: propertyId={}, opcode={}(0x{:02x}), respSize={}, hex=[{}]", propertyId, reqOpcode, reqOpcode, respDataSize,
+                  protocolBytesToHex(respData, respDataSize));
+        return;
+    }
+
+    auto       *resp    = reinterpret_cast<const protocol::RespHeader *>(respData);
+    std::string respHex = protocolBytesToHex(respData, respDataSize);
+
+    if(reqOpcode == protocol::OPCODE_GET_STRUCTURE_DATA_V1_1 && respDataSize >= sizeof(protocol::GetStructureDataRespV1_1)) {
+        auto   *structResp = reinterpret_cast<const protocol::GetStructureDataRespV1_1 *>(respData);
+        int16_t dataSize   = protocol::getStructureDataSizeV1_1(structResp);
+        LOG_DEBUG("Vendor cmd RX: propertyId={}, opcode={}(0x{:02x}) GET_STRUCTURE_DATA_V1_1, magic=0x{:04x}, sizeInHalfWords={}, requestId={}, "
+                  "errorCode=0x{:04x}, cmdVer={}, dataSize={}, respSize={}, hex=[{}]",
+                  propertyId, reqOpcode, reqOpcode, resp->magic, resp->sizeInHalfWords, resp->requestId, resp->errorCode, structResp->cmdVer, dataSize,
+                  respDataSize, respHex);
+        return;
+    }
+
+    if(reqOpcode == protocol::OPCODE_INIT_READ_STRUCT_DATA_LIST_V1_1 && respDataSize >= sizeof(protocol::StartGetStructureDataListResp)) {
+        auto *startResp = reinterpret_cast<const protocol::StartGetStructureDataListResp *>(respData);
+        LOG_DEBUG("Vendor cmd RX: propertyId={}, opcode={}(0x{:02x}) INIT_READ_STRUCT_DATA_LIST, magic=0x{:04x}, sizeInHalfWords={}, requestId={}, "
+                  "errorCode=0x{:04x}, cmdVer={}, dataSize={}, respSize={}, hex=[{}]",
+                  propertyId, reqOpcode, reqOpcode, resp->magic, resp->sizeInHalfWords, resp->requestId, resp->errorCode, startResp->cmdVer,
+                  startResp->dataSize, respDataSize, respHex);
+        return;
+    }
+
+    if(reqOpcode == protocol::OPCODE_READ_STRUCT_DATA_LIST_V1_1) {
+        uint32_t payloadSize = respDataSize > sizeof(protocol::RespHeader) ? respDataSize - sizeof(protocol::RespHeader) : 0;
+        LOG_DEBUG("Vendor cmd RX: propertyId={}, opcode={}(0x{:02x}) READ_STRUCT_DATA_LIST, magic=0x{:04x}, sizeInHalfWords={}, requestId={}, "
+                  "errorCode=0x{:04x}, payloadSize={}, respSize={}, hex=[{}]",
+                  propertyId, reqOpcode, reqOpcode, resp->magic, resp->sizeInHalfWords, resp->requestId, resp->errorCode, payloadSize, respDataSize,
+                  respHex);
+        return;
+    }
+
+    if(reqOpcode == protocol::OPCODE_FINISH_READ_STRUCT_DATA_LIST_V1_1) {
+        LOG_DEBUG("Vendor cmd RX: propertyId={}, opcode={}(0x{:02x}) FINISH_READ_STRUCT_DATA_LIST, magic=0x{:04x}, sizeInHalfWords={}, requestId={}, "
+                  "errorCode=0x{:04x}, respSize={}, hex=[{}]",
+                  propertyId, reqOpcode, reqOpcode, resp->magic, resp->sizeInHalfWords, resp->requestId, resp->errorCode, respDataSize, respHex);
+        return;
+    }
+
+    LOG_DEBUG("Vendor cmd RX: propertyId={}, opcode={}(0x{:02x}), magic=0x{:04x}, sizeInHalfWords={}, requestId={}, errorCode=0x{:04x}, respSize={}, "
+              "hex=[{}]",
+              propertyId, reqOpcode, reqOpcode, resp->magic, resp->sizeInHalfWords, resp->requestId, resp->errorCode, respDataSize, respHex);
+}
 
 VendorPropertyAccessor::VendorPropertyAccessor(IDevice *owner, const std::shared_ptr<ISourcePort> &backend)
     : owner_(owner),
@@ -331,7 +449,9 @@ void VendorPropertyAccessor::triggerReboot() {
 protocol::HpStatus VendorPropertyAccessor::executeAndCheck(const std::shared_ptr<IVendorDataPort> &port, uint8_t *reqData, uint16_t reqDataSize,
                                                            uint8_t *respData, uint16_t *respDataSize, uint32_t propertyId, uint16_t expectedRespLen,
                                                            utils::TransferTiming *timing) {
+    logVendorCmdRequest(propertyId, reqData, reqDataSize);
     auto res = protocol::execute(port, reqData, reqDataSize, respData, respDataSize, expectedRespLen, timing);
+    logVendorCmdResp(propertyId, getReqOpcode(reqData, reqDataSize), respData, *respDataSize);
 
     // Only retry and trigger reboot when autoRebootEnabled_ is set (LibUVC path only).
     // V4L2 / WMF platforms never produce HP_STATUS_DEVICE_RESPONSE_IO_ERROR,
@@ -339,7 +459,9 @@ protocol::HpStatus VendorPropertyAccessor::executeAndCheck(const std::shared_ptr
     if(autoRebootEnabled_ && res.statusCode == protocol::HP_STATUS_DEVICE_RESPONSE_IO_ERROR) {
         for(int retry = 0; retry < IO_ERROR_MAX_RETRIES; retry++) {
             LOG_WARN("VendorPropertyAccessor: response channel failed, retry {}/{}, propertyId: {}", retry + 1, IO_ERROR_MAX_RETRIES, propertyId);
+            logVendorCmdRequest(propertyId, reqData, reqDataSize);
             res = protocol::execute(port, reqData, reqDataSize, respData, respDataSize, expectedRespLen, timing);
+            logVendorCmdResp(propertyId, getReqOpcode(reqData, reqDataSize), respData, *respDataSize);
             if(res.statusCode != protocol::HP_STATUS_DEVICE_RESPONSE_IO_ERROR) {
                 break;
             }
