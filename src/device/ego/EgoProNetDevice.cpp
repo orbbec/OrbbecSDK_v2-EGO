@@ -39,7 +39,7 @@
 #include "utils/Utils.hpp"
 
 #include "firmwareupdater/FirmwareUpdater.hpp"
-#include "monitor/DeviceMonitor.hpp"
+#include "monitor/EgoDeviceMonitor.hpp"
 #include "monitor/DeviceActivityRecorder.hpp"
 
 #if defined(BUILD_NET_PAL)
@@ -71,9 +71,6 @@ std::shared_ptr<const StreamProfile> normalizeH265AliasProfile(const std::shared
 
 EgoProNetDevice::EgoProNetDevice(const std::shared_ptr<const IDeviceEnumInfo> &info) : DeviceBase(info) {
     init();
-
-    // check and start heartbeat after initialization is complete
-    checkAndStartHeartbeat();
     LOG_DEBUG("EGOProNetDevice Construct.....");
 }
 
@@ -511,7 +508,7 @@ void EgoProNetDevice::initProperties() {
     });
 
     registerComponent(OB_DEV_COMPONENT_DEVICE_MONITOR, [this, sourcePort]() {
-        return std::make_shared<DeviceMonitor>(this, sourcePort);
+        return std::make_shared<EgoDeviceMonitor>(this, sourcePort);
     });
 
     // color controls (apply to both left/right RGB)
@@ -527,8 +524,6 @@ void EgoProNetDevice::initProperties() {
     propertyServer->registerProperty(OB_PROP_COLOR_POWER_LINE_FREQUENCY_INT, "rw", "rw", vendorPropertyAccessor);
 
     // device / IMU controls
-    auto heartbeatPropertyAccessor = std::make_shared<HeartbeatPropertyAccessor>(this);
-    // propertyServer->registerProperty(OB_PROP_HEARTBEAT_BOOL, "rw", "rw", heartbeatPropertyAccessor);
     propertyServer->registerProperty(OB_STRUCT_VERSION, "", "r", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_STRUCT_HOST_TIME_INFO, "", "w", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_STRUCT_DEVICE_SERIAL_NUMBER, "r", "r", vendorPropertyAccessor);

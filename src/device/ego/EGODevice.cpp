@@ -44,7 +44,7 @@
 #include "utils/PublicTypeHelper.hpp"
 #include "utils/Utils.hpp"
 
-#include "monitor/DeviceMonitor.hpp"
+#include "monitor/EgoDeviceMonitor.hpp"
 #include "ISourcePort.hpp"
 #include "IProperty.hpp"
 
@@ -67,9 +67,6 @@ static const uint8_t EGO_USB_INTERFACE_COLOR_RIGHT = 2;
 
 EGODevice::EGODevice(const std::shared_ptr<const IDeviceEnumInfo> &info) : DeviceBase(info) {
     init();
-
-    // check and start heartbeat after initialization is complete
-    checkAndStartHeartbeat();
 }
 
 EGODevice::~EGODevice() noexcept {}
@@ -341,7 +338,7 @@ void EGODevice::initSensorList() {
             if(uvcPort) {
                 uvcPort->updateXuUnit(OB_EGO_XU_UNIT);
             }
-            auto devMonitor = std::make_shared<DeviceMonitor>(this, port);
+            auto devMonitor = std::make_shared<EgoDeviceMonitor>(this, port);
             return devMonitor;
         });
     }
@@ -611,8 +608,6 @@ void EGODevice::initProperties() {
         propertyServer->registerProperty(OB_PROP_COLOR_DYNAMIC_BITRATE_MAX_INT, "rw", "rw", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_PROP_COLOR_AE_MAX_EXPOSURE_INT, "rw", "rw", vendorPropertyAccessor);
 
-        auto heartbeatPropertyAccessor = std::make_shared<HeartbeatPropertyAccessor>(this);
-        propertyServer->registerProperty(OB_PROP_HEARTBEAT_BOOL, "rw", "rw", heartbeatPropertyAccessor);
     }
 
     registerComponent(OB_DEV_COMPONENT_PROPERTY_SERVER, propertyServer, false);

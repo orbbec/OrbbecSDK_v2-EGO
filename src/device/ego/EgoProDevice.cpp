@@ -44,7 +44,7 @@
 #include "utils/PublicTypeHelper.hpp"
 #include "utils/Utils.hpp"
 
-#include "monitor/DeviceMonitor.hpp"
+#include "monitor/EgoDeviceMonitor.hpp"
 #include "ISourcePort.hpp"
 #include "IProperty.hpp"
 
@@ -64,9 +64,6 @@ std::shared_ptr<const StreamProfile> normalizeH265AliasProfile(const std::shared
 
 EgoProDevice::EgoProDevice(const std::shared_ptr<const IDeviceEnumInfo> &info) : DeviceBase(info) {
     init();
-
-    // check and start heartbeat after initialization is complete
-    checkAndStartHeartbeat();
 }
 
 EgoProDevice::~EgoProDevice() noexcept {}
@@ -348,7 +345,7 @@ void EgoProDevice::initSensorList() {
             if(uvcPort) {
                 uvcPort->updateXuUnit(OB_EGO_XU_UNIT);
             }
-            auto devMonitor = std::make_shared<DeviceMonitor>(this, port);
+            auto devMonitor = std::make_shared<EgoDeviceMonitor>(this, port);
             return devMonitor;
         });
     }
@@ -577,8 +574,6 @@ void EgoProDevice::initProperties() {
         propertyServer->registerProperty(OB_PROP_COLOR_DYNAMIC_BITRATE_ENABLE_BOOL, "rw", "rw", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_PROP_COLOR_AE_MAX_EXPOSURE_INT, "rw", "rw", vendorPropertyAccessor);
 
-        auto heartbeatPropertyAccessor = std::make_shared<HeartbeatPropertyAccessor>(this);
-        propertyServer->registerProperty(OB_PROP_HEARTBEAT_BOOL, "rw", "rw", heartbeatPropertyAccessor);
     }
 
     registerComponent(OB_DEV_COMPONENT_PROPERTY_SERVER, propertyServer, false);

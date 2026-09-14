@@ -39,7 +39,7 @@
 #include "utils/PublicTypeHelper.hpp"
 #include "utils/Utils.hpp"
 
-#include "monitor/DeviceMonitor.hpp"
+#include "monitor/EgoDeviceMonitor.hpp"
 #include "ISourcePort.hpp"
 #include "IProperty.hpp"
 
@@ -291,7 +291,7 @@ void WristDevice::initSensorList() {
             if(uvcPort) {
                 uvcPort->updateXuUnit(OB_EGO_XU_UNIT);
             }
-            auto devMonitor = std::make_shared<DeviceMonitor>(this, port);
+            auto devMonitor = std::make_shared<EgoDeviceMonitor>(this, port);
             return devMonitor;
         });
     }

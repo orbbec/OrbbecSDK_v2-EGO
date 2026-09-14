@@ -35,7 +35,7 @@
 #include "utils/Utils.hpp"
 
 #include "firmwareupdater/FirmwareUpdater.hpp"
-#include "monitor/DeviceMonitor.hpp"
+#include "monitor/EgoDeviceMonitor.hpp"
 #include "monitor/DeviceActivityRecorder.hpp"
 
 #if defined(BUILD_NET_PAL)
@@ -329,7 +329,7 @@ void WristNetDevice::initProperties() {
     });
 
     registerComponent(OB_DEV_COMPONENT_DEVICE_MONITOR, [this, sourcePort]() {
-        return std::make_shared<DeviceMonitor>(this, sourcePort);
+        return std::make_shared<EgoDeviceMonitor>(this, sourcePort);
     });
 
     // color controls
