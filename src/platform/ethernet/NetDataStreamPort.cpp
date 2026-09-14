@@ -7,6 +7,8 @@
 #include "frame/FrameFactory.hpp"
 #include "utils/Utils.hpp"
 
+#include <chrono>
+
 namespace libobsensor {
 
 NetDataStreamPort::NetDataStreamPort(std::shared_ptr<const NetDataStreamPortInfo> portInfo) : portInfo_(portInfo), isStreaming_(false) {
@@ -72,6 +74,12 @@ void NetDataStreamPort::readData() {
             LOG_WARN("read data failed!");
             readSize = -1;
         })
+#if defined(__ANDROID__)
+        // Avoid a tight reconnect loop while Android is switching or restoring the network.
+        if(readSize < 0 && isStreaming_) {
+            std::this_thread::sleep_for(std::chrono::seconds(1));
+        }
+#endif
 
         if(readSize < 0) {
             dataRecvdSize = 0;

@@ -345,6 +345,12 @@ int VendorTCPClient::read(uint8_t *data, const uint32_t dataLen, utils::TimeInte
     {
         uint8_t retry = 2;
         while(retry-- && !flushed_) {
+#if defined(__ANDROID__)
+            if(socketFd_ == INVALID_SOCKET) {
+                LOG_INFO("TCP socket is invalid, reconnect before reading...");
+                socketReconnect();
+            }
+#endif
             utils::TimingScope guard(interval);
             int                rst = 0;
 #if defined(__linux__)
@@ -384,7 +390,12 @@ int VendorTCPClient::read(uint8_t *data, const uint32_t dataLen, utils::TimeInte
                     // Interrupted by a signal; retry directly.
                     continue;
                 }
-                else if((rst == ENOTCONN || rst == ECONNRESET || rst == ETIMEDOUT) && retry >= 1) {
+                else if((rst == ENOTCONN || rst == ECONNRESET || rst == ETIMEDOUT
+#if defined(__ANDROID__)
+                         || rst == ECONNABORTED
+#endif
+                         )
+                        && retry >= 1) {
                     socketReconnect();
                     return -1;
                 }
@@ -407,6 +418,12 @@ void VendorTCPClient::write(const uint8_t *data, const uint32_t dataLen, utils::
     {
         uint8_t retry = 2;
         while(retry-- && !flushed_) {
+#if defined(__ANDROID__)
+            if(socketFd_ == INVALID_SOCKET) {
+                LOG_INFO("TCP socket is invalid, reconnect before writing...");
+                socketReconnect();
+            }
+#endif
             utils::TimingScope guard(interval);
             int                rst = 0;
 #if defined(__linux__)
@@ -423,7 +440,12 @@ void VendorTCPClient::write(const uint8_t *data, const uint32_t dataLen, utils::
                 if((rst == EAGAIN || rst == EWOULDBLOCK) && retry >= 1) {
                     std::this_thread::sleep_for(std::chrono::milliseconds(100));
                 }
-                else if((rst == ENOTCONN || rst == ECONNRESET || rst == ETIMEDOUT) && retry >= 1) {
+                else if((rst == ENOTCONN || rst == ECONNRESET || rst == ETIMEDOUT
+#if defined(__ANDROID__)
+                         || rst == ECONNABORTED || rst == EPIPE
+#endif
+                         )
+                        && retry >= 1) {
 #endif
                     socketReconnect();
                 }
