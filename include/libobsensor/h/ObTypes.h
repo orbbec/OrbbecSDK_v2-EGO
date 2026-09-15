@@ -2321,10 +2321,11 @@ typedef struct {
  * @brief Battery information reported through HID.
  */
 typedef struct {
-    uint32_t capacity;    /**< Battery capacity reported by firmware. */
-    uint32_t voltage;     /**< Battery voltage reported by firmware. */
-    uint8_t  usbOnline;   /**< USB online status. 1: online, 0: offline. */
-    int8_t   temperature; /**< Battery temperature reported by firmware. */
+    uint32_t capacity;      /**< Battery capacity reported by firmware. */
+    uint32_t voltage;       /**< Battery voltage reported by firmware. */
+    uint8_t  chargingState; /**< Charging state. 1: charging, 0: not charging. */
+    int8_t   temperature;   /**< Battery temperature reported by firmware. */
+    int8_t   hasBattery;    /**< Battery presence. 1: battery present, 0: no battery. */
 } OBBatteryInfo, ob_battery_info;
 
 /**

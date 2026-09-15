@@ -745,7 +745,8 @@ void testBattery(const std::shared_ptr<ob::DataAcquisitionDevice> &device, int d
         std::atomic<uint64_t> batteryCount(0);
         device->setBatteryInfoCallback([&batteryCount](const OBBatteryInfo &info) {
             if(batteryCount.fetch_add(1) == 0) {
-                std::cout << "  first battery: capacity=" << info.capacity << " voltage=" << info.voltage << " usbOnline=" << static_cast<int>(info.usbOnline)
+                std::cout << "  first battery: capacity=" << info.capacity << " voltage=" << info.voltage
+                          << " chargingState=" << static_cast<int>(info.chargingState) << " hasBattery=" << static_cast<int>(info.hasBattery)
                           << " temperature=" << static_cast<int>(info.temperature) << std::endl;
             }
         });

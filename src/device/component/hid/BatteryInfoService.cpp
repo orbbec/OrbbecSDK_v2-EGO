@@ -24,20 +24,22 @@ struct BatteryInfoRaw {
     uint32_t magicCode;
     uint32_t capacity;
     uint32_t voltage;
-    uint8_t  usbOnline;
+    uint8_t  chargingState;  // 充电状态：0 未充电，1 充电中
     int8_t   temperature;
-    int8_t   reserver[2];
+    int8_t   hasBattery;  // 是否有电池：0 无电池，1 有电池
+    int8_t   reserved;
     uint32_t crc32;
 };
 #pragma pack(pop)
 
 static_assert(sizeof(BatteryInfoRaw) == 20, "HID battery raw group must be 20 bytes");
-static_assert(sizeof(OBBatteryInfo) == 10, "HID battery public group must be 10 bytes");
+static_assert(sizeof(OBBatteryInfo) == 11, "HID battery public group must be 11 bytes");
 static_assert(offsetof(BatteryInfoRaw, crc32) == 16, "HID battery raw crc32 offset mismatch");
 static_assert(offsetof(OBBatteryInfo, capacity) == 0, "HID battery public capacity offset mismatch");
 static_assert(offsetof(OBBatteryInfo, voltage) == 4, "HID battery public voltage offset mismatch");
-static_assert(offsetof(OBBatteryInfo, usbOnline) == 8, "HID battery public usbOnline offset mismatch");
+static_assert(offsetof(OBBatteryInfo, chargingState) == 8, "HID battery public chargingState offset mismatch");
 static_assert(offsetof(OBBatteryInfo, temperature) == 9, "HID battery public temperature offset mismatch");
+static_assert(offsetof(OBBatteryInfo, hasBattery) == 10, "HID battery public hasBattery offset mismatch");
 
 uint32_t calcCrc32(uint32_t seed, const uint8_t *dataBuf, uint32_t length) {
     return alg_write_flash::CRC32(seed, const_cast<uint8_t *>(dataBuf), length);
@@ -194,10 +196,11 @@ void BatteryInfoService::onFrame(std::shared_ptr<Frame> frame) {
         }
 
         OBBatteryInfo info{};
-        info.capacity    = raw.capacity;
-        info.voltage     = raw.voltage;
-        info.usbOnline   = raw.usbOnline ? 0 : 1;
-        info.temperature = raw.temperature;
+        info.capacity      = raw.capacity;
+        info.voltage       = raw.voltage;
+        info.chargingState = raw.chargingState ? 1 : 0;
+        info.temperature   = raw.temperature;
+        info.hasBattery    = raw.hasBattery ? 1 : 0;
         callback(info);
     }
 }

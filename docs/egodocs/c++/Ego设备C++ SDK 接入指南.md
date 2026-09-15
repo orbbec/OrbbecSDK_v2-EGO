@@ -967,7 +967,7 @@ catch(const ob::Error &error) {
 auto egoDev = ob::DataAcquisitionDevice::fromDevice(rawDevice);
 
 egoDev->setBatteryInfoCallback([](const OBBatteryInfo &info) {
-    // info.capacity / info.voltage / info.temperature / info.usbOnline
+    // info.capacity / info.voltage / info.chargingState / info.hasBattery / info.temperature
 });
 
 egoDev->setEgoStateCallback([](const OBEgoStateReport &state) {
