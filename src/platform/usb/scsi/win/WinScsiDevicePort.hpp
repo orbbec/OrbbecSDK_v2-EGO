@@ -3,6 +3,7 @@
 #pragma once
 #include "usb/scsi/ScsiDevicePort.hpp"
 #include <Windows.h>
+#include <string>
 namespace libobsensor {
 class WinScsiDevicePort : public IScsiDevicePort {
 public:
@@ -13,7 +14,7 @@ public:
 
 private:
     bool                                     openEgoVolume();
-    bool                                     inquiryMatches(HANDLE handle);
+    bool                                     inquiryMatches(HANDLE handle, const std::string &candidatePath);
     std::shared_ptr<const USBSourcePortInfo> portInfo_;
     HANDLE                                   handle_ = INVALID_HANDLE_VALUE;
 };
