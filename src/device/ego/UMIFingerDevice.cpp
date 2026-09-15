@@ -89,7 +89,7 @@ void UMIFingerDevice::init() {
 
 void UMIFingerDevice::fetchDeviceInfo() {
     auto propServer = getPropertyServer();
-    /*
+    
         auto version                      = propServer->getStructureDataT<OBVersionInfo>(OB_STRUCT_VERSION);
         deviceInfo_->name_                = version.deviceName;
         deviceInfo_->fwVersion_           = version.firmwareVersion;
@@ -119,7 +119,7 @@ void UMIFingerDevice::fetchDeviceInfo() {
             }
         }
     #endif
-    */
+    
     std::string manufacturerName;
     auto        vid = deviceInfo_->vid_;
     auto        pid = deviceInfo_->pid_;
