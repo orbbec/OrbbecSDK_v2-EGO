@@ -52,6 +52,7 @@
 #include <tuple>
 #include <vector>
 #include <algorithm>
+#include <atomic>
 #include <cstring>
 #include <utility>
 
@@ -64,6 +65,27 @@ std::shared_ptr<const StreamProfile> normalizeH265AliasProfile(const std::shared
     }
     return profile;
 }
+
+// The firmware switches this Y16 endpoint between depth and raw disparity.
+// Keep the host-side frame semantic in sync without adding a software D2D stage.
+class EGODepthD2DSensor : public VideoSensor {
+public:
+    EGODepthD2DSensor(IDevice *owner, const std::shared_ptr<ISourcePort> &backend) : VideoSensor(owner, OB_SENSOR_DEPTH, backend) {}
+
+    void markOutputDisparityFrame(bool enable) {
+        outputDisparityFrame_.store(enable, std::memory_order_relaxed);
+    }
+
+protected:
+    void outputFrame(std::shared_ptr<Frame> frame) override {
+        auto videoFrame = frame->as<VideoFrame>();
+        videoFrame->setPixelType(outputDisparityFrame_.load(std::memory_order_relaxed) ? OB_PIXEL_DISPARITY : OB_PIXEL_DEPTH);
+        VideoSensor::outputFrame(std::move(frame));
+    }
+
+private:
+    std::atomic_bool outputDisparityFrame_{ false };
+};
 
 class EGODepthEffectiveProfileFilter : public IStreamProfileFilter {
 public:
@@ -433,7 +455,7 @@ void EGODepthDevice::initSensorList() {
             OB_DEV_COMPONENT_DEPTH_SENSOR,
             [this, depthPortInfo]() {
                 auto port   = getSourcePort(depthPortInfo);
-                auto sensor = std::make_shared<VideoSensor>(this, OB_SENSOR_DEPTH, port);
+                auto sensor = std::make_shared<EGODepthD2DSensor>(this, port);
 
                 sensor->enableTimestampAnomalyDetection(false);
 
@@ -443,6 +465,17 @@ void EGODepthDevice::initSensorList() {
                 auto frameProcessor = getComponentT<FrameProcessor>(OB_DEV_COMPONENT_DEPTH_FRAME_PROCESSOR, false);
                 if(frameProcessor) {
                     sensor->setFrameProcessor(frameProcessor.get());
+                }
+
+                // The initial property read establishes the frame semantic before streaming starts.
+                bool hwD2D = true;
+                BEGIN_TRY_EXECUTE({ hwD2D = getPropertyServer()->getPropertyValueT<bool>(OB_PROP_DISPARITY_TO_DEPTH_BOOL); })
+                CATCH_EXCEPTION_AND_EXECUTE({})
+                sensor->markOutputDisparityFrame(!hwD2D);
+                if(frameProcessor) {
+                    OBPropertyValue value{};
+                    value.intValue = hwD2D;
+                    frameProcessor->setPropertyValue(OB_PROP_DISPARITY_TO_DEPTH_BOOL, value);
                 }
 
                 initSensorStreamProfile(sensor);
@@ -661,6 +694,14 @@ void EGODepthDevice::initProperties() {
     // Color streams are controlled together through it; the firmware normalizes per-sensor.
     bool hasColorGroup = std::find(sensors.begin(), sensors.end(), OB_SENSOR_COLOR_LEFT) != sensors.end();
     if(hasColorGroup) {
+        // Factory Calib removes the Depth sensor entry but leaves the IR controls available, so retain the
+        // physical Depth UVC port for the shared Gain PU accessor.
+        auto depthPortInfo = getSensorPortInfo(OB_SENSOR_DEPTH);
+        auto depthUvcPropertyAccessor = std::make_shared<LazyPropertyAccessor>([this, depthPortInfo]() {
+            auto port = getSourcePort(depthPortInfo);
+            return std::make_shared<UvcPropertyAccessor>(port);
+        });
+
         auto vendorPropertyAccessor = std::make_shared<LazySuperPropertyAccessor>([this]() {
             auto &portInfo = getSensorPortInfo(OB_SENSOR_COLOR_LEFT);
             auto  port     = getSourcePort(portInfo);
@@ -742,11 +783,47 @@ void EGODepthDevice::initProperties() {
         propertyServer->registerProperty(OB_PROP_COLOR_BITRATE_INT, "rw", "rw", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_PROP_COLOR_DYNAMIC_BITRATE_ENABLE_BOOL, "rw", "rw", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_PROP_COLOR_AE_MAX_EXPOSURE_INT, "rw", "rw", vendorPropertyAccessor);
+        // Match G335LG: AE and exposure use the vendor XU, while gain uses the Depth UVC PU.
+        propertyServer->registerProperty(OB_PROP_DEPTH_AUTO_EXPOSURE_BOOL, "rw", "rw", vendorPropertyAccessor);
+        propertyServer->registerProperty(OB_PROP_DEPTH_AUTO_EXPOSURE_PRIORITY_INT, "rw", "rw", vendorPropertyAccessor);
+        propertyServer->registerProperty(OB_PROP_DEPTH_EXPOSURE_INT, "rw", "rw", vendorPropertyAccessor);
+        propertyServer->registerProperty(OB_PROP_DEPTH_GAIN_INT, "rw", "rw", depthUvcPropertyAccessor);
+        propertyServer->aliasProperty(OB_PROP_IR_AUTO_EXPOSURE_BOOL, OB_PROP_DEPTH_AUTO_EXPOSURE_BOOL);
+        propertyServer->aliasProperty(OB_PROP_IR_EXPOSURE_INT, OB_PROP_DEPTH_EXPOSURE_INT);
+        propertyServer->aliasProperty(OB_PROP_IR_GAIN_INT, OB_PROP_DEPTH_GAIN_INT);
+        propertyServer->registerProperty(OB_PROP_IR_AE_MAX_EXPOSURE_INT, "rw", "rw", vendorPropertyAccessor);
+        propertyServer->registerProperty(OB_PROP_IR_BRIGHTNESS_INT, "rw", "rw", vendorPropertyAccessor);
         // Depth work mode (preset) support: Default <-> Factory Calib
         propertyServer->registerProperty(OB_RAW_DATA_DEPTH_ALG_MODE_LIST, "r", "r", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_STRUCT_CURRENT_DEPTH_ALG_MODE, "rw", "rw", vendorPropertyAccessor);
         // Effective video stream profile list for the current depth work mode.
         propertyServer->registerProperty(OB_RAW_DATA_EFFECTIVE_VIDEO_STREAM_PROFILE_LIST, "r", "r", vendorPropertyAccessor);
+        // Keep the laser-control property path consistent with G335LG.
+        propertyServer->registerProperty(OB_PROP_LASER_CONTROL_INT, "rw", "rw", vendorPropertyAccessor);
+        // Reuse the existing hardware D2D switch shown by the Advanced Control panel.
+        propertyServer->registerProperty(OB_PROP_DISPARITY_TO_DEPTH_BOOL, "rw", "rw", vendorPropertyAccessor);
+        propertyServer->registerAccessCallback(
+            OB_PROP_DISPARITY_TO_DEPTH_BOOL,
+            [this](uint32_t, const uint8_t *data, size_t dataSize, PropertyOperationType operationType) {
+                if(operationType != PROP_OP_WRITE || !data || dataSize < sizeof(uint32_t)) {
+                    return;
+                }
+
+                auto sensor = getComponentT<EGODepthD2DSensor>(OB_DEV_COMPONENT_DEPTH_SENSOR, false);
+                if(sensor) {
+                    const bool hardwareD2DEnabled = *reinterpret_cast<const uint32_t *>(data) != 0;
+                    sensor->markOutputDisparityFrame(!hardwareD2DEnabled);
+
+                    auto frameProcessor = getComponentT<FrameProcessor>(OB_DEV_COMPONENT_DEPTH_FRAME_PROCESSOR, false);
+                    if(frameProcessor) {
+                        OBPropertyValue value{};
+                        value.intValue = hardwareD2DEnabled;
+                        frameProcessor->setPropertyValue(OB_PROP_DISPARITY_TO_DEPTH_BOOL, value);
+                    }
+                }
+            });
+        // Firmware-controlled hardware D2C switch; the firmware owns the output stream conversion.
+        propertyServer->registerProperty(OB_PROP_DEPTH_ALIGN_HARDWARE_BOOL, "rw", "rw", vendorPropertyAccessor);
 
         auto heartbeatPropertyAccessor = std::make_shared<HeartbeatPropertyAccessor>(this);
         propertyServer->registerProperty(OB_PROP_HEARTBEAT_BOOL, "rw", "rw", heartbeatPropertyAccessor);
