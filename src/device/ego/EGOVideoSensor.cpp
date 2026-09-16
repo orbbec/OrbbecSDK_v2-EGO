@@ -30,15 +30,14 @@ EGOVideoSensor::~EGOVideoSensor() noexcept {
 }
 
 void EGOVideoSensor::trySendStopStreamVendorCmd() {
-    auto cmdPort = vendorCmdPort_ ? vendorCmdPort_ : backend_;
-    auto uvcPort = std::dynamic_pointer_cast<UvcDevicePort>(cmdPort);
+    auto uvcPort = std::dynamic_pointer_cast<UvcDevicePort>(backend_);
     if(!uvcPort) {
         return;
     }
     // EGO firmware assigns bUnitID=2 to the Orbbec vendor XU; update before creating the accessor
     // so that Linux/libuvc (which routes by unit number) targets the correct unit.
     uvcPort->updateXuUnit(OB_EGO_XU_UNIT);
-    auto            accessor = std::make_shared<VendorPropertyAccessor>(getOwner(), cmdPort);
+    auto            accessor = std::make_shared<VendorPropertyAccessor>(getOwner(), backend_);
     OBPropertyValue value;
     value.intValue = 1;
     TRY_EXECUTE({ accessor->setPropertyValue(stopStreamPropertyId_, value); })

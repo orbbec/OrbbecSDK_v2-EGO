@@ -5,7 +5,7 @@
 #include "EGODepthDepthWorkModeManager.hpp"
 #include "EGODepthPresetManager.hpp"
 #include "EGOStreamDemuxer.hpp"
-#include "EGOColorVideoSensor.hpp"
+#include "EGOVideoSensor.hpp"
 #include "DevicePids.hpp"
 #include "environment/EnvConfig.hpp"
 #include "stream/StreamProfileFactory.hpp"
@@ -146,9 +146,6 @@ void EGODepthDevice::init() {
 
     deviceTimeFreq_ = 1000000;
     frameTimeFreq_  = 1000000;
-
-    // EGODepth uses UTC Unix epoch time base for frame system timestamps and device clock sync.
-    setTimestampTimeBase(OB_TIMESTAMP_TIME_BASE_UTC);
 
     auto deviceClockSynchronizer = std::make_shared<DeviceClockSynchronizer>(this, deviceTimeFreq_, deviceTimeFreq_);
     registerComponent(OB_DEV_COMPONENT_DEVICE_CLOCK_SYNCHRONIZER, deviceClockSynchronizer);
@@ -337,7 +334,7 @@ void EGODepthDevice::initSensorList() {
                 [this, sensorType, frameProcessorComponent, camId]() {
                     auto demuxer = getComponentT<EGOStreamDemuxer>(OB_DEV_COMPONENT_EGODEPTH_COLOR_DEMUXER);
                     auto port    = demuxer->createVirtualPort(camId);
-                    auto sensor  = std::make_shared<EGOColorVideoSensor>(this, sensorType, port);
+                    auto sensor  = std::make_shared<EGOVideoSensor>(this, sensorType, port, OB_PROP_STOP_COLOR_STREAM_BOOL);
 
                     sensor->enableTimestampAnomalyDetection(false);
 
@@ -495,10 +492,9 @@ void EGODepthDevice::initSensorList() {
     if(singleColorPortInfo) {
         registerComponent(
             OB_DEV_COMPONENT_COLOR_SENSOR,
-            [this, singleColorPortInfo, colorGroupPortInfo]() {
-                auto port          = getSourcePort(singleColorPortInfo);
-                auto vendorCmdPort = colorGroupPortInfo ? getSourcePort(colorGroupPortInfo) : nullptr;
-                auto sensor        = std::make_shared<EGOColorVideoSensor>(this, OB_SENSOR_COLOR, port, vendorCmdPort);
+            [this, singleColorPortInfo]() {
+                auto port   = getSourcePort(singleColorPortInfo);
+                auto sensor = std::make_shared<EGOVideoSensor>(this, OB_SENSOR_COLOR, port, OB_PROP_STOP_COLOR_STREAM_BOOL);
 
                 sensor->enableTimestampAnomalyDetection(false);
 
@@ -766,8 +762,8 @@ void EGODepthDevice::initProperties() {
         auto recordingDirectoryAccessor = std::make_shared<FwRecordingDirectoryManager>(this, vendorPropertyAccessor);
         propertyServer->registerProperty(OB_STRUCT_FW_RECORDING_DIRECTORY, "rw", "rw", recordingDirectoryAccessor);
         propertyServer->registerProperty(OB_STRUCT_DEVICE_USER_NAME, "rw", "rw", vendorPropertyAccessor);
-        propertyServer->registerProperty(OB_STRUCT_EGO_PAIRING_INFO, "r", "r", vendorPropertyAccessor);
-        propertyServer->registerProperty(OB_PROP_EGO_CLEAR_PAIRING_INT, "w", "w", vendorPropertyAccessor);
+        propertyServer->registerProperty(OB_STRUCT_BLUETOOTH_PAIRING_INFO, "r", "r", vendorPropertyAccessor);
+        propertyServer->registerProperty(OB_PROP_BLUETOOTH_CLEAR_PAIRING_INT, "w", "w", vendorPropertyAccessor);
         auto customMetadataManager = std::make_shared<CustomMetadataManager>(this, vendorPropertyAccessor);
         propertyServer->registerProperty(OB_STRUCT_CUSTOM_METADATA_JSON, "w", "w", customMetadataManager);
         registerComponent(OB_DEV_COMPONENT_CUSTOM_METADATA_MANAGER, customMetadataManager);
