@@ -246,19 +246,6 @@ OB_EXPORT void ob_device_clear_license_info(ob_device *device, ob_error **error)
 OB_EXPORT void ob_device_get_raw_data(ob_device *device, ob_property_id property_id, ob_get_data_callback cb, void *user_data, ob_error **error);
 
 /**
- * @brief Get a v1.1 structure-data list property (chunked over opcodes 29/30/31).
- *
- * @param[in] device The device object.
- * @param[in] property_id The ID of the structure list property.
- * @param[in] cmd_version Expected command version returned by firmware (usually 0).
- * @param[out] data Buffer that receives the concatenated list payload.
- * @param[in,out] data_size On input the capacity of `data`; on output the number of bytes written.
- * @param[out] error Pointer to an error object that will be set if an error occurs.
- */
-OB_EXPORT void ob_device_get_structure_data_list_v1_1(ob_device *device, ob_property_id property_id, uint16_t cmd_version, uint8_t *data,
-                                                      uint32_t *data_size, ob_error **error);
-
-/**
  * @brief Set raw data of a device property through the firmware's chunked RawData protocol.
  *
  * @param[in] device The device object.
