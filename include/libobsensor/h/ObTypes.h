@@ -835,10 +835,10 @@ typedef enum {
 typedef enum
 {
     OB_MAG_FS_UNKNOWN = -1,
-    OB_MAG_FS_4G      = 1,   /**< ¡À4 Gauss */
-    OB_MAG_FS_8G      = 2,   /**< ¡À8 Gauss */
-    OB_MAG_FS_12G     = 3,   /**< ¡À12 Gauss */
-    OB_MAG_FS_16G     = 4,   /**< ¡À16 Gauss */
+    OB_MAG_FS_4G      = 1,   /**< 4 Gauss */
+    OB_MAG_FS_8G      = 2,   /**< 8 Gauss */
+    OB_MAG_FS_12G     = 3,   /**< 12 Gauss */
+    OB_MAG_FS_16G     = 4,   /**< 16 Gauss */
 }OBMagFullScaleRange,
     ob_mag_full_scale_range, OB_MAG_FULL_SCALE_RANGE;
 
