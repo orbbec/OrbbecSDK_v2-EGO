@@ -85,6 +85,10 @@ std::shared_ptr<IFrameBufferManager> FrameMemoryPool::createFrameBufferManager(O
         frameBufMgr = std::shared_ptr<FrameBufferManager<ColorSideRightFrame>>(new FrameBufferManager<ColorSideRightFrame>(frameBufferSize));
         LOG_DEBUG("ColorSideRightFrame bufferManager created!");
         break;
+    case OB_FRAME_COLOR_TOP:
+        frameBufMgr = std::shared_ptr<FrameBufferManager<ColorTopFrame>>(new FrameBufferManager<ColorTopFrame>(frameBufferSize));
+        LOG_DEBUG("ColorTopFrame bufferManager created!");
+        break;
     case OB_FRAME_CONFIDENCE:
         frameBufMgr = std::shared_ptr<FrameBufferManager<ConfidenceFrame>>(new FrameBufferManager<ConfidenceFrame>(frameBufferSize));
         LOG_DEBUG("ConfidenceFrame bufferManager created!");
@@ -96,6 +100,10 @@ std::shared_ptr<IFrameBufferManager> FrameMemoryPool::createFrameBufferManager(O
     case OB_FRAME_ACCEL:
         frameBufMgr = std::shared_ptr<FrameBufferManager<AccelFrame>>(new FrameBufferManager<AccelFrame>(frameBufferSize));
         LOG_DEBUG("AccelFrame bufferManager created!");
+        break;
+    case OB_FRAME_MAG:
+        frameBufMgr = std::shared_ptr<FrameBufferManager<MagFrame>>(new FrameBufferManager<MagFrame>(frameBufferSize));
+        LOG_DEBUG("MagFrame bufferManager created!");
         break;
     case OB_FRAME_POINTS:
         frameBufMgr = std::shared_ptr<FrameBufferManager<PointsFrame>>(new FrameBufferManager<PointsFrame>(frameBufferSize));
@@ -141,6 +149,9 @@ std::shared_ptr<IFrameBufferManager> FrameMemoryPool::createFrameBufferManager(O
     }
     else if(streamProfile->is<GyroStreamProfile>()) {
         return createFrameBufferManager(type, sizeof(GyroFrame::Data));
+    }
+    else if(streamProfile->is<MagStreamProfile>()) {
+        return createFrameBufferManager(type, sizeof(MagFrame::Data));
     }
     else if(streamProfile->is<LiDARStreamProfile>()) {
         auto sp   = streamProfile->as<LiDARStreamProfile>();

@@ -21,6 +21,8 @@ std::shared_ptr<StreamProfile> createStreamProfile(OBStreamType streamType, OBFo
         return createAccelStreamProfile(OB_ACCEL_FULL_SCALE_RANGE_ANY, OB_ACCEL_SAMPLE_RATE_ANY);
     case OB_STREAM_GYRO:
         return createGyroStreamProfile(OB_GYRO_FULL_SCALE_RANGE_ANY, OB_GYRO_SAMPLE_RATE_ANY);
+    case OB_STREAM_MAG:
+        return createMagStreamProfile(OB_SAMPLE_RATE_UNKNOWN);
     case OB_STREAM_LIDAR:
         return createLiDARStreamProfile(OB_LIDAR_SCAN_ANY, frameFormat);
     case OB_STREAM_AUDIO:
@@ -33,6 +35,7 @@ std::shared_ptr<StreamProfile> createStreamProfile(OBStreamType streamType, OBFo
     case OB_STREAM_COLOR_RIGHT:
     case OB_STREAM_COLOR_SIDE_LEFT:
     case OB_STREAM_COLOR_SIDE_RIGHT:
+    case OB_STREAM_COLOR_TOP:
     case OB_STREAM_IR:
     case OB_STREAM_IR_LEFT:
     case OB_STREAM_IR_RIGHT:
@@ -95,6 +98,15 @@ std::shared_ptr<GyroStreamProfile> createGyroStreamProfile(std::shared_ptr<LazyS
     return gsp;
 }
 
+std::shared_ptr<MagStreamProfile> createMagStreamProfile(OBIMUSampleRate sampleRate) {
+    return createMagStreamProfile(std::shared_ptr<LazySensor>(), sampleRate);
+}
+
+std::shared_ptr<MagStreamProfile> createMagStreamProfile(std::shared_ptr<LazySensor> owner, OBIMUSampleRate sampleRate) {
+    auto msp = std::make_shared<MagStreamProfile>(owner, sampleRate);
+    return msp;
+}
+
 std::shared_ptr<LiDARStreamProfile> createLiDARStreamProfile(OBLiDARScanRate scanRate, OBFormat format) {
     return createLiDARStreamProfile(std::shared_ptr<LazySensor>(), scanRate, format);
 }
@@ -120,7 +132,7 @@ std::shared_ptr<const StreamProfile> getStreamProfileFromEnvConfig(const std::st
     auto nodePath = nodePathName + utils::obSensorToStr(sensorType);
     nodePath      = utils::string::removeSpace(nodePath);
 
-    if(sensorType == OB_SENSOR_ACCEL || sensorType == OB_SENSOR_GYRO || sensorType == OB_SENSOR_LIDAR) {
+    if(sensorType == OB_SENSOR_ACCEL || sensorType == OB_SENSOR_GYRO || sensorType == OB_SENSOR_MAG || sensorType == OB_SENSOR_LIDAR) {
         return nullptr;  // todo: implement it
     }
 

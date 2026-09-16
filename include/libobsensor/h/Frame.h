@@ -563,6 +563,26 @@ OB_EXPORT ob_gyro_value ob_gyro_frame_get_value(const ob_frame *frame, ob_error 
 OB_EXPORT float ob_gyro_frame_get_temperature(const ob_frame *frame, ob_error **error);
 
 /**
+ * @brief Get magnetometer frame data.
+ *
+ * @param[in] frame Magnetometer frame.
+ * @param[out] error Pointer to an error object that will be set if an error occurs.
+ *
+ * @return ob_mag_value Return the magnetometer data.
+ */
+OB_EXPORT ob_mag_value ob_mag_frame_get_value(const ob_frame *frame, ob_error **error);
+
+/**
+ * @brief Get the temperature when acquiring the magnetometer frame.
+ *
+ * @param[in] frame Magnetometer frame.
+ * @param[out] error Pointer to an error object that will be set if an error occurs.
+ *
+ * @return float Return the temperature value.
+ */
+OB_EXPORT float ob_mag_frame_get_temperature(const ob_frame *frame, ob_error **error);
+
+/**
  * @brief Get the number of frames contained in the frameset
  *
  * @attention The frame returned by this function should call @ref ob_delete_frame() to decrease the reference count when it is no longer needed.
@@ -703,6 +723,8 @@ OB_EXPORT uint32_t ob_point_cloud_frame_get_height(const ob_frame *frame, ob_err
 #define ob_accel_frame_temperature ob_accel_frame_get_temperature
 #define ob_gyro_frame_value ob_gyro_frame_get_value
 #define ob_gyro_frame_temperature ob_gyro_frame_get_temperature
+#define ob_mag_frame_value ob_mag_frame_get_value
+#define ob_mag_frame_temperature ob_mag_frame_get_temperature
 #define ob_frameset_get_frame_count ob_frameset_get_count
 
 #define ob_frame_time_stamp(frame, err) (ob_frame_get_timestamp_us(frame, err) / 1000)

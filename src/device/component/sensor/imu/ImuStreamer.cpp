@@ -20,13 +20,39 @@ ImuStreamer::ImuStreamer(IDevice *owner, const std::shared_ptr<IDataStreamPort> 
 
 ImuStreamer::ImuStreamer(IDevice *owner, const std::shared_ptr<IDataStreamPort> &backend, std::vector<std::shared_ptr<IFilter>> filters,
                          std::shared_ptr<IImuCalculator> imuCalculator)
-    : owner_(owner), backend_(backend), filters_(std::move(filters)), calculator_(imuCalculator), running_(false), frameIndex_(0) {
+    : owner_(owner), backend_(backend), filters_(std::move(filters)), running_(false), frameIndex_(0) {
 
-    if(!calculator_) {
+    if(!imuCalculator) {
         // default to ICM42668P
-        calculator_ = std::make_shared<ImuCalculatorICM42668P>();
+        imuCalculator = std::make_shared<ImuCalculatorICM42668P>();
+    }
+    // Wrap the legacy calculator in the calculator-based decoder to keep existing devices' behavior unchanged.
+    decoder_ = std::make_shared<LegacyImuCalculatorDecoder>(imuCalculator);
+
+    initFilters();
+
+    LOG_DEBUG("ImuStreamer created");
+}
+
+ImuStreamer::ImuStreamer(IDevice *owner, const std::shared_ptr<IDataStreamPort> &backend, const std::shared_ptr<IFilter> &filter,
+                         std::shared_ptr<IImuPayloadDecoder> decoder)
+    : ImuStreamer(owner, backend, std::vector<std::shared_ptr<IFilter>>({ filter }), decoder) {}
+
+ImuStreamer::ImuStreamer(IDevice *owner, const std::shared_ptr<IDataStreamPort> &backend, std::vector<std::shared_ptr<IFilter>> filters,
+                         std::shared_ptr<IImuPayloadDecoder> decoder)
+    : owner_(owner), backend_(backend), filters_(std::move(filters)), decoder_(std::move(decoder)), running_(false), frameIndex_(0) {
+
+    if(!decoder_) {
+        // default to legacy int16 register format with ICM42668P calculator
+        decoder_ = std::make_shared<LegacyImuCalculatorDecoder>(std::make_shared<ImuCalculatorICM42668P>());
     }
 
+    initFilters();
+
+    LOG_DEBUG("ImuStreamer created");
+}
+
+void ImuStreamer::initFilters() {
     auto iter = filters_.begin();
     while(iter != filters_.end()) {
         (*iter)->resizeFrameQueue(IMU_FILTER_FRAME_QUEUE_SIZE);
@@ -40,8 +66,6 @@ ImuStreamer::ImuStreamer(IDevice *owner, const std::shared_ptr<IDataStreamPort> 
 
         iter++;
     }
-
-    LOG_DEBUG("ImuStreamer created");
 }
 
 ImuStreamer::~ImuStreamer() noexcept {
@@ -123,8 +147,8 @@ void ImuStreamer::stopStream(std::shared_ptr<const StreamProfile> sp) {
 }
 
 void ImuStreamer::parseIMUData(std::shared_ptr<Frame> frame) {
-    auto         data     = frame->getData();
-    auto         dataSize = frame->getDataSize();
+    auto data     = frame->getData();
+    auto dataSize = frame->getDataSize();
     if(dataSize < sizeof(OBHidHeader)) {
         return;
     }
@@ -135,17 +159,18 @@ void ImuStreamer::parseIMUData(std::shared_ptr<Frame> frame) {
         return;
     }
 
-    const auto computeDataSize = sizeof(OBHidHeader) + sizeof(OBImuOriginData) * header->groupCount;
-    if(dataSize < computeDataSize) {
-        LOG_WARN_INTVL("Imu header is invalid, drop imu package!, invalid data size. dataSize={}, computeDataSize={}, groupCount={}", dataSize, computeDataSize,
-                       header->groupCount);
+    // Strictly validate the group length reported by firmware against what the injected decoder expects.
+    const size_t groupSize = decoder_->groupSize();
+    if(header->groupLen != groupSize) {
+        LOG_WARN_INTVL("Imu header is invalid, drop imu package!, unexpected groupLen. groupLen={}, expected={}, groupCount={}, dataSize={}", header->groupLen,
+                       groupSize, header->groupCount, dataSize);
         return;
     }
 
-    const auto computeDataSizeP = sizeof(OBHidHeader) + static_cast<size_t>(header->groupLen) * header->groupCount;
-    if(dataSize < computeDataSizeP) {
-        LOG_WARN_INTVL("Imu header is invalid, drop imu package!, invalid data size. dataSize={}, computeDataSizeP={}, groupCount={}", dataSize,
-                       computeDataSizeP, header->groupCount);
+    const auto computeDataSize = sizeof(OBHidHeader) + groupSize * header->groupCount;
+    if(dataSize < computeDataSize) {
+        LOG_WARN_INTVL("Imu header is invalid, drop imu package!, invalid data size. dataSize={}, computeDataSize={}, groupCount={}", dataSize, computeDataSize,
+                       header->groupCount);
         return;
     }
 
@@ -167,6 +192,7 @@ void ImuStreamer::parseIMUData(std::shared_ptr<Frame> frame) {
 
     std::shared_ptr<const AccelStreamProfile> accelStreamProfile;
     std::shared_ptr<const GyroStreamProfile>  gyroStreamProfile;
+    std::shared_ptr<const MagStreamProfile>   magStreamProfile;
     {
         std::lock_guard<std::mutex> lock(cbMtx_);
         for(const auto &iter: callbacks_) {
@@ -176,6 +202,9 @@ void ImuStreamer::parseIMUData(std::shared_ptr<Frame> frame) {
             else if(iter.first->is<libobsensor::GyroStreamProfile>()) {
                 gyroStreamProfile = iter.first->as<libobsensor::GyroStreamProfile>();
             }
+            else if(iter.first->is<libobsensor::MagStreamProfile>()) {
+                magStreamProfile = iter.first->as<libobsensor::MagStreamProfile>();
+            }
         }
     }
 
@@ -183,21 +212,24 @@ void ImuStreamer::parseIMUData(std::shared_ptr<Frame> frame) {
     for(int groupIndex = discardCount; groupIndex < header->groupCount; groupIndex++) {
         auto frameSet = FrameFactory::createFrameSet();
 
-        OBImuOriginData *imuData    = (OBImuOriginData *)((uint8_t *)imuOrgData + groupIndex * sizeof(OBImuOriginData));
-        uint64_t         timestamp   = ((uint64_t)imuData->timestamp[0] | ((uint64_t)imuData->timestamp[1] << 32));
-        auto             sysTspUs    = frame->getSystemTimeStampUsec();
-        auto             steadyTspUs = frame->getSteadyTimeStampUsec();
-        auto             frameIndex  = frameIndex_++;
+        const uint8_t   *group    = imuOrgData + static_cast<size_t>(groupIndex) * groupSize;
+        uint8_t          accelFsr = accelStreamProfile ? static_cast<uint8_t>(accelStreamProfile->getFullScaleRange()) : uint8_t(0);
+        uint8_t          gyroFsr  = gyroStreamProfile ? static_cast<uint8_t>(gyroStreamProfile->getFullScaleRange()) : uint8_t(0);
+        DecodedImuSample sample   = decoder_->decode(group, accelFsr, gyroFsr);
+
+        uint64_t timestamp   = ((uint64_t)sample.timestamp[0] | ((uint64_t)sample.timestamp[1] << 32));
+        auto     sysTspUs    = frame->getSystemTimeStampUsec();
+        auto     steadyTspUs = frame->getSteadyTimeStampUsec();
+        auto     frameIndex  = frameIndex_++;
 
         if(accelStreamProfile) {
             auto accelFrame     = FrameFactory::createFrameFromStreamProfile(accelStreamProfile);
             auto accelFrameData = (AccelFrame::Data *)accelFrame->getData();
-            auto fs             = static_cast<uint8_t>(accelStreamProfile->getFullScaleRange());
 
-            accelFrameData->value.x = calculator_->calculateAccelGravity(static_cast<int16_t>(imuData->accelX), fs);
-            accelFrameData->value.y = calculator_->calculateAccelGravity(static_cast<int16_t>(imuData->accelY), fs);
-            accelFrameData->value.z = calculator_->calculateAccelGravity(static_cast<int16_t>(imuData->accelZ), fs);
-            accelFrameData->temp    = calculator_->calculateRegisterTemperature(imuData->temperature);
+            accelFrameData->value.x = sample.accel[0];
+            accelFrameData->value.y = sample.accel[1];
+            accelFrameData->value.z = sample.accel[2];
+            accelFrameData->temp    = sample.temperature;
 
             accelFrame->setNumber(frameIndex);
             accelFrame->setTimeStampUsec(timestamp);
@@ -209,17 +241,31 @@ void ImuStreamer::parseIMUData(std::shared_ptr<Frame> frame) {
         if(gyroStreamProfile) {
             auto gyroFrame         = FrameFactory::createFrameFromStreamProfile(gyroStreamProfile);
             auto gyroFrameData     = (GyroFrame::Data *)gyroFrame->getData();
-            auto fs                = static_cast<uint8_t>(gyroStreamProfile->getFullScaleRange());
-            gyroFrameData->value.x = calculator_->calculateGyroDPS(static_cast<int16_t>(imuData->gyroX), fs);
-            gyroFrameData->value.y = calculator_->calculateGyroDPS(static_cast<int16_t>(imuData->gyroY), fs);
-            gyroFrameData->value.z = calculator_->calculateGyroDPS(static_cast<int16_t>(imuData->gyroZ), fs);
-            gyroFrameData->temp    = calculator_->calculateRegisterTemperature(imuData->temperature);
+            gyroFrameData->value.x = sample.gyro[0];
+            gyroFrameData->value.y = sample.gyro[1];
+            gyroFrameData->value.z = sample.gyro[2];
+            gyroFrameData->temp    = sample.temperature;
 
             gyroFrame->setNumber(frameIndex);
             gyroFrame->setTimeStampUsec(timestamp);
             gyroFrame->setSystemTimeStampUsec(sysTspUs);
             gyroFrame->setSteadyTimeStampUsec(steadyTspUs);
             frameSet->pushFrame(gyroFrame);
+        }
+
+        if(magStreamProfile && sample.hasMag) {
+            auto magFrame         = FrameFactory::createFrameFromStreamProfile(magStreamProfile);
+            auto magFrameData     = (MagFrame::Data *)magFrame->getData();
+            magFrameData->value.x = sample.mag[0];
+            magFrameData->value.y = sample.mag[1];
+            magFrameData->value.z = sample.mag[2];
+            magFrameData->temp    = sample.temperature;
+
+            magFrame->setNumber(frameIndex);
+            magFrame->setTimeStampUsec(timestamp);
+            magFrame->setSystemTimeStampUsec(sysTspUs);
+            magFrame->setSteadyTimeStampUsec(steadyTspUs);
+            frameSet->pushFrame(magFrame);
         }
         if(!filters_.empty()) {
             filters_.front()->pushFrame(frameSet);

@@ -10,8 +10,14 @@
 
 namespace libobsensor {
 
+// Default TCP receive packet size (bytes) for a vendor data stream. Devices whose stream packs more data
+// per packet (e.g. EGODepth's DMC640 IMU: 8B HID header + 10 x 64B groups = 648B) pass a larger value.
+static const uint32_t OB_NET_DATA_STREAM_DEFAULT_PACKET_SIZE = 248;
+
 struct NetDataStreamPortInfo : public NetSourcePortInfo {
-    NetDataStreamPortInfo(const NetSourcePortInfo &portInfo, uint16_t newPort, uint16_t vendorPort) : NetSourcePortInfo(portInfo), vendorPort(vendorPort) {
+    NetDataStreamPortInfo(const NetSourcePortInfo &portInfo, uint16_t newPort, uint16_t vendorPort,
+                          uint32_t packetSize = OB_NET_DATA_STREAM_DEFAULT_PACKET_SIZE)
+        : NetSourcePortInfo(portInfo), vendorPort(vendorPort), packetSize(packetSize) {
         port     = newPort;
         portType = SOURCE_PORT_NET_VENDOR_STREAM;
     }
@@ -25,6 +31,7 @@ struct NetDataStreamPortInfo : public NetSourcePortInfo {
     };
 
     uint16_t vendorPort;
+    uint32_t packetSize;
 };
 
 class NetDataStreamPort : public IDataStreamPort {

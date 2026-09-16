@@ -42,14 +42,15 @@ constexpr const char *FIELD_MANUFACTURER = "Manufacturer";
 constexpr const char *FIELD_DEVICE       = "Device";
 
 //  XML category nodes
-constexpr const char *CATEGORY_G330_DEVICE   = "G330DeviceList";
-constexpr const char *CATEGORY_G330L_DEVICE  = "G330DeviceLongBaseList";
-constexpr const char *CATEGORY_DABAIA_DEVICE = "DaBaiAList";
-constexpr const char *CATEGORY_G335LE_DEVICE = "G335LeDeviceList";
-constexpr const char *CATEGORY_G435LE_DEVICE = "G435LeDeviceList";
-constexpr const char *CATEGORY_EGO_DEVICE    = "EGODeviceList";
-constexpr const char *CATEGORY_EGOPRO_DEVICE = "EGOProDeviceList";
-constexpr const char *CATEGORY_WRIST_DEVICE  = "WristDeviceList";
+constexpr const char *CATEGORY_G330_DEVICE     = "G330DeviceList";
+constexpr const char *CATEGORY_G330L_DEVICE    = "G330DeviceLongBaseList";
+constexpr const char *CATEGORY_DABAIA_DEVICE   = "DaBaiAList";
+constexpr const char *CATEGORY_G335LE_DEVICE   = "G335LeDeviceList";
+constexpr const char *CATEGORY_G435LE_DEVICE   = "G435LeDeviceList";
+constexpr const char *CATEGORY_EGO_DEVICE      = "EGODeviceList";
+constexpr const char *CATEGORY_EGOPRO_DEVICE   = "EGOProDeviceList";
+constexpr const char *CATEGORY_EGODEPTH_DEVICE = "EGODepthDeviceList";
+constexpr const char *CATEGORY_WRIST_DEVICE    = "WristDeviceList";
 
 // GVCP config
 constexpr const char *FIELD_MANUFACTURER_NAME = "name";

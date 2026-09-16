@@ -57,7 +57,7 @@ void NetDataStreamPort::stopStream() {
 }
 
 void NetDataStreamPort::readData() {
-    const int              PACK_SIZE     = 248;
+    const int              PACK_SIZE     = static_cast<int>(portInfo_->packetSize);
     int                    dataRecvdSize = 0;
     int                    readSize      = 0;
     std::shared_ptr<Frame> frame;

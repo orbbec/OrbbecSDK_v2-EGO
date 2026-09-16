@@ -396,6 +396,16 @@ public:
 };
 
 /**
+ * @brief Class representing a magnetometer stream profile.
+ */
+class MagStreamProfile : public StreamProfile {
+public:
+    explicit MagStreamProfile(const ob_stream_profile_t *impl) : StreamProfile(impl) {}
+
+    ~MagStreamProfile() noexcept override = default;
+};
+
+/**
  * @brief Class representing a LiDAR stream profile.
  */
 
@@ -464,6 +474,7 @@ template <typename T> bool StreamProfile::is() const {
     case OB_STREAM_COLOR_RIGHT:
     case OB_STREAM_COLOR_SIDE_LEFT:
     case OB_STREAM_COLOR_SIDE_RIGHT:
+    case OB_STREAM_COLOR_TOP:
     case OB_STREAM_DEPTH:
     case OB_STREAM_RAW_PHASE:
     case OB_STREAM_CONFIDENCE:
@@ -472,6 +483,8 @@ template <typename T> bool StreamProfile::is() const {
         return typeid(T) == typeid(AccelStreamProfile);
     case OB_STREAM_GYRO:
         return typeid(T) == typeid(GyroStreamProfile);
+    case OB_STREAM_MAG:
+        return typeid(T) == typeid(MagStreamProfile);
     case OB_STREAM_LIDAR:
         return typeid(T) == typeid(LiDARStreamProfile);
     case OB_STREAM_AUDIO:
@@ -498,6 +511,7 @@ public:
         case OB_STREAM_COLOR_RIGHT:
         case OB_STREAM_COLOR_SIDE_LEFT:
         case OB_STREAM_COLOR_SIDE_RIGHT:
+        case OB_STREAM_COLOR_TOP:
         case OB_STREAM_VIDEO:
         case OB_STREAM_CONFIDENCE:
             return std::make_shared<VideoStreamProfile>(impl);
@@ -505,6 +519,8 @@ public:
             return std::make_shared<AccelStreamProfile>(impl);
         case OB_STREAM_GYRO:
             return std::make_shared<GyroStreamProfile>(impl);
+        case OB_STREAM_MAG:
+            return std::make_shared<MagStreamProfile>(impl);
         case OB_STREAM_LIDAR:
             return std::make_shared<LiDARStreamProfile>(impl);
         case OB_STREAM_AUDIO:

@@ -68,6 +68,16 @@ void RosWriter::writeFrame(const OBSensorType &sensorType, std::shared_ptr<const
     if(sensorType == OB_SENSOR_GYRO || sensorType == OB_SENSOR_ACCEL) {
         writeImuFrame(sensorType, curFrame);
     }
+    else if(sensorType == OB_SENSOR_MAG) {
+        // Magnetometer recording/playback is not implemented yet. Skip MAG frames so they never reach
+        // writeVideoFrame (which would misinterpret the IMU payload as a video frame and crash).
+        static bool magSkipWarned = false;
+        if(!magSkipWarned) {
+            magSkipWarned = true;
+            LOG_WARN("Magnetometer frame recording is not supported; MAG frames are skipped.");
+        }
+        return;
+    }
     else if(sensorType == OB_SENSOR_LIDAR) {
         writeLiDARFrame(curFrame);
     }
@@ -138,7 +148,7 @@ void RosWriter::writeLiDARFrame(std::shared_ptr<const Frame> curFrame) {
 
     try {
         sensor_msgs::PointCloud2Ptr frameMsg(new sensor_msgs::PointCloud2());
-        frameMsg->header.stamp = orbbecRosbag::Time(std::chrono::duration<double>(timestampUs).count());
+        frameMsg->header.stamp    = orbbecRosbag::Time(std::chrono::duration<double>(timestampUs).count());
         frameMsg->header.frame_id = "camera_link";  // for point cloud rendering
 
         auto     dataSize  = curFrame->getDataSize();
@@ -339,8 +349,8 @@ void RosWriter::writeVideoStreamProfile(const OBSensorType sensorType, const std
         auto                 spDistortion = videoStreamProfile->getDistortion();
         std::array<float, 8> distortion   = { spDistortion.k1, spDistortion.k2, spDistortion.k3, spDistortion.k4,
                                               spDistortion.k5, spDistortion.k6, spDistortion.p1, spDistortion.p2 };
-        streamInfoMsg->cameraDistortion = distortion;
-        streamInfoMsg->distortionModel  = static_cast<uint8_t>(spDistortion.model);
+        streamInfoMsg->cameraDistortion   = distortion;
+        streamInfoMsg->distortionModel    = static_cast<uint8_t>(spDistortion.model);
 
         auto spIntrinsic                  = videoStreamProfile->getIntrinsic();
         streamInfoMsg->cameraIntrinsic[0] = spIntrinsic.fx;

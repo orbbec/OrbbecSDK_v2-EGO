@@ -196,6 +196,14 @@ std::shared_ptr<Config> Pipeline::checkAndSetConfig(std::shared_ptr<const Config
             }
             config->enableStream(matchedProfileList.front());
         }
+        else if(sensorType == OB_SENSOR_MAG) {
+            auto profile            = sp->as<MagStreamProfile>();
+            auto matchedProfileList = matchMagStreamProfile(sensorSpList, profile->getSampleRate());
+            if(matchedProfileList.empty()) {
+                THROW_INVALID_PARAM_EXCEPTION(utils::string::to_string() << "No matched profile found for:" << sp);
+            }
+            config->enableStream(matchedProfileList.front());
+        }
         else if(sensorType == OB_SENSOR_LIDAR) {
             auto profile            = sp->as<LiDARStreamProfile>();
             auto matchedProfileList = matchLiDARStreamProfile(sensorSpList, profile->getScanRate(), profile->getFormat());

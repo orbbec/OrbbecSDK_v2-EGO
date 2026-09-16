@@ -23,6 +23,12 @@ target_sources(
              ${CMAKE_CURRENT_LIST_DIR}/UMIFingerDevice.cpp
              ${CMAKE_CURRENT_LIST_DIR}/UMIFingerNetDevice.hpp
              ${CMAKE_CURRENT_LIST_DIR}/UMIFingerNetDevice.cpp
+             ${CMAKE_CURRENT_LIST_DIR}/EGOStreamDemuxer.hpp
+             ${CMAKE_CURRENT_LIST_DIR}/EGOStreamDemuxer.cpp
+             ${CMAKE_CURRENT_LIST_DIR}/EGODepthDevice.hpp
+             ${CMAKE_CURRENT_LIST_DIR}/EGODepthDevice.cpp
+             ${CMAKE_CURRENT_LIST_DIR}/EGODepthNetDevice.hpp
+             ${CMAKE_CURRENT_LIST_DIR}/EGODepthNetDevice.cpp
              ${CMAKE_CURRENT_LIST_DIR}/EGODeviceInfo.hpp
              ${CMAKE_CURRENT_LIST_DIR}/EGODeviceInfo.cpp
              ${CMAKE_CURRENT_LIST_DIR}/EGOAlgParamManager.hpp

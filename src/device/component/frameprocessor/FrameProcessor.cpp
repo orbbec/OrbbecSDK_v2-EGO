@@ -94,7 +94,8 @@ std::shared_ptr<FrameProcessor> FrameProcessorFactory::createFrameProcessor(OBSe
             processor = std::make_shared<ColorRightFrameProcessor>(owner, context_);
         } break;
         case OB_SENSOR_COLOR_SIDE_LEFT:
-        case OB_SENSOR_COLOR_SIDE_RIGHT: {
+        case OB_SENSOR_COLOR_SIDE_RIGHT:
+        case OB_SENSOR_COLOR_TOP: {
             processor = std::make_shared<ColorSideFrameProcessor>(owner, context_, sensorType);
         } break;
         case OB_SENSOR_IR:

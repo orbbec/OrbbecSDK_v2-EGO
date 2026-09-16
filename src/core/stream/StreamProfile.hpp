@@ -168,6 +168,24 @@ protected:
 };
 
 /**
+ * @brief Class representing a magnetometer stream profile.
+ *
+ * Magnetometer has no full-scale-range preset; only the sample rate (shared IMU rate enum) is described.
+ */
+class MagStreamProfile : public StreamProfile {
+public:
+    MagStreamProfile(std::shared_ptr<LazySensor> owner, OBIMUSampleRate sampleRate);
+    ~MagStreamProfile() noexcept override = default;
+
+    OBIMUSampleRate                getSampleRate() const;
+    std::shared_ptr<StreamProfile> clone() const override;
+    std::ostream                  &operator<<(std::ostream &os) const override;
+
+protected:
+    OBIMUSampleRate sampleRate_;
+};
+
+/**
  * @brief Class representing a LiDAR stream profile.
  */
 class LiDARStreamProfile : public StreamProfile {
@@ -233,6 +251,8 @@ std::vector<std::shared_ptr<const AccelStreamProfile>> matchAccelStreamProfile(c
 std::vector<std::shared_ptr<const GyroStreamProfile>> matchGyroStreamProfile(const StreamProfileList &profileList, OBGyroFullScaleRange fullScaleRange,
                                                                              OBGyroSampleRate sampleRate);
 
+std::vector<std::shared_ptr<const MagStreamProfile>> matchMagStreamProfile(const StreamProfileList &profileList, OBIMUSampleRate sampleRate);
+
 std::vector<std::shared_ptr<const LiDARStreamProfile>> matchLiDARStreamProfile(const StreamProfileList &profileList, OBLiDARScanRate scanRate, OBFormat format);
 
 std::vector<std::shared_ptr<const AudioStreamProfile>> matchAudioStreamProfile(const StreamProfileList &profileList, OBFormat format, uint32_t sampleRate,
@@ -254,6 +274,9 @@ OB_LOG_FORMATTER(std::shared_ptr<const libobsensor::AccelStreamProfile>)
 
 OB_LOG_FORMATTER(std::shared_ptr<libobsensor::GyroStreamProfile>)
 OB_LOG_FORMATTER(std::shared_ptr<const libobsensor::GyroStreamProfile>)
+
+OB_LOG_FORMATTER(std::shared_ptr<libobsensor::MagStreamProfile>)
+OB_LOG_FORMATTER(std::shared_ptr<const libobsensor::MagStreamProfile>)
 
 OB_LOG_FORMATTER(std::shared_ptr<libobsensor::LiDARStreamProfile>)
 OB_LOG_FORMATTER(std::shared_ptr<const libobsensor::LiDARStreamProfile>)

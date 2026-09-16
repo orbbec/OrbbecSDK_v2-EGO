@@ -512,7 +512,7 @@ public:
      *
      * @param[in] impl The pointer to the internal frame object.
      */
-    explicit VideoFrame(const ob_frame *impl) : Frame(impl) {};
+    explicit VideoFrame(const ob_frame *impl) : Frame(impl){};
 
     ~VideoFrame() noexcept override = default;
 
@@ -630,7 +630,7 @@ public:
      *
      * @param[in] impl The pointer to the internal frame object.
      */
-    explicit ColorFrame(const ob_frame *impl) : VideoFrame(impl) {};
+    explicit ColorFrame(const ob_frame *impl) : VideoFrame(impl){};
 
     ~ColorFrame() noexcept override = default;
 };
@@ -651,7 +651,7 @@ public:
      *
      * @param[in] impl The pointer to the internal frame object.
      */
-    explicit DepthFrame(const ob_frame *impl) : VideoFrame(impl) {};
+    explicit DepthFrame(const ob_frame *impl) : VideoFrame(impl){};
 
     ~DepthFrame() noexcept override = default;
 
@@ -702,7 +702,7 @@ public:
      *
      * @param[in] impl The pointer to the internal frame object.
      */
-    explicit IRFrame(const ob_frame *impl) : VideoFrame(impl) {};
+    explicit IRFrame(const ob_frame *impl) : VideoFrame(impl){};
 
     ~IRFrame() noexcept override = default;
 };
@@ -724,7 +724,7 @@ public:
      *
      * @param[in] impl The pointer to the internal frame object.
      */
-    explicit ConfidenceFrame(const ob_frame *impl) : VideoFrame(impl) {};
+    explicit ConfidenceFrame(const ob_frame *impl) : VideoFrame(impl){};
 
     ~ConfidenceFrame() noexcept override = default;
 };
@@ -750,7 +750,7 @@ public:
      *
      * @param[in] impl The pointer to the internal frame object.
      */
-    explicit PointsFrame(const ob_frame *impl) : Frame(impl) {};
+    explicit PointsFrame(const ob_frame *impl) : Frame(impl){};
 
     ~PointsFrame() noexcept override = default;
 
@@ -808,7 +808,7 @@ public:
 class AccelFrame : public Frame {
 
 public:
-    explicit AccelFrame(const ob_frame *impl) : Frame(impl) {};
+    explicit AccelFrame(const ob_frame *impl) : Frame(impl){};
 
     ~AccelFrame() noexcept override = default;
 
@@ -855,7 +855,7 @@ public:
 class GyroFrame : public Frame {
 
 public:
-    explicit GyroFrame(const ob_frame *impl) : Frame(impl) {};
+    explicit GyroFrame(const ob_frame *impl) : Frame(impl){};
 
     ~GyroFrame() noexcept override = default;
 
@@ -897,6 +897,43 @@ public:
 };
 
 /**
+ * @brief Define the MagFrame class, which inherits from the Frame class
+ */
+class MagFrame : public Frame {
+
+public:
+    explicit MagFrame(const ob_frame *impl) : Frame(impl){};
+
+    ~MagFrame() noexcept override = default;
+
+    /**
+     * @brief Get the magnetometer frame data
+     *
+     * @return OBMagValue The magnetometer frame data
+     */
+    OBMagValue getValue() const {
+        ob_error *error = nullptr;
+        auto      value = ob_mag_frame_get_value(impl_, &error);
+        Error::handle(&error);
+
+        return value;
+    }
+
+    /**
+     * @brief Get the temperature when the frame was sampled
+     *
+     * @return float The temperature value in celsius
+     */
+    float getTemperature() const {
+        ob_error *error       = nullptr;
+        auto      temperature = ob_mag_frame_get_temperature(impl_, &error);
+        Error::handle(&error);
+
+        return temperature;
+    }
+};
+
+/**
  * @brief Define the LiDARPointsFrame class, which inherits from the Frame class
  * @brief The LiDARPointsFrame class is used to obtain LiDAR point cloud data.
  *
@@ -931,7 +968,7 @@ public:
 class FrameSet : public Frame {
 
 public:
-    explicit FrameSet(const ob_frame *impl) : Frame(impl) {};
+    explicit FrameSet(const ob_frame *impl) : Frame(impl){};
 
     ~FrameSet() noexcept override = default;
 
@@ -1323,6 +1360,7 @@ template <typename T> bool Frame::is() const {
     case OB_FRAME_COLOR_RIGHT:
     case OB_FRAME_COLOR_SIDE_LEFT:
     case OB_FRAME_COLOR_SIDE_RIGHT:
+    case OB_FRAME_COLOR_TOP:
         return (typeid(T) == typeid(ColorFrame) || typeid(T) == typeid(VideoFrame));
     case OB_FRAME_CONFIDENCE:
         return (typeid(T) == typeid(ConfidenceFrame) || typeid(T) == typeid(VideoFrame));
@@ -1330,6 +1368,8 @@ template <typename T> bool Frame::is() const {
         return (typeid(T) == typeid(GyroFrame));
     case OB_FRAME_ACCEL:
         return (typeid(T) == typeid(AccelFrame));
+    case OB_FRAME_MAG:
+        return (typeid(T) == typeid(MagFrame));
     case OB_FRAME_POINTS:
         return (typeid(T) == typeid(PointsFrame));
     case OB_FRAME_LIDAR_POINTS:

@@ -28,6 +28,7 @@ extern std::vector<DeviceIdentifier> G335LeDevPids;
 extern std::vector<DeviceIdentifier> G435LeDevPids;
 extern std::vector<DeviceIdentifier> EGODevPids;
 extern std::vector<DeviceIdentifier> EGOProDevPids;
+extern std::vector<DeviceIdentifier> EGODepthDevPids;
 extern std::vector<DeviceIdentifier> WristDevPids;
 
 extern std::vector<DeviceInfoEntry> G330DeviceInfoList;
@@ -53,6 +54,20 @@ bool isDeviceInOrbbecSeries(const std::vector<uint16_t> &deviceContainer, const 
  * @return true if the device belongs to the EGOPro series
  */
 bool isEgoProDevice(uint32_t vid, uint32_t pid);
+
+/**
+ * @brief Check if the device is an EGODepth series device.
+ *
+ * EGODepth evolves from EgoPro: 3 Color cameras multiplexed on one shared UVC endpoint, 2 IR cameras
+ * on a second shared endpoint, plus an exclusive Depth endpoint and an exclusive single Color endpoint.
+ * Membership is driven by the EGODepthDeviceList category in DeviceInfoConfig.xml, so a new EGODepth-based
+ * ODM only needs an XML entry instead of a hardcoded PID branch in code.
+ *
+ * @param[in] vid Vendor ID
+ * @param[in] pid Product ID
+ * @return true if the device belongs to the EGODepth series
+ */
+bool isEgoDepthDevice(uint32_t vid, uint32_t pid);
 
 /**
  * @brief Check if the device is supported by the library, used for platform enumeration

@@ -56,7 +56,7 @@ std::shared_ptr<Frame> FrameFactory::createFrameFromOtherFrame(std::shared_ptr<c
 }
 
 std::shared_ptr<Frame> FrameFactory::createVideoFrame(OBFrameType frameType, OBFormat frameFormat, uint32_t width, uint32_t height, uint32_t strideBytes) {
-    if(frameType == OB_FRAME_UNKNOWN || frameType == OB_FRAME_ACCEL || frameType == OB_FRAME_GYRO || frameType == OB_FRAME_SET
+    if(frameType == OB_FRAME_UNKNOWN || frameType == OB_FRAME_ACCEL || frameType == OB_FRAME_GYRO || frameType == OB_FRAME_MAG || frameType == OB_FRAME_SET
        || frameType == OB_FRAME_LIDAR_POINTS) {
         THROW_INVALID_PARAM_EXCEPTION("Invalid frame type for video frame.");
     }
@@ -97,6 +97,7 @@ std::shared_ptr<Frame> FrameFactory::createFrameFromUserBuffer(OBFrameType frame
     case OB_FRAME_COLOR_RIGHT:
     case OB_FRAME_COLOR_SIDE_LEFT:
     case OB_FRAME_COLOR_SIDE_RIGHT:
+    case OB_FRAME_COLOR_TOP:
     case OB_FRAME_CONFIDENCE:
         return createVideoFrameFromUserBuffer(frameType, format, 0, 0, 0, buffer, bufferSize, bufferReclaimFunc);
     case OB_FRAME_ACCEL:
@@ -106,6 +107,10 @@ std::shared_ptr<Frame> FrameFactory::createFrameFromUserBuffer(OBFrameType frame
     case OB_FRAME_GYRO:
         frame = std::make_shared<GyroFrame>(buffer, bufferSize, bufferReclaimFunc);
         sp    = StreamProfileFactory::createGyroStreamProfile(OB_GYRO_FS_16dps, OB_SAMPLE_RATE_1_5625_HZ);
+        break;
+    case OB_FRAME_MAG:
+        frame = std::make_shared<MagFrame>(buffer, bufferSize, bufferReclaimFunc);
+        sp    = StreamProfileFactory::createMagStreamProfile(OB_SAMPLE_RATE_1_5625_HZ);
         break;
     case OB_FRAME_LIDAR_POINTS:
         // TODO: OB_LIDAR_SCAN_ANY is invalid here, need to get the real scan rate from user or device
@@ -135,6 +140,7 @@ std::shared_ptr<Frame> FrameFactory::createFrameFromUserBuffer(OBFrameType frame
     case OB_FRAME_COLOR_RIGHT:
     case OB_FRAME_COLOR_SIDE_LEFT:
     case OB_FRAME_COLOR_SIDE_RIGHT:
+    case OB_FRAME_COLOR_TOP:
     case OB_FRAME_CONFIDENCE:
         sp = StreamProfileFactory::createVideoStreamProfile(utils::mapFrameTypeToStreamType(frameType), format, 0, 0, 0);
         break;
@@ -143,6 +149,9 @@ std::shared_ptr<Frame> FrameFactory::createFrameFromUserBuffer(OBFrameType frame
         break;
     case OB_FRAME_GYRO:
         sp = StreamProfileFactory::createGyroStreamProfile(OB_GYRO_FS_16dps, OB_SAMPLE_RATE_1_5625_HZ);
+        break;
+    case OB_FRAME_MAG:
+        sp = StreamProfileFactory::createMagStreamProfile(OB_SAMPLE_RATE_1_5625_HZ);
         break;
     case OB_FRAME_LIDAR_POINTS:
         // TODO: OB_LIDAR_SCAN_ANY is invalid here, need to get the real scan rate from user or device
@@ -193,6 +202,9 @@ std::shared_ptr<Frame> FrameFactory::createVideoFrameFromUserBuffer(OBFrameType 
     case OB_FRAME_COLOR_SIDE_RIGHT:
         frame = std::make_shared<ColorSideRightFrame>(buffer, bufferSize, bufferReclaimFunc);
         break;
+    case OB_FRAME_COLOR_TOP:
+        frame = std::make_shared<ColorTopFrame>(buffer, bufferSize, bufferReclaimFunc);
+        break;
     case OB_FRAME_CONFIDENCE:
         frame = std::make_shared<ConfidenceFrame>(buffer, bufferSize, bufferReclaimFunc);
         break;
@@ -230,6 +242,7 @@ std::shared_ptr<Frame> FrameFactory::createVideoFrameFromUserBuffer(OBFrameType 
     case OB_FRAME_COLOR_RIGHT:
     case OB_FRAME_COLOR_SIDE_LEFT:
     case OB_FRAME_COLOR_SIDE_RIGHT:
+    case OB_FRAME_COLOR_TOP:
     case OB_FRAME_CONFIDENCE:
         sp = StreamProfileFactory::createVideoStreamProfile(utils::mapFrameTypeToStreamType(frameType), format, width, height, 0);
         break;

@@ -33,6 +33,7 @@ std::string mapStreamTypeToString(OBStreamType streamType) {
         { OB_STREAM_COLOR_RIGHT, "color_right" },
         { OB_STREAM_COLOR_SIDE_LEFT, "color_side_left" },
         { OB_STREAM_COLOR_SIDE_RIGHT, "color_side_right" },
+        { OB_STREAM_COLOR_TOP, "color_up" },
         { OB_STREAM_AUDIO, "audio" },
     };
     return streamTypeToStringMap[streamType];

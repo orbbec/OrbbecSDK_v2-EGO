@@ -197,6 +197,8 @@ typedef enum {
     OB_SENSOR_AUDIO            = 13, /**< Audio (microphone) */
     OB_SENSOR_COLOR_SIDE_LEFT  = 14, /**< Side left Color */
     OB_SENSOR_COLOR_SIDE_RIGHT = 15, /**< Side right Color */
+    OB_SENSOR_COLOR_TOP        = 16, /**< Top Color */
+    OB_SENSOR_MAG              = 17, /**< Magnetometer */
     OB_SENSOR_TYPE_COUNT,            /**The total number of sensor types, is not a valid sensor type */
 } OBSensorType,
     ob_sensor_type;
@@ -222,6 +224,8 @@ typedef enum {
     OB_STREAM_AUDIO            = 13, /**< Audio (microphone) stream */
     OB_STREAM_COLOR_SIDE_LEFT  = 14, /**< Side left Color stream */
     OB_STREAM_COLOR_SIDE_RIGHT = 15, /**< Side right Color stream */
+    OB_STREAM_COLOR_TOP        = 16, /**< Top Color stream */
+    OB_STREAM_MAG              = 17, /**< Magnetometer data stream */
     OB_STREAM_TYPE_COUNT,            /**< The total number of stream type,is not a valid stream type */
 } OBStreamType,
     ob_stream_type;
@@ -249,6 +253,8 @@ typedef enum {
     OB_FRAME_AUDIO            = 15, /**< Audio (microphone) frame */
     OB_FRAME_COLOR_SIDE_LEFT  = 16, /**< Side left Color frame */
     OB_FRAME_COLOR_SIDE_RIGHT = 17, /**< Side right Color frame */
+    OB_FRAME_COLOR_TOP        = 18, /**< Top Color frame */
+    OB_FRAME_MAG              = 19, /**< Magnetometer data frame */
     OB_FRAME_TYPE_COUNT,            /**< The total number of frame types, is not a valid frame type */
 } OBFrameType,
     ob_frame_type;
@@ -289,6 +295,7 @@ typedef enum {
     OB_FORMAT_I420               = 15, /**< I420 format */
     OB_FORMAT_ACCEL              = 16, /**< Acceleration data format */
     OB_FORMAT_GYRO               = 17, /**< Gyroscope data format */
+    OB_FORMAT_MAG                = 18, /**< Magnetometer data format */
     OB_FORMAT_POINT              = 19, /**< XYZ 3D coordinate point format, @ref OBPoint */
     OB_FORMAT_RGB_POINT          = 20, /**< XYZ 3D coordinate point format with RGB information, @ref OBColorPoint */
     OB_FORMAT_RLE                = 21, /**< RLE pressure test format (SDK will be unpacked into Y16 by default) */
@@ -381,12 +388,11 @@ typedef enum {
  * the firmware's fixed 16-bit wire representation.
  */
 typedef struct {
-    uint16_t topicType; /**< enum value of @ref ob_fw_recording_mcap_topic_type */
+    uint16_t topicType;                                    /**< enum value of @ref ob_fw_recording_mcap_topic_type */
     char     topic[OB_FW_RECORDING_MCAP_TOPIC_MAX_LENGTH]; /**< UTF-8, NUL-terminated MCAP topic */
-} OBFwRecordingMcapTopic,
-    ob_fw_recording_mcap_topic;
+} OBFwRecordingMcapTopic, ob_fw_recording_mcap_topic;
 
-#define OB_FW_RECORDING_PART_NAME_SIZE    16U
+#define OB_FW_RECORDING_PART_NAME_SIZE 16U
 #define OB_FW_RECORDING_PART_LIST_VERSION 1U
 
 #pragma pack(push, 1)
@@ -394,13 +400,11 @@ typedef struct {
     uint16_t protocol_version; /**< Must be @ref OB_FW_RECORDING_PART_LIST_VERSION. */
     uint16_t entry_size;       /**< Must be @ref OB_FW_RECORDING_PART_NAME_SIZE. */
     uint32_t part_count;       /**< Number of recording part entries. */
-} OBFwRecordingPartListHeader,
-    ob_fw_recording_part_list_header;
+} OBFwRecordingPartListHeader, ob_fw_recording_part_list_header;
 
 typedef struct {
     char name[OB_FW_RECORDING_PART_NAME_SIZE]; /**< Final recording part directory name. */
-} OBFwRecordingPartEntry,
-    ob_fw_recording_part_entry;
+} OBFwRecordingPartEntry, ob_fw_recording_part_entry;
 #pragma pack(pop)
 
 #define OB_FORMAT_RGB888 OB_FORMAT_RGB  // Alias of OB_FORMAT_RGB for compatibility
@@ -829,7 +833,7 @@ typedef struct {
     float x;  ///< X-direction component
     float y;  ///< Y-direction component
     float z;  ///< Z-direction component
-} OBAccelValue, OBGyroValue, OBFloat3D, ob_accel_value, ob_gyro_value, ob_float_3d;
+} OBAccelValue, OBGyroValue, OBMagValue, OBFloat3D, ob_accel_value, ob_gyro_value, ob_mag_value, ob_float_3d;
 
 /**
  * @brief Data structures for LiDAR scan rate
@@ -2332,16 +2336,16 @@ typedef struct {
  * @brief Ego device work state reported through HID.
  */
 typedef enum {
-    OB_EGO_WORK_STATE_BOOTING          = 0, /**< Device is booting. */
-    OB_EGO_WORK_STATE_SELF_TESTING     = 1, /**< Device self-test is running. */
-    OB_EGO_WORK_STATE_READY            = 2, /**< Device is ready. */
-    OB_EGO_WORK_STATE_RECORD_COUNTDOWN = 3, /**< Recording countdown is in progress. */
-    OB_EGO_WORK_STATE_RECORDING        = 4, /**< Device is recording. */
-    OB_EGO_WORK_STATE_STOPPING_RECORD  = 5, /**< Device is stopping recording. */
-    OB_EGO_WORK_STATE_SAVING           = 6, /**< File packaging or saving is in progress. */
-    OB_EGO_WORK_STATE_FW_UPGRADING     = 7, /**< Firmware upgrade is in progress. */
-    OB_EGO_WORK_STATE_SHUTTING_DOWN    = 8, /**< Device is shutting down. */
-    OB_EGO_WORK_STATE_FAULT            = 9, /**< Device is in a severe fault state. */
+    OB_EGO_WORK_STATE_BOOTING          = 0,  /**< Device is booting. */
+    OB_EGO_WORK_STATE_SELF_TESTING     = 1,  /**< Device self-test is running. */
+    OB_EGO_WORK_STATE_READY            = 2,  /**< Device is ready. */
+    OB_EGO_WORK_STATE_RECORD_COUNTDOWN = 3,  /**< Recording countdown is in progress. */
+    OB_EGO_WORK_STATE_RECORDING        = 4,  /**< Device is recording. */
+    OB_EGO_WORK_STATE_STOPPING_RECORD  = 5,  /**< Device is stopping recording. */
+    OB_EGO_WORK_STATE_SAVING           = 6,  /**< File packaging or saving is in progress. */
+    OB_EGO_WORK_STATE_FW_UPGRADING     = 7,  /**< Firmware upgrade is in progress. */
+    OB_EGO_WORK_STATE_SHUTTING_DOWN    = 8,  /**< Device is shutting down. */
+    OB_EGO_WORK_STATE_FAULT            = 9,  /**< Device is in a severe fault state. */
     OB_EGO_WORK_STATE_RECORD_SAVED     = 10, /**< Recording file has been saved successfully. */
 } OBEgoWorkState,
     ob_ego_work_state;
@@ -2442,9 +2446,9 @@ typedef struct {
     uint32_t       state_flags;        /**< Combined value of @ref OBEgoStateFlag. */
     uint64_t       error_flags;        /**< Combined value of @ref OBEgoErrorFlag. */
     uint64_t       storage_free_bytes; /**< Free storage space in bytes. */
-    uint64_t       recording_duration_ms;    /**< Duration of the most recent recording result in milliseconds. Valid only when recording_duration_valid is true. */
-    bool           recording_duration_valid; /**< Whether recording_duration_ms is valid. */
-    uint8_t        reserved[7];              /**< Reserved for future use. */
+    uint64_t recording_duration_ms;    /**< Duration of the most recent recording result in milliseconds. Valid only when recording_duration_valid is true. */
+    bool     recording_duration_valid; /**< Whether recording_duration_ms is valid. */
+    uint8_t  reserved[7];              /**< Reserved for future use. */
 } OBEgoStateReport, ob_ego_state_report;
 
 /**
@@ -2456,10 +2460,10 @@ typedef struct {
     OBEgoStateReport state;
     const char      *recording_directory;
     uint32_t         directory_size;
-    const char      (*part_names)[OB_FW_RECORDING_PART_NAME_SIZE];
-    uint32_t         part_count;
-    bool             directory_valid;
-    bool             part_list_valid;
+    const char (*part_names)[OB_FW_RECORDING_PART_NAME_SIZE];
+    uint32_t part_count;
+    bool     directory_valid;
+    bool     part_list_valid;
 } OBEgoRecordingResult, ob_ego_recording_result;
 
 /**
@@ -2637,8 +2641,8 @@ typedef uint64_t OBCallbackId, ob_callback_id;
  */
 #define ob_is_video_sensor_type(sensor_type)                                                                                                                   \
     (sensor_type == OB_SENSOR_COLOR || sensor_type == OB_SENSOR_COLOR_LEFT || sensor_type == OB_SENSOR_COLOR_RIGHT || sensor_type == OB_SENSOR_COLOR_SIDE_LEFT \
-     || sensor_type == OB_SENSOR_COLOR_SIDE_RIGHT || sensor_type == OB_SENSOR_DEPTH || sensor_type == OB_SENSOR_IR || sensor_type == OB_SENSOR_IR_LEFT         \
-     || sensor_type == OB_SENSOR_IR_RIGHT || sensor_type == OB_SENSOR_CONFIDENCE)
+     || sensor_type == OB_SENSOR_COLOR_SIDE_RIGHT || sensor_type == OB_SENSOR_COLOR_TOP || sensor_type == OB_SENSOR_DEPTH || sensor_type == OB_SENSOR_IR       \
+     || sensor_type == OB_SENSOR_IR_LEFT || sensor_type == OB_SENSOR_IR_RIGHT || sensor_type == OB_SENSOR_CONFIDENCE)
 
 /**
  * @brief check if the stream_type is a video stream
@@ -2648,8 +2652,8 @@ typedef uint64_t OBCallbackId, ob_callback_id;
  */
 #define ob_is_video_stream_type(stream_type)                                                                                                                   \
     (stream_type == OB_STREAM_COLOR || stream_type == OB_STREAM_COLOR_LEFT || stream_type == OB_STREAM_COLOR_RIGHT || stream_type == OB_STREAM_COLOR_SIDE_LEFT \
-     || stream_type == OB_STREAM_COLOR_SIDE_RIGHT || stream_type == OB_STREAM_DEPTH || stream_type == OB_STREAM_IR || stream_type == OB_STREAM_IR_LEFT         \
-     || stream_type == OB_STREAM_IR_RIGHT || stream_type == OB_STREAM_VIDEO || stream_type == OB_STREAM_CONFIDENCE)
+     || stream_type == OB_STREAM_COLOR_SIDE_RIGHT || stream_type == OB_STREAM_COLOR_TOP || stream_type == OB_STREAM_DEPTH || stream_type == OB_STREAM_IR       \
+     || stream_type == OB_STREAM_IR_LEFT || stream_type == OB_STREAM_IR_RIGHT || stream_type == OB_STREAM_VIDEO || stream_type == OB_STREAM_CONFIDENCE)
 
 /**
  * @brief Check if sensor_type is an IR sensor
@@ -2668,7 +2672,7 @@ typedef uint64_t OBCallbackId, ob_callback_id;
  */
 #define is_color_sensor(sensor_type)                                                                                                                           \
     (sensor_type == OB_SENSOR_COLOR || sensor_type == OB_SENSOR_COLOR_LEFT || sensor_type == OB_SENSOR_COLOR_RIGHT || sensor_type == OB_SENSOR_COLOR_SIDE_LEFT \
-     || sensor_type == OB_SENSOR_COLOR_SIDE_RIGHT)
+     || sensor_type == OB_SENSOR_COLOR_SIDE_RIGHT || sensor_type == OB_SENSOR_COLOR_TOP)
 #define isColorSensor is_color_sensor
 
 /**
@@ -2688,7 +2692,7 @@ typedef uint64_t OBCallbackId, ob_callback_id;
  */
 #define is_color_stream(stream_type)                                                                                                                           \
     (stream_type == OB_STREAM_COLOR || stream_type == OB_STREAM_COLOR_LEFT || stream_type == OB_STREAM_COLOR_RIGHT || stream_type == OB_STREAM_COLOR_SIDE_LEFT \
-     || stream_type == OB_STREAM_COLOR_SIDE_RIGHT)
+     || stream_type == OB_STREAM_COLOR_SIDE_RIGHT || stream_type == OB_STREAM_COLOR_TOP)
 #define isColorStream is_color_stream
 
 /**
@@ -2708,7 +2712,7 @@ typedef uint64_t OBCallbackId, ob_callback_id;
  */
 #define is_color_frame(frame_type)                                                                                                                     \
     (frame_type == OB_FRAME_COLOR || frame_type == OB_FRAME_COLOR_LEFT || frame_type == OB_FRAME_COLOR_RIGHT || frame_type == OB_FRAME_COLOR_SIDE_LEFT \
-     || frame_type == OB_FRAME_COLOR_SIDE_RIGHT)
+     || frame_type == OB_FRAME_COLOR_SIDE_RIGHT || frame_type == OB_FRAME_COLOR_TOP)
 #define isColorFrame is_color_frame
 
 /**

@@ -35,14 +35,15 @@ std::unordered_set<uint16_t> supportedUsbVids;
 std::unordered_map<std::string, uint16_t> manufacturerVidMap;
 
 // Device VID/PID lists by series
-std::vector<DeviceIdentifier> G330DevPids;    // G330
-std::vector<DeviceIdentifier> G330LDevPids;   // G330L
-std::vector<DeviceIdentifier> DaBaiADevPids;  // DaBaiA
-std::vector<DeviceIdentifier> G335LeDevPids;  // G335Le
-std::vector<DeviceIdentifier> G435LeDevPids;  // G435Le
-std::vector<DeviceIdentifier> EGODevPids;     // EGO
-std::vector<DeviceIdentifier> EGOProDevPids;  // EGOPro
-std::vector<DeviceIdentifier> WristDevPids;   // Wrist
+std::vector<DeviceIdentifier> G330DevPids;      // G330
+std::vector<DeviceIdentifier> G330LDevPids;     // G330L
+std::vector<DeviceIdentifier> DaBaiADevPids;    // DaBaiA
+std::vector<DeviceIdentifier> G335LeDevPids;    // G335Le
+std::vector<DeviceIdentifier> G435LeDevPids;    // G435Le
+std::vector<DeviceIdentifier> EGODevPids;       // EGO
+std::vector<DeviceIdentifier> EGOProDevPids;    // EGOPro
+std::vector<DeviceIdentifier> EGODepthDevPids;  // EGODepth
+std::vector<DeviceIdentifier> WristDevPids;     // Wrist
 
 // DeviceInfo lists by series
 std::vector<DeviceInfoEntry> G330DeviceInfoList;    // G330
@@ -162,11 +163,13 @@ void DeviceSeriesInfoManager::loadXmlConfig(const std::string &configFileName, b
     std::vector<DeviceIdentifier> g435LeVidpidList;
     std::vector<DeviceIdentifier> egoVidpidList;
     std::vector<DeviceIdentifier> egoProVidpidList;
+    std::vector<DeviceIdentifier> egoDepthVidpidList;
     std::vector<DeviceIdentifier> wristVidpidList;
     std::vector<DeviceInfoEntry>  g330DevInfoList;
     std::vector<DeviceInfoEntry>  g435LeDevInfoList;
     std::vector<DeviceInfoEntry>  egoDevInfoList;
     std::vector<DeviceInfoEntry>  egoProDevInfoList;
+    std::vector<DeviceInfoEntry>  egoDepthDevInfoList;
     std::vector<DeviceInfoEntry>  wristDevInfoList;
     std::vector<DeviceInfoEntry>  tmpDevInfoList;
 
@@ -202,6 +205,10 @@ void DeviceSeriesInfoManager::loadXmlConfig(const std::string &configFileName, b
         errHandle(config);
         return;
     }
+    if(!config.readDeviceList(CATEGORY_EGODEPTH_DEVICE, egoDepthVidpidList, egoDepthDevInfoList)) {
+        errHandle(config);
+        return;
+    }
     if(!config.readDeviceList(CATEGORY_WRIST_DEVICE, wristVidpidList, wristDevInfoList)) {
         errHandle(config);
         return;
@@ -223,6 +230,7 @@ void DeviceSeriesInfoManager::loadXmlConfig(const std::string &configFileName, b
     merge_unique_into(G435LeDevPids, g435LeVidpidList, compareDevId);
     merge_unique_into(EGODevPids, egoVidpidList, compareDevId);
     merge_unique_into(EGOProDevPids, egoProVidpidList, compareDevId);
+    merge_unique_into(EGODepthDevPids, egoDepthVidpidList, compareDevId);
     merge_unique_into(WristDevPids, wristVidpidList, compareDevId);
     // DeviceInfoEntry
     auto compareDevInfo = [](const DeviceInfoEntry &a, const DeviceInfoEntry &b) { return a.vid_ == b.vid_ && a.pid_ == b.pid_; };
@@ -232,6 +240,8 @@ void DeviceSeriesInfoManager::loadXmlConfig(const std::string &configFileName, b
     // EGOPro names share the EGO series info list so name lookup stays unified; the PID
     // identifier lists stay split (EGODevPids vs EGOProDevPids) to drive device-class selection.
     merge_unique_into(EGODeviceInfoList, egoProDevInfoList, compareDevInfo);
+    // EGODepth names likewise share the EGO series info list; only EGODepthDevPids drives class selection.
+    merge_unique_into(EGODeviceInfoList, egoDepthDevInfoList, compareDevInfo);
     merge_unique_into(WristDeviceInfoList, wristDevInfoList, compareDevInfo);
     // vid list
     for(auto vid: vidList) {
@@ -273,6 +283,10 @@ bool isDeviceInOrbbecSeries(const std::vector<uint16_t> &deviceContainer, const 
 
 bool isEgoProDevice(uint32_t vid, uint32_t pid) {
     return isDeviceInContainer(EGOProDevPids, vid, pid);
+}
+
+bool isEgoDepthDevice(uint32_t vid, uint32_t pid) {
+    return isDeviceInContainer(EGODepthDevPids, vid, pid);
 }
 
 bool isSupportedDevice(uint32_t vid, uint32_t pid) {

@@ -85,6 +85,7 @@ private:
     X(OB_DEV_COMPONENT_CONFIDENCE_FRAME_PROCESSOR, "confidence frame processor")                     \
     X(OB_DEV_COMPONENT_GYRO_SENSOR, "gyro sensor")                                                   \
     X(OB_DEV_COMPONENT_ACCEL_SENSOR, "accel sensor")                                                 \
+    X(OB_DEV_COMPONENT_MAG_SENSOR, "mag sensor")                                                     \
     X(OB_DEV_COMPONENT_IMU_STREAMER, "imu sensor")                                                   \
     X(OB_DEV_COMPONENT_SHARED_HID_STREAM, "shared hid stream")                                       \
     X(OB_DEV_COMPONENT_DIRECTION_KEY_SERVICE, "direction key service")                               \
@@ -119,7 +120,11 @@ private:
     X(OB_DEV_COMPONENT_SIDE_LEFT_COLOR_FRAME_PROCESSOR, "side left color frame processor")           \
     X(OB_DEV_COMPONENT_SIDE_RIGHT_COLOR_SENSOR, "side right color sensor")                           \
     X(OB_DEV_COMPONENT_SIDE_RIGHT_COLOR_FRAME_PROCESSOR, "side right color frame processor")         \
+    X(OB_DEV_COMPONENT_TOP_COLOR_SENSOR, "top color sensor")                                         \
+    X(OB_DEV_COMPONENT_TOP_COLOR_FRAME_PROCESSOR, "top color frame processor")                       \
     X(OB_DEV_COMPONENT_EGOPRO_COLOR_DEMUXER, "egopro color demuxer")                                 \
+    X(OB_DEV_COMPONENT_EGODEPTH_COLOR_DEMUXER, "egodepth color demuxer")                             \
+    X(OB_DEV_COMPONENT_EGODEPTH_IR_DEMUXER, "egodepth ir demuxer")                                   \
     X(OB_DEV_COMPONENT_DEPTH_POST_FILTER_PARAMS_MANAGER, "post filter params manager")               \
     X(OB_DEV_COMPONENT_COLOR_PRESET_MANAGER, "color preset manager")                                 \
     X(OB_DEV_COMPONENT_DEVICE_LICENSE_INFO_MANAGER, "device license info manager")                   \

@@ -296,6 +296,25 @@ std::ostream &GyroStreamProfile::operator<<(std::ostream &os) const {
     return os;
 }
 
+MagStreamProfile::MagStreamProfile(std::shared_ptr<LazySensor> owner, OBIMUSampleRate sampleRate)
+    : StreamProfile{ owner, OB_STREAM_MAG, OB_FORMAT_MAG }, sampleRate_(sampleRate) {}
+
+OBIMUSampleRate MagStreamProfile::getSampleRate() const {
+    return sampleRate_;
+}
+
+std::shared_ptr<StreamProfile> MagStreamProfile::clone() const {
+    auto sp = std::make_shared<MagStreamProfile>(owner_.lock(), sampleRate_);
+    sp->bindSameExtrinsicTo(shared_from_this());
+    return sp;
+}
+
+std::ostream &MagStreamProfile::operator<<(std::ostream &os) const {
+    os << "{"
+       << "type: " << type_ << ", format: " << format_ << ", sampleRate: " << sampleRate_ << "}";
+    return os;
+}
+
 LiDARStreamProfile::LiDARStreamProfile(std::shared_ptr<LazySensor> owner, OBLiDARScanRate scanRate, OBFormat format)
     : StreamProfile{ owner, OB_STREAM_LIDAR, format }, scanRate_(scanRate) {}
 
@@ -511,6 +530,21 @@ std::vector<std::shared_ptr<const GyroStreamProfile>> matchGyroStreamProfile(con
             if((fullScaleRange == OB_GYRO_FULL_SCALE_RANGE_ANY || GyroProfile->getFullScaleRange() == fullScaleRange)
                && (sampleRate == OB_GYRO_SAMPLE_RATE_ANY || GyroProfile->getSampleRate() == sampleRate)) {
                 matchProfileList.push_back(GyroProfile);
+            }
+        }
+    }
+    return matchProfileList;
+}
+
+std::vector<std::shared_ptr<const MagStreamProfile>> matchMagStreamProfile(const StreamProfileList &profileList, OBIMUSampleRate sampleRate) {
+    std::vector<std::shared_ptr<const MagStreamProfile>> matchProfileList;
+    for(auto profile: profileList) {
+        if(profile->is<MagStreamProfile>()) {
+            auto magProfile = profile->as<MagStreamProfile>();
+
+            // Get the profile that matches the user's items of interest
+            if(sampleRate == OB_SAMPLE_RATE_UNKNOWN || magProfile->getSampleRate() == sampleRate) {
+                matchProfileList.push_back(magProfile);
             }
         }
     }

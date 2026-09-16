@@ -377,6 +377,9 @@ ColorSideLeftFrame::ColorSideLeftFrame(uint8_t *data, size_t dataBufSize, FrameB
 ColorSideRightFrame::ColorSideRightFrame(uint8_t *data, size_t dataBufSize, FrameBufferReclaimFunc bufferReclaimFunc)
     : VideoFrame(data, dataBufSize, OB_FRAME_COLOR_SIDE_RIGHT, bufferReclaimFunc) {}
 
+ColorTopFrame::ColorTopFrame(uint8_t *data, size_t dataBufSize, FrameBufferReclaimFunc bufferReclaimFunc)
+    : VideoFrame(data, dataBufSize, OB_FRAME_COLOR_TOP, bufferReclaimFunc) {}
+
 DepthFrame::DepthFrame(uint8_t *data, size_t dataBufSize, FrameBufferReclaimFunc bufferReclaimFunc)
     : VideoFrame(data, dataBufSize, OB_FRAME_DEPTH, bufferReclaimFunc), valueScale_(1.0f) {
     setPixelType(OB_PIXEL_DEPTH);  // set default pixel type to OB_PIXEL_DEPTH
@@ -464,6 +467,16 @@ OBGyroValue GyroFrame ::value() const {
 
 float GyroFrame ::temperature() const {
     return ((GyroFrame::Data *)getData())->temp;
+}
+
+MagFrame::MagFrame(uint8_t *data, size_t dataBufSize, FrameBufferReclaimFunc bufferReclaimFunc) : Frame(data, dataBufSize, OB_FRAME_MAG, bufferReclaimFunc) {}
+
+OBMagValue MagFrame::value() const {
+    return *(OBMagValue *)getData();
+}
+
+float MagFrame::temperature() const {
+    return ((MagFrame::Data *)getData())->temp;
 }
 
 LiDARPointsFrame::LiDARPointsFrame(uint8_t *data, size_t dataBufSize, FrameBufferReclaimFunc bufferReclaimFunc)

@@ -444,6 +444,24 @@ float ob_gyro_frame_get_temperature(const ob_frame *frame, ob_error **error) BEG
 }
 HANDLE_EXCEPTIONS_AND_RETURN(0.0f, frame)
 
+ob_mag_value ob_mag_frame_get_value(const ob_frame *frame, ob_error **error) BEGIN_API_CALL {
+    VALIDATE_NOT_NULL(frame);
+    if(!frame->frame->is<libobsensor::MagFrame>()) {
+        THROW_UNSUPPORTED_OPERATION_EXCEPTION("It's not a mag frame!");
+    }
+    return frame->frame->as<libobsensor::MagFrame>()->value();
+}
+HANDLE_EXCEPTIONS_AND_RETURN(ob_mag_value(), frame)
+
+float ob_mag_frame_get_temperature(const ob_frame *frame, ob_error **error) BEGIN_API_CALL {
+    VALIDATE_NOT_NULL(frame);
+    if(!frame->frame->is<libobsensor::MagFrame>()) {
+        THROW_UNSUPPORTED_OPERATION_EXCEPTION("It's not a mag frame!");
+    }
+    return frame->frame->as<libobsensor::MagFrame>()->temperature();
+}
+HANDLE_EXCEPTIONS_AND_RETURN(0.0f, frame)
+
 uint32_t ob_frameset_get_count(const ob_frame *frameset, ob_error **error) BEGIN_API_CALL {
     VALIDATE_NOT_NULL(frameset);
     if(!frameset->frame->is<libobsensor::FrameSet>()) {

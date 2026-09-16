@@ -136,12 +136,16 @@ OBFrameType mapStreamTypeToFrameType(OBStreamType type) {
         return OB_FRAME_COLOR_SIDE_LEFT;
     case OB_STREAM_COLOR_SIDE_RIGHT:
         return OB_FRAME_COLOR_SIDE_RIGHT;
+    case OB_STREAM_COLOR_TOP:
+        return OB_FRAME_COLOR_TOP;
     case OB_STREAM_DEPTH:
         return OB_FRAME_DEPTH;
     case OB_STREAM_ACCEL:
         return OB_FRAME_ACCEL;
     case OB_STREAM_GYRO:
         return OB_FRAME_GYRO;
+    case OB_STREAM_MAG:
+        return OB_FRAME_MAG;
     case OB_STREAM_IR_LEFT:
         return OB_FRAME_IR_LEFT;
     case OB_STREAM_IR_RIGHT:
@@ -176,12 +180,16 @@ OBStreamType mapFrameTypeToStreamType(OBFrameType type) {
         return OB_STREAM_COLOR_SIDE_LEFT;
     case OB_FRAME_COLOR_SIDE_RIGHT:
         return OB_STREAM_COLOR_SIDE_RIGHT;
+    case OB_FRAME_COLOR_TOP:
+        return OB_STREAM_COLOR_TOP;
     case OB_FRAME_DEPTH:
         return OB_STREAM_DEPTH;
     case OB_FRAME_ACCEL:
         return OB_STREAM_ACCEL;
     case OB_FRAME_GYRO:
         return OB_STREAM_GYRO;
+    case OB_FRAME_MAG:
+        return OB_STREAM_MAG;
     case OB_FRAME_IR_LEFT:
         return OB_STREAM_IR_LEFT;
     case OB_FRAME_IR_RIGHT:
@@ -214,12 +222,16 @@ OBStreamType mapSensorTypeToStreamType(OBSensorType type) {
         return OB_STREAM_COLOR_SIDE_LEFT;
     case OB_SENSOR_COLOR_SIDE_RIGHT:
         return OB_STREAM_COLOR_SIDE_RIGHT;
+    case OB_SENSOR_COLOR_TOP:
+        return OB_STREAM_COLOR_TOP;
     case OB_SENSOR_DEPTH:
         return OB_STREAM_DEPTH;
     case OB_SENSOR_ACCEL:
         return OB_STREAM_ACCEL;
     case OB_SENSOR_GYRO:
         return OB_STREAM_GYRO;
+    case OB_SENSOR_MAG:
+        return OB_STREAM_MAG;
     case OB_SENSOR_IR_LEFT:
         return OB_STREAM_IR_LEFT;
     case OB_SENSOR_IR_RIGHT:
@@ -252,12 +264,16 @@ OBSensorType mapStreamTypeToSensorType(OBStreamType type) {
         return OB_SENSOR_COLOR_SIDE_LEFT;
     case OB_STREAM_COLOR_SIDE_RIGHT:
         return OB_SENSOR_COLOR_SIDE_RIGHT;
+    case OB_STREAM_COLOR_TOP:
+        return OB_SENSOR_COLOR_TOP;
     case OB_STREAM_DEPTH:
         return OB_SENSOR_DEPTH;
     case OB_STREAM_ACCEL:
         return OB_SENSOR_ACCEL;
     case OB_STREAM_GYRO:
         return OB_SENSOR_GYRO;
+    case OB_STREAM_MAG:
+        return OB_SENSOR_MAG;
     case OB_STREAM_IR_LEFT:
         return OB_SENSOR_IR_LEFT;
     case OB_STREAM_IR_RIGHT:
@@ -288,6 +304,8 @@ OBSensorType mapFrameTypeToSensorType(OBFrameType type) {
         return OB_SENSOR_COLOR_SIDE_LEFT;
     case OB_FRAME_COLOR_SIDE_RIGHT:
         return OB_SENSOR_COLOR_SIDE_RIGHT;
+    case OB_FRAME_COLOR_TOP:
+        return OB_SENSOR_COLOR_TOP;
     case OB_FRAME_DEPTH:
         return OB_SENSOR_DEPTH;
     case OB_FRAME_IR:
@@ -296,6 +314,8 @@ OBSensorType mapFrameTypeToSensorType(OBFrameType type) {
         return OB_SENSOR_ACCEL;
     case OB_FRAME_GYRO:
         return OB_SENSOR_GYRO;
+    case OB_FRAME_MAG:
+        return OB_SENSOR_MAG;
     case OB_FRAME_IR_LEFT:
         return OB_SENSOR_IR_LEFT;
     case OB_FRAME_IR_RIGHT:
@@ -398,9 +418,11 @@ const std::map<OBSensorType, std::string> Sensor_Str_Map = {
     { OB_SENSOR_COLOR_RIGHT, "RightColor" },
     { OB_SENSOR_COLOR_SIDE_LEFT, "SideLeftColor" },
     { OB_SENSOR_COLOR_SIDE_RIGHT, "SideRightColor" },
+    { OB_SENSOR_COLOR_TOP, "TopColor" },
     { OB_SENSOR_DEPTH, "Depth" },
     { OB_SENSOR_ACCEL, "Accel" },
     { OB_SENSOR_GYRO, "Gyro" },
+    { OB_SENSOR_MAG, "Mag" },
     { OB_SENSOR_IR_LEFT, "LeftIR" },
     { OB_SENSOR_IR_RIGHT, "RightIR" },
     { OB_SENSOR_RAW_PHASE, "RawPhase" },
@@ -418,11 +440,13 @@ const std::map<OBFrameType, std::string> Frame_Str_Map = { { OB_FRAME_UNKNOWN, "
                                                            { OB_FRAME_COLOR_RIGHT, "Right Color" },
                                                            { OB_FRAME_COLOR_SIDE_LEFT, "Side Left Color" },
                                                            { OB_FRAME_COLOR_SIDE_RIGHT, "Side Right Color" },
+                                                           { OB_FRAME_COLOR_TOP, "Top Color" },
                                                            { OB_FRAME_DEPTH, "Depth" },
                                                            { OB_FRAME_ACCEL, "Accel" },
                                                            { OB_FRAME_SET, "SET" },
                                                            { OB_FRAME_POINTS, "Points" },
                                                            { OB_FRAME_GYRO, "Gyro" },
+                                                           { OB_FRAME_MAG, "Mag" },
                                                            { OB_FRAME_IR_LEFT, "Left IR" },
                                                            { OB_FRAME_IR_RIGHT, "Right IR" },
                                                            { OB_FRAME_RAW_PHASE, "RawPhase" },
@@ -437,6 +461,7 @@ const std::map<OBStreamType, std::string> Stream_Str_Map = { { OB_STREAM_UNKNOWN
                                                              { OB_STREAM_DEPTH, "Depth" },
                                                              { OB_STREAM_ACCEL, "Accel" },
                                                              { OB_STREAM_GYRO, "Gyro" },
+                                                             { OB_STREAM_MAG, "Mag" },
                                                              { OB_STREAM_IR_LEFT, "Left IR" },
                                                              { OB_STREAM_IR_RIGHT, "Right IR" },
                                                              { OB_STREAM_RAW_PHASE, "RawPhase" },
@@ -446,6 +471,7 @@ const std::map<OBStreamType, std::string> Stream_Str_Map = { { OB_STREAM_UNKNOWN
                                                              { OB_STREAM_COLOR_RIGHT, "Right Color" },
                                                              { OB_STREAM_COLOR_SIDE_LEFT, "Side Left Color" },
                                                              { OB_STREAM_COLOR_SIDE_RIGHT, "Side Right Color" },
+                                                             { OB_STREAM_COLOR_TOP, "Top Color" },
                                                              { OB_STREAM_AUDIO, "Audio" } };
 
 const std::map<OBAlignMode, std::string> AlignMode_Str_Map = {
@@ -499,6 +525,7 @@ const std::map<OBFormat, std::string> Format_Str_Map = {
     { OB_FORMAT_I420, "I420" },
     { OB_FORMAT_ACCEL, "ACCEL" },
     { OB_FORMAT_GYRO, "GYRO" },
+    { OB_FORMAT_MAG, "MAG" },
     { OB_FORMAT_POINT, "POINT" },
     { OB_FORMAT_RGB_POINT, "RGB_POINT" },
     { OB_FORMAT_RLE, "RLE" },

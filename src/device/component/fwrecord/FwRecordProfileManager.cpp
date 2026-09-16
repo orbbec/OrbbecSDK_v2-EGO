@@ -28,6 +28,7 @@ bool isFwRecordVideoSensor(uint16_t sensorType) {
     case OB_SENSOR_COLOR_RIGHT:
     case OB_SENSOR_COLOR_SIDE_LEFT:
     case OB_SENSOR_COLOR_SIDE_RIGHT:
+    case OB_SENSOR_COLOR_TOP:
         return true;
     default:
         return false;

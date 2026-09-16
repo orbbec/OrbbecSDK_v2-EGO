@@ -329,6 +329,7 @@ void VideoSensor::trySendStopStreamVendorCmd() {
         case OB_SENSOR_COLOR_RIGHT:
         case OB_SENSOR_COLOR_SIDE_LEFT:
         case OB_SENSOR_COLOR_SIDE_RIGHT:
+        case OB_SENSOR_COLOR_TOP:
             propertyId = OB_PROP_STOP_COLOR_STREAM_BOOL;
             break;
         case OB_SENSOR_IR_RIGHT:

@@ -39,6 +39,7 @@ class DepthFrame;
 class IRFrame;
 class AccelFrame;
 class GyroFrame;
+class MagFrame;
 
 using FrameBufferReclaimFunc = std::function<void(void)>;
 
@@ -197,6 +198,11 @@ public:
     ColorSideRightFrame(uint8_t *data, size_t dataBufSize, FrameBufferReclaimFunc bufferReclaimFunc = nullptr);
 };
 
+class ColorTopFrame : public VideoFrame {
+public:
+    ColorTopFrame(uint8_t *data, size_t dataBufSize, FrameBufferReclaimFunc bufferReclaimFunc = nullptr);
+};
+
 class DepthFrame : public VideoFrame {
 public:
     DepthFrame(uint8_t *data, size_t dataBufSize, FrameBufferReclaimFunc bufferReclaimFunc = nullptr);
@@ -283,6 +289,22 @@ public:
 
     OBGyroValue value() const;
     float       temperature() const;
+};
+
+class MagFrame : public Frame {
+public:
+#pragma pack(push, 1)
+    typedef struct {
+        OBMagValue value;  // Magnetic field values in three directions (xyz)
+        float      temp;   // Temperature in Celsius
+    } Data;
+#pragma pack(pop)
+
+public:
+    MagFrame(uint8_t *data, size_t dataBufSize, FrameBufferReclaimFunc bufferReclaimFunc = nullptr);
+
+    OBMagValue value() const;
+    float      temperature() const;
 };
 
 class LiDARPointsFrame : public Frame {
