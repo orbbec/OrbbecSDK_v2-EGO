@@ -25,6 +25,7 @@
 
 #include "utils.hpp"
 
+#include <algorithm>
 #include <atomic>
 #include <cctype>
 #include <chrono>
@@ -318,13 +319,27 @@ bool isKnownRawDataProperty(OBPropertyID id) {
     }
 }
 
+std::string bytesToString(const uint8_t *data, size_t size) {
+    size_t length = 0;
+    while(length < size && data[length] != 0) {
+        ++length;
+    }
+    for(size_t i = 0; i < length; ++i) {
+        if(!std::isprint(static_cast<unsigned char>(data[i]))) {
+            return std::string();
+        }
+    }
+    return std::string(reinterpret_cast<const char *>(data), length);
+}
+
 // Read a struct property into a buffer; returns true and the byte count on success.
-bool readStructData(const std::shared_ptr<ob::Device> &device, OBPropertyID id, uint32_t *outSize, std::string *err) {
+bool readStructData(const std::shared_ptr<ob::Device> &device, OBPropertyID id, uint32_t *outSize, std::string *value, std::string *err) {
     try {
         std::vector<uint8_t> buffer(4096);
         uint32_t             size = static_cast<uint32_t>(buffer.size());
         device->getStructuredData(id, buffer.data(), &size);
         *outSize = size;
+        *value   = size <= 32 ? bytesToString(buffer.data(), size) : std::string();
         return true;
     }
     catch(const ob::Error &e) {
@@ -335,14 +350,20 @@ bool readStructData(const std::shared_ptr<ob::Device> &device, OBPropertyID id, 
 
 // Read a raw-data property via the chunked transfer protocol; returns true and the full byte count on
 // success. A negative transfer state or an exception is reported as a failure.
-bool readRawData(const std::shared_ptr<ob::Device> &device, OBPropertyID id, uint32_t *outSize, std::string *err) {
+bool readRawData(const std::shared_ptr<ob::Device> &device, OBPropertyID id, uint32_t *outSize, std::string *value, std::string *err) {
     uint32_t    total  = 0;
     bool        failed = false;
     std::string localErr;
+    std::vector<uint8_t> data;
     try {
         device->getRawData(id, [&](OBDataTranState state, OBDataChunk *chunk) {
             if(chunk != nullptr && chunk->fullDataSize > total) {
                 total = chunk->fullDataSize;
+                data.resize(total);
+            }
+            if(chunk != nullptr && chunk->data != nullptr && chunk->offset < data.size()) {
+                const auto copySize = std::min<size_t>(chunk->size, data.size() - chunk->offset);
+                std::memcpy(data.data() + chunk->offset, chunk->data, copySize);
             }
             if(static_cast<int>(state) < 0) {  // negative states are error codes
                 failed   = true;
@@ -359,6 +380,7 @@ bool readRawData(const std::shared_ptr<ob::Device> &device, OBPropertyID id, uin
         return false;
     }
     *outSize = total;
+    *value   = total <= 32 ? bytesToString(data.data(), data.size()) : std::string();
     return true;
 }
 
@@ -374,16 +396,17 @@ void testStructOrRawProperty(const std::shared_ptr<ob::Device> &device, const OB
     if(readable) {
         uint32_t    size = 0;
         std::string err;
+        std::string value;
         bool        ok = false;
         if(isKnownRawDataProperty(item.id)) {
-            ok = readRawData(device, item.id, &size, &err);
+            ok = readRawData(device, item.id, &size, &value, &err);
         }
         else {
-            ok = readStructData(device, item.id, &size, &err);
+            ok = readStructData(device, item.id, &size, &value, &err);
             if(!ok) {
                 // Some binary properties are actually raw-data; retry through the chunked path.
                 std::string rawErr;
-                ok = readRawData(device, item.id, &size, &rawErr);
+                ok = readRawData(device, item.id, &size, &value, &rawErr);
                 if(!ok) {
                     err += "; raw: " + rawErr;
                 }
@@ -392,6 +415,9 @@ void testStructOrRawProperty(const std::shared_ptr<ob::Device> &device, const OB
         if(ok) {
             ++st.readOk;
             std::cout << " read-ok (" << size << " bytes)";
+            if(size <= 32 && !value.empty()) {
+                std::cout << " value=\"" << value << "\"";
+            }
         }
         else {
             ++st.readFail;
