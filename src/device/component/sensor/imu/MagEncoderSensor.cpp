@@ -11,7 +11,7 @@ namespace libobsensor {
 #pragma pack(1)
 typedef struct {
     uint32_t num;
-    uint32_t odr[16];
+    OBMagEncoderSampleRate odr[16];
 } MagEncoderSampleRateList;
 #pragma pack()
 
@@ -28,10 +28,10 @@ MagEncoderSensor::MagEncoderSensor(IDevice *owner, const std::shared_ptr<ISource
         try {
             auto odrList = propServer->getStructureDataT<MagEncoderSampleRateList>(OB_STRUCT_GET_MAG_ENCODER_PRESETS_ODR_LIST);
 
-            // Raw preset list as reported by firmware, logged at debug level to ease device bring-up.
+            // Preset list as reported by firmware, logged at debug level to ease device bring-up.
             LOG_DEBUG("Mag encoder presets from firmware: odrCount={}", odrList.num);
             for(uint32_t i = 0; i < odrList.num; i++) {
-                LOG_DEBUG("  mag encoder odr[{}] = {}", i, odrList.odr[i]);
+                LOG_DEBUG("  mag encoder sampleRate[{}] = {}", i, static_cast<int>(odrList.odr[i]));
             }
 
             auto lazySensor = std::make_shared<LazySensor>(owner, OB_SENSOR_MAG_ENCODER);
@@ -48,9 +48,9 @@ MagEncoderSensor::MagEncoderSensor(IDevice *owner, const std::shared_ptr<ISource
                 LOG_DEBUG("Mag encoder built {} stream profiles from the firmware presets", streamProfileList_.size());
 
                 if(propServer->isPropertySupported(OB_PROP_MAG_ENCODER_ODR_INT, PROP_OP_READ, PROP_ACCESS_INTERNAL)) {
-                    auto currentOdr = static_cast<uint32_t>(propServer->getPropertyValueT<int>(OB_PROP_MAG_ENCODER_ODR_INT));
-                    LOG_DEBUG("Mag encoder current odr from firmware: odr={}", currentOdr);
-                    auto defaultProfile = StreamProfileFactory::createMagEncoderStreamProfile(lazySensor, currentOdr);
+                    auto currentSampleRate = propServer->getPropertyValueT<OBMagEncoderSampleRate>(OB_PROP_MAG_ENCODER_ODR_INT);
+                    LOG_DEBUG("Mag encoder current sample rate from firmware: {}", static_cast<int>(currentSampleRate));
+                    auto defaultProfile = StreamProfileFactory::createMagEncoderStreamProfile(lazySensor, currentSampleRate);
                     updateDefaultStreamProfile(defaultProfile);
                 }
                 else {

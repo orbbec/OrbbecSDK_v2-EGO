@@ -193,19 +193,19 @@ protected:
  *
  * The encoder streams a self-contained angle report on its own HID report id. It has no full-scale
  * range, but does expose a sampling-rate (ODR) preset, so the profile carries the sample rate; a
- * value of 0 means the rate is unknown and the device keeps its current setting.
+ * The sample rate uses the shared OBMagEncoderSampleRate enum, consistent with accel/gyro values.
  */
 class MagEncoderStreamProfile : public StreamProfile {
 public:
-    explicit MagEncoderStreamProfile(std::shared_ptr<LazySensor> owner, uint32_t sampleRate = 0);
+    explicit MagEncoderStreamProfile(std::shared_ptr<LazySensor> owner, OBMagEncoderSampleRate sampleRate = OB_SAMPLE_RATE_UNKNOWN);
     ~MagEncoderStreamProfile() noexcept override = default;
 
-    uint32_t                       getSampleRate() const;
+    OBMagEncoderSampleRate          getSampleRate() const;
     std::shared_ptr<StreamProfile> clone() const override;
     std::ostream                  &operator<<(std::ostream &os) const override;
 
 protected:
-    uint32_t sampleRate_;
+    OBMagEncoderSampleRate sampleRate_;
 };
 
 /**

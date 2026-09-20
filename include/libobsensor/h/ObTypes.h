@@ -800,7 +800,8 @@ typedef enum {
     OB_SAMPLE_RATE_400_HZ    = 16, /**< 400Hz*/
     OB_SAMPLE_RATE_800_HZ    = 17, /**< 800Hz*/
 } OBIMUSampleRate,
-    OBGyroSampleRate, ob_gyro_sample_rate, OBAccelSampleRate, ob_accel_sample_rate, OBMagSampleRate, ob_mag_sample_rate, OB_SAMPLE_RATE;
+    OBGyroSampleRate, ob_gyro_sample_rate, OBAccelSampleRate, ob_accel_sample_rate, OBMagSampleRate, ob_mag_sample_rate,
+    OBMagEncoderSampleRate, ob_mag_encoder_sample_rate, OB_SAMPLE_RATE;
 
 /**
  * @brief Enumeration of gyroscope ranges

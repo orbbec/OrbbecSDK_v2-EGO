@@ -319,10 +319,10 @@ std::ostream &MagStreamProfile::operator<<(std::ostream &os) const {
     return os;
 }
 
-MagEncoderStreamProfile::MagEncoderStreamProfile(std::shared_ptr<LazySensor> owner, uint32_t sampleRate)
+MagEncoderStreamProfile::MagEncoderStreamProfile(std::shared_ptr<LazySensor> owner, OBMagEncoderSampleRate sampleRate)
     : StreamProfile{ owner, OB_STREAM_MAG_ENCODER, OB_FORMAT_MAG_ENCODER }, sampleRate_(sampleRate) {}
 
-uint32_t MagEncoderStreamProfile::getSampleRate() const {
+OBMagEncoderSampleRate MagEncoderStreamProfile::getSampleRate() const {
     return sampleRate_;
 }
 

@@ -113,7 +113,7 @@ std::shared_ptr<MagEncoderStreamProfile> createMagEncoderStreamProfile(std::shar
     return std::make_shared<MagEncoderStreamProfile>(owner);
 }
 
-std::shared_ptr<MagEncoderStreamProfile> createMagEncoderStreamProfile(std::shared_ptr<LazySensor> owner, uint32_t sampleRate) {
+std::shared_ptr<MagEncoderStreamProfile> createMagEncoderStreamProfile(std::shared_ptr<LazySensor> owner, OBMagEncoderSampleRate sampleRate) {
     return std::make_shared<MagEncoderStreamProfile>(owner, sampleRate);
 }
 
