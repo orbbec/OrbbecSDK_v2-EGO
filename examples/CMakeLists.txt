@@ -31,6 +31,8 @@ add_subdirectory(3.advanced.preset)
 add_subdirectory(4.misc.logger)
 add_subdirectory(4.misc.metadata)
 add_subdirectory(7.net.color)
+add_subdirectory(7.net.ego_depth)
+
 if(OB_BUILD_LINUX)
     add_subdirectory(3.advanced.multi_devices_sync_gmsltrigger)
 endif()

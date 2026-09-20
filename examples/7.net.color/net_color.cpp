@@ -33,6 +33,15 @@
 #include <thread>
 #include <vector>
 
+// The helpers below are currently referenced only from the disabled IMU / ego-state paths in
+// main(). Keep them compiled but explicitly marked as unused, so that re-enabling those
+// call sites does not require touching these definitions and -Werror stays clean.
+#if defined(__GNUC__) || defined(__clang__)
+#define NET_COLOR_UNUSED_FUNCTION __attribute__((unused))
+#else
+#define NET_COLOR_UNUSED_FUNCTION
+#endif
+
 namespace {
 
 const char *formatToExt(OBFormat format) {
@@ -224,13 +233,14 @@ const char *egoWorkStateToString(OBEgoWorkState state) {
     }
 }
 
-void printEgoState(const OBEgoStateReport &state) {
+NET_COLOR_UNUSED_FUNCTION void printEgoState(const OBEgoStateReport &state) {
     std::cout << "Ego state: protocol=" << state.protocol_version << " seq=" << state.sequence << " workState=" << egoWorkStateToString(state.work_state)
               << " stateFlags=0x" << std::hex << state.state_flags << " errorFlags=0x" << state.error_flags << std::dec
               << " storageFreeBytes=" << state.storage_free_bytes << std::endl;
 }
 
-void printImuValue(const char *name, const OBAccelValue &value, uint64_t index, uint64_t timestampUs, float temperature, const char *unit) {
+NET_COLOR_UNUSED_FUNCTION void printImuValue(const char *name, const OBAccelValue &value, uint64_t index, uint64_t timestampUs, float temperature,
+                                             const char *unit) {
     printf("[%s] index=%llu ts=%llu us temp=%.2f value=(%.6f, %.6f, %.6f) %s\n", name, (unsigned long long)index, (unsigned long long)timestampUs,
            temperature, value.x, value.y, value.z, unit);
 }

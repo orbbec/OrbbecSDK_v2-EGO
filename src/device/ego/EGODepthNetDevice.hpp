@@ -30,6 +30,7 @@ private:
     void initSensorList();
     void initProperties();
     void initSensorStreamProfile(std::shared_ptr<ISensor> sensor);
+    void fixSensorList();
     void fetchAllVideoStreamProfileList();
 
     void fetchDeviceInfo() override;

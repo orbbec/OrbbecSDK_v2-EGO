@@ -4,6 +4,7 @@
 #include "EGODepthDevice.hpp"
 #include "EGODepthDepthWorkModeManager.hpp"
 #include "EGODepthPresetManager.hpp"
+#include "EGODepthStreamProfileFilter.hpp"
 #include "EGOStreamDemuxer.hpp"
 #include "EGOVideoSensor.hpp"
 #include "DevicePids.hpp"
@@ -87,37 +88,6 @@ private:
     std::atomic_bool outputDisparityFrame_{ false };
 };
 
-class EGODepthEffectiveProfileFilter : public IStreamProfileFilter {
-public:
-    EGODepthEffectiveProfileFilter(OBSensorType sensorType, std::vector<OBEffectiveStreamProfile> effectiveProfiles)
-        : sensorType_(sensorType), effectiveProfiles_(std::move(effectiveProfiles)) {}
-
-    StreamProfileList filter(const StreamProfileList &profiles) const override {
-        StreamProfileList filteredProfiles;
-        for(const auto &profile: profiles) {
-            if(!profile->is<VideoStreamProfile>()) {
-                filteredProfiles.push_back(profile);
-                continue;
-            }
-
-            auto videoProfile = profile->as<VideoStreamProfile>();
-            auto format       = videoProfile->getFormat() == OB_FORMAT_HEVC ? OB_FORMAT_H265 : videoProfile->getFormat();
-            for(const auto &effectiveProfile: effectiveProfiles_) {
-                auto effectiveFormat = effectiveProfile.format == OB_FORMAT_HEVC ? OB_FORMAT_H265 : effectiveProfile.format;
-                if(effectiveProfile.sensorType == sensorType_ && effectiveFormat == format && effectiveProfile.width == videoProfile->getWidth()
-                   && effectiveProfile.height == videoProfile->getHeight() && videoProfile->getFps() <= effectiveProfile.maxFps) {
-                    filteredProfiles.push_back(profile);
-                    break;
-                }
-            }
-        }
-        return filteredProfiles;
-    }
-
-private:
-    OBSensorType                          sensorType_;
-    std::vector<OBEffectiveStreamProfile> effectiveProfiles_;
-};
 }  // namespace
 
 EGODepthDevice::EGODepthDevice(const std::shared_ptr<const IDeviceEnumInfo> &info) : DeviceBase(info) {
