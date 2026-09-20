@@ -21,6 +21,7 @@ public:
     void enableAccelStream(OBAccelFullScaleRange fullScaleRange, OBAccelSampleRate sampleRate);
     void enableGyroStream(OBGyroFullScaleRange fullScaleRange, OBGyroSampleRate sampleRate);
     void enableMagStream(OBMagFullScaleRange fullScaleRange, OBMagSampleRate sampleRate);
+    void enableMagEncoderStream(OBMagEncoderSampleRate sampleRate);
     void enableLiDARStream(OBLiDARScanRate scanRate, OBFormat format);
 
     void disableStream(OBStreamType type);

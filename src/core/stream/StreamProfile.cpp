@@ -576,6 +576,20 @@ std::vector<std::shared_ptr<const MagStreamProfile>> matchMagStreamProfile(const
     return matchProfileList;
 }
 
+std::vector<std::shared_ptr<const MagEncoderStreamProfile>> matchMagEncoderStreamProfile(const StreamProfileList &profileList,
+                                                                                         OBMagEncoderSampleRate sampleRate) {
+    std::vector<std::shared_ptr<const MagEncoderStreamProfile>> matchProfileList;
+    for(auto profile: profileList) {
+        if(profile->is<MagEncoderStreamProfile>()) {
+            auto encoderProfile = profile->as<MagEncoderStreamProfile>();
+            if(sampleRate == OB_SAMPLE_RATE_UNKNOWN || encoderProfile->getSampleRate() == sampleRate) {
+                matchProfileList.push_back(encoderProfile);
+            }
+        }
+    }
+    return matchProfileList;
+}
+
 std::vector<std::shared_ptr<const LiDARStreamProfile>> matchLiDARStreamProfile(const StreamProfileList &profileList, OBLiDARScanRate scanRate,
                                                                                OBFormat format) {
     std::vector<std::shared_ptr<const LiDARStreamProfile>> matchProfileList;

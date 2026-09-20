@@ -395,6 +395,11 @@ OB_EXPORT ob_mag_full_scale_range ob_mag_stream_profile_get_full_scale_range(con
 OB_EXPORT ob_mag_sample_rate ob_mag_stream_profile_get_sample_rate(const ob_stream_profile *profile, ob_error **error);
 
 /**
+ * @brief Get the sampling rate of the magnetic encoder stream.
+ */
+OB_EXPORT ob_mag_encoder_sample_rate ob_mag_encoder_stream_profile_get_sample_rate(const ob_stream_profile *profile, ob_error **error);
+
+/**
  * @brief Get the scan rate of the LiDAR stream.
  *
  * @param[in] profile Stream profile object. If the profile is not for the LiDAR stream, an error will be returned.

@@ -271,6 +271,11 @@ OB_EXPORT void ob_config_enable_gyro_stream(ob_config *config, ob_gyro_full_scal
 OB_EXPORT void ob_config_enable_mag_stream(ob_config *config, ob_mag_full_scale_range full_scale_range, ob_mag_sample_rate sample_rate, ob_error **error);
 
 /**
+ * @brief Enable magnetic encoder stream with specified sample rate.
+ */
+OB_EXPORT void ob_config_enable_mag_encoder_stream(ob_config *config, ob_mag_encoder_sample_rate sample_rate, ob_error **error);
+
+/**
  * @brief Enable LiDAR stream with specified parameters
  *
  * @param[in] config The pipeline configuration object

@@ -47,6 +47,11 @@ void Config::enableMagStream(OBMagFullScaleRange fullScaleRange, ob_mag_sample_r
     enableStream(prf);
 }
 
+void Config::enableMagEncoderStream(OBMagEncoderSampleRate sampleRate) {
+    auto prf = StreamProfileFactory::createMagEncoderStreamProfile(nullptr, sampleRate);
+    enableStream(prf);
+}
+
 void Config::enableLiDARStream(OBLiDARScanRate scanRate, OBFormat format) {
     auto prf = StreamProfileFactory::createLiDARStreamProfile(scanRate, format);
     enableStream(prf);

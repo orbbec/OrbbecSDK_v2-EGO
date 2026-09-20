@@ -359,6 +359,16 @@ ob_mag_sample_rate ob_mag_stream_profile_get_sample_rate(const ob_stream_profile
 }
 HANDLE_EXCEPTIONS_AND_RETURN(ob_mag_sample_rate(), profile)
 
+ob_mag_encoder_sample_rate ob_mag_encoder_stream_profile_get_sample_rate(const ob_stream_profile *profile, ob_error **error) BEGIN_API_CALL {
+    VALIDATE_NOT_NULL(profile);
+    if(!profile->profile->is<libobsensor::MagEncoderStreamProfile>()) {
+        THROW_UNSUPPORTED_OPERATION_EXCEPTION("It's not a magnetic encoder stream profile!");
+    }
+    auto encoderProfile = profile->profile->as<libobsensor::MagEncoderStreamProfile>();
+    return encoderProfile->getSampleRate();
+}
+HANDLE_EXCEPTIONS_AND_RETURN(ob_mag_encoder_sample_rate(), profile)
+
 ob_lidar_scan_rate ob_lidar_stream_profile_get_scan_rate(const ob_stream_profile *profile, ob_error **error) BEGIN_API_CALL {
     VALIDATE_NOT_NULL(profile);
     if(!profile->profile->is<libobsensor::LiDARStreamProfile>()) {

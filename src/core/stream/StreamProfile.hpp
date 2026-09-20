@@ -277,6 +277,9 @@ std::vector<std::shared_ptr<const GyroStreamProfile>> matchGyroStreamProfile(con
 std::vector<std::shared_ptr<const MagStreamProfile>> matchMagStreamProfile(const StreamProfileList &profileList, OBMagFullScaleRange fullScaleRange,
                                                                            OBMagSampleRate sampleRate);
 
+std::vector<std::shared_ptr<const MagEncoderStreamProfile>> matchMagEncoderStreamProfile(const StreamProfileList &profileList,
+                                                                                         OBMagEncoderSampleRate sampleRate);
+
 std::vector<std::shared_ptr<const LiDARStreamProfile>> matchLiDARStreamProfile(const StreamProfileList &profileList, OBLiDARScanRate scanRate, OBFormat format);
 
 std::vector<std::shared_ptr<const AudioStreamProfile>> matchAudioStreamProfile(const StreamProfileList &profileList, OBFormat format, uint32_t sampleRate,

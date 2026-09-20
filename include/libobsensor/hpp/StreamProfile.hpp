@@ -450,6 +450,13 @@ public:
     explicit MagEncoderStreamProfile(const ob_stream_profile_t *impl) : StreamProfile(impl) {}
 
     ~MagEncoderStreamProfile() noexcept override = default;
+
+    OBMagEncoderSampleRate getSampleRate() const {
+        ob_error *error      = nullptr;
+        auto      sampleRate = ob_mag_encoder_stream_profile_get_sample_rate(impl_, &error);
+        Error::handle(&error);
+        return sampleRate;
+    }
 };
 
 /**

@@ -236,6 +236,11 @@ void ob_config_enable_mag_stream(ob_config *config, ob_mag_full_scale_range full
 }
 HANDLE_EXCEPTIONS_NO_RETURN(config, full_scale_range, sample_rate)
 
+void ob_config_enable_mag_encoder_stream(ob_config *config, ob_mag_encoder_sample_rate sample_rate, ob_error **error) BEGIN_API_CALL {
+    config->config->enableMagEncoderStream(sample_rate);
+}
+HANDLE_EXCEPTIONS_NO_RETURN(config, sample_rate)
+
 void ob_config_enable_lidar_stream(ob_config *config, ob_lidar_scan_rate scan_rate, ob_format format, ob_error **error) BEGIN_API_CALL {
     config->config->enableLiDARStream(scan_rate, format);
 }

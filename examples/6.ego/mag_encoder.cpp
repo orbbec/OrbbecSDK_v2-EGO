@@ -7,48 +7,43 @@
 
 #include "utils.hpp"
 
-#include <atomic>
+#include <chrono>
 #include <iostream>
 
 int main() try {
     ob::Pipeline pipe;
-    auto         device = pipe.getDevice();
+    auto config = std::make_shared<ob::Config>();
+    config->enableMagEncoderStream();
 
-    auto magEncoderSensor = device->getSensor(OB_SENSOR_MAG_ENCODER);
-    if(magEncoderSensor == nullptr) {
-        std::cerr << "Device does not support the magnetic angle encoder (OB_SENSOR_MAG_ENCODER)." << std::endl;
-        std::cout << "\nPress any key to exit.";
-        ob_smpl::waitForKeyPressed();
-        return 0;
-    }
-
-    auto profiles = magEncoderSensor->getStreamProfileList();
-    if(profiles == nullptr || profiles->getCount() == 0) {
-        std::cerr << "No stream profile available for the magnetic angle encoder." << std::endl;
-        std::cout << "\nPress any key to exit.";
-        ob_smpl::waitForKeyPressed();
-        return 0;
-    }
-
-    std::atomic<uint64_t> frameCount{ 0 };
-    magEncoderSensor->start(profiles->getProfile(0), [&frameCount](std::shared_ptr<ob::Frame> frame) {
-        if(frame == nullptr || frame->getDataSize() < sizeof(OBMagEncoderFrameData)) {
+    uint64_t frameCount = 0;
+    auto     lastTime   = std::chrono::steady_clock::now();
+    pipe.start(config, [&frameCount, &lastTime](std::shared_ptr<ob::FrameSet> frameSet) {
+        if(!frameSet) {
             return;
         }
 
-        if(frameCount++ % 50 != 0) {
+        auto frame = frameSet->getFrame(OB_FRAME_MAG_ENCODER);
+        if(!frame || frame->getDataSize() < sizeof(OBMagEncoderFrameData)) {
             return;
         }
+
+        ++frameCount;
+        if(frameCount % 50 != 0) return;
+
+        auto now     = std::chrono::steady_clock::now();
+        auto elapsed = std::chrono::duration<double>(now - lastTime).count();
+        auto fps     = elapsed > 0.0 ? 50.0 / elapsed : 0.0;
+        lastTime     = now;
 
         auto data = reinterpret_cast<const OBMagEncoderFrameData *>(frame->getData());
-        std::cout << "MagEncoder: index=" << frame->getIndex() << ", timestamp=" << data->timestampUs << " us" << ", angle=" << data->angleDegree << " deg, status=0x" << std::hex << static_cast<int>(data->status) << std::dec
+        std::cout << "MagEncoder: index=" << frame->getIndex() << ", fps=" << fps << ", timestamp=" << data->timestampUs << " us" << ", angle=" << data->angleDegree << " deg, status=0x" << std::hex << static_cast<int>(data->status) << std::dec
                   << " (bit0=overspeed, bit1=weak-field, bit2=undervoltage)" << std::endl;
     });
 
-    std::cout << "Magnetic angle encoder streaming started. Press ESC to exit." << std::endl;
+    std::cout << "Magnetic angle encoder pipeline streaming started. Press ESC to exit." << std::endl;
     while(ob_smpl::waitForKeyPressed(1) != ESC_KEY) {}
 
-    magEncoderSensor->stop();
+    pipe.stop();
     return 0;
 }
 catch(ob::Error &e) {

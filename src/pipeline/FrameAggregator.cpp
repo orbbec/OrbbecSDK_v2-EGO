@@ -26,6 +26,7 @@ const std::map<OBStreamType, OBFrameType> STREAM_FRAME_TYPE_MAP = {
     { OB_STREAM_ACCEL, OB_FRAME_ACCEL },
     { OB_STREAM_GYRO, OB_FRAME_GYRO },
     { OB_STREAM_MAG, OB_FRAME_MAG },
+    { OB_STREAM_MAG_ENCODER, OB_FRAME_MAG_ENCODER },
     { OB_STREAM_RAW_PHASE, OB_FRAME_RAW_PHASE },
     { OB_STREAM_CONFIDENCE, OB_FRAME_CONFIDENCE },
     { OB_STREAM_LIDAR, OB_FRAME_LIDAR_POINTS },
@@ -87,9 +88,23 @@ void FrameAggregator::updateConfig(std::shared_ptr<const Config> config, const b
             auto gyroStreamProfile = profile->as<const GyroStreamProfile>();
             fps                    = utils::mapIMUSampleRateToValue(gyroStreamProfile->getSampleRate());
         }
+        else if(profile->is<const MagStreamProfile>()) {
+            auto magStreamProfile = profile->as<const MagStreamProfile>();
+            fps                   = utils::mapIMUSampleRateToValue(magStreamProfile->getSampleRate());
+        }
+        else if(profile->is<const MagEncoderStreamProfile>()) {
+            auto magEncoderStreamProfile = profile->as<const MagEncoderStreamProfile>();
+            fps                          = utils::mapIMUSampleRateToValue(magEncoderStreamProfile->getSampleRate());
+        }
         else if(profile->is<const LiDARStreamProfile>()) {
             auto lidarStreamProfile = profile->as<const LiDARStreamProfile>();
             fps                     = utils::mapLiDARScanRateToValue(lidarStreamProfile->getScanRate());
+        }
+
+        // Unknown sample rates can be returned by older firmware. Keep the
+        // aggregator usable until the device reports a concrete profile.
+        if(fps <= 0) {
+            fps = 1.0f;
         }
 
         float maxSyncQueueSize = fps * maxFrameDelay_ + 1;
@@ -103,8 +118,13 @@ void FrameAggregator::updateConfig(std::shared_ptr<const Config> config, const b
         }
 
         auto halfTspGap = static_cast<uint32_t>(500.0f / fps + 0.5);  // +0.5 to complete rounding
+        auto frameTypeIt = STREAM_FRAME_TYPE_MAP.find(profile->getType());
+        if(frameTypeIt == STREAM_FRAME_TYPE_MAP.end()) {
+            LOG_WARN("Skip stream profile without a frame type mapping in frame aggregator");
+            continue;
+        }
         srcFrameQueueMap_.insert(
-            { STREAM_FRAME_TYPE_MAP.find(profile->getType())->second, { std::queue<std::shared_ptr<const Frame>>(), (uint32_t)maxSyncQueueSize, halfTspGap } });
+            { frameTypeIt->second, { std::queue<std::shared_ptr<const Frame>>(), (uint32_t)maxSyncQueueSize, halfTspGap } });
     }
 }
 

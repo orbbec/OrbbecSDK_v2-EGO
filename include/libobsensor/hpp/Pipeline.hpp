@@ -191,6 +191,15 @@ public:
     }
 
     /**
+     * @brief Enable magnetic encoder stream with the requested sample rate.
+     */
+    void enableMagEncoderStream(OBMagEncoderSampleRate sampleRate = OB_MAG_ENCODER_SAMPLE_RATE_ANY) const {
+        ob_error *error = nullptr;
+        ob_config_enable_mag_encoder_stream(impl_, sampleRate, &error);
+        Error::handle(&error);
+    }
+
+    /**
      * @brief Enable a LiDAR stream to be used in the pipeline.
      *
      * This function allows users to enable a LiDAR stream with customizable parameters.
