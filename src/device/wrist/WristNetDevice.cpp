@@ -26,6 +26,7 @@
 #include "component/fwlog/FirmwareLogManager.hpp"
 #include "component/custommetadata/CustomMetadataManager.hpp"
 #include "component/timezone/HostTimeInfoManager.hpp"
+#include "component/httpfileservice/HttpFileServiceManager.hpp"
 
 #include "FilterFactory.hpp"
 #include "publicfilters/IMUCorrector.hpp"
@@ -75,6 +76,15 @@ void WristNetDevice::init() {
     initProperties();
 
     fetchDeviceInfo();
+    {
+        auto propertyServer = getPropertyServer();
+        auto vendorPropertyAccessor = getComponentT<VendorPropertyAccessor>(OB_DEV_COMPONENT_MAIN_PROPERTY_ACCESSOR);
+        auto fwRecordingTextPropertyAccessor = std::make_shared<FwRecordingDirectoryManager>(this, vendorPropertyAccessor.get());
+        propertyServer->registerProperty(OB_STRUCT_FW_RECORDING_DIRECTORY, "rw", "rw", fwRecordingTextPropertyAccessor);
+        if(getFirmwareVersionInt() >= 10108) {  // Firmware 1.1.8 and newer
+            propertyServer->registerProperty(OB_STRUCT_FW_RECORDING_FILE_NAME, "rw", "rw", fwRecordingTextPropertyAccessor);
+        }
+    }
     fetchExtensionInfo();
 
     if(!inRecoveryMode_) {
@@ -89,6 +99,24 @@ void WristNetDevice::init() {
         auto deviceClockSynchronizer = std::make_shared<DeviceClockSynchronizer>(this, deviceTimeFreq_, deviceTimeFreq_);
         registerComponent(OB_DEV_COMPONENT_DEVICE_CLOCK_SYNCHRONIZER, deviceClockSynchronizer);
         registerComponent(OB_DEV_COMPONENT_FW_RECORD_PROFILE_MANAGER, [this]() { return std::make_shared<FwRecordProfileManager>(this); });
+
+        // SD-card HTTP file service (port 8080) — requires firmware >= 1.1.8
+        if(getFirmwareVersionInt() >= 10108) {
+            auto netPortInfo = std::dynamic_pointer_cast<const NetSourcePortInfo>(enumInfo_->getSourcePortInfoList().front());
+            if(netPortInfo) {
+                const auto deviceIp = netPortInfo->address;
+                registerComponent(OB_DEV_COMPONENT_HTTP_FILE_SERVICE_MANAGER, [this, deviceIp]() {
+                    return std::make_shared<HttpFileServiceManager>(this, deviceIp);
+                });
+            }
+            else {
+                LOG_WARN("WristNetDevice: HTTP file service unavailable — network port info is missing");
+            }
+        }
+        else {
+            LOG_DEBUG("WristNetDevice: HTTP file service not supported by this firmware (requires >= 1.1.8, got {})",
+                      deviceInfo_->fwVersion_);
+        }
     }
 
     // firmware updater
@@ -383,8 +411,6 @@ void WristNetDevice::initProperties() {
     propertyServer->registerProperty(OB_PROP_RECORDING_DESTINATION_INT, "rw", "rw", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_PROP_FW_RECORDING_FORMAT_INT, "rw", "rw", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_PROP_VIDEO_GOP_INT, "rw", "rw", vendorPropertyAccessor);
-    auto recordingDirectoryAccessor = std::make_shared<FwRecordingDirectoryManager>(this, vendorPropertyAccessor);
-    propertyServer->registerProperty(OB_STRUCT_FW_RECORDING_DIRECTORY, "rw", "rw", recordingDirectoryAccessor);
     propertyServer->registerProperty(OB_STRUCT_DEVICE_USER_NAME, "rw", "rw", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_STRUCT_BLUETOOTH_PAIRING_INFO, "r", "r", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_PROP_BLUETOOTH_CLEAR_PAIRING_INT, "w", "w", vendorPropertyAccessor);

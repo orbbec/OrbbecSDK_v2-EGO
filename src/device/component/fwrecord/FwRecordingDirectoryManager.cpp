@@ -35,11 +35,15 @@ FwRecordingDirectoryManager::FwRecordingDirectoryManager(IDevice *owner, std::sh
 }
 
 void FwRecordingDirectoryManager::setStructureData(uint32_t propertyId, const std::vector<uint8_t> &data) {
-    if(propertyId != OB_STRUCT_FW_RECORDING_DIRECTORY) {
+    if(propertyId == OB_STRUCT_FW_RECORDING_DIRECTORY) {
+        validateDirectory(data);
+    }
+    else if(propertyId == OB_STRUCT_FW_RECORDING_FILE_NAME) {
+        validateFileName(data);
+    }
+    else {
         THROW_INVALID_PARAM_EXCEPTION("Unsupported firmware recording directory property id");
     }
-
-    validateDirectory(data);
 
     auto propertyServer = getOwner()->getPropertyServer();
     if(propertyServer->getPropertyValueT<bool>(OB_PROP_FW_RECORDING_STATE_BOOL, PROP_ACCESS_INTERNAL)) {
@@ -50,12 +54,19 @@ void FwRecordingDirectoryManager::setStructureData(uint32_t propertyId, const st
 }
 
 std::vector<uint8_t> FwRecordingDirectoryManager::getStructureData(uint32_t propertyId) {
-    if(propertyId != OB_STRUCT_FW_RECORDING_DIRECTORY) {
+    if(propertyId != OB_STRUCT_FW_RECORDING_DIRECTORY && propertyId != OB_STRUCT_FW_RECORDING_FILE_NAME) {
         THROW_INVALID_PARAM_EXCEPTION("Unsupported firmware recording directory property id");
     }
 
     try {
-        return parseWirePayload(vendorPropertyAccessor_->getStructureData(propertyId));
+        auto text = parseWirePayload(vendorPropertyAccessor_->getStructureData(propertyId));
+        if(propertyId == OB_STRUCT_FW_RECORDING_DIRECTORY) {
+            validateDirectory(text);
+        }
+        else {
+            validateFileName(text);
+        }
+        return text;
     }
     catch(const libobsensor_exception &error) {
         // Some EGO firmware versions advertise this property but answer its
@@ -121,6 +132,32 @@ void FwRecordingDirectoryManager::validateDirectory(const std::vector<uint8_t> &
             break;
         }
         segmentBegin = segmentEnd + 1;
+    }
+}
+
+void FwRecordingDirectoryManager::validateFileName(const std::vector<uint8_t> &fileName) {
+    if(fileName.empty()) {
+        THROW_INVALID_PARAM_EXCEPTION("Invalid firmware recording file name: name must not be empty");
+    }
+    if(fileName.size() > kDirectoryMaxLength) {
+        THROW_INVALID_PARAM_EXCEPTION("Invalid firmware recording file name: name exceeds 480 bytes");
+    }
+    if(!isValidUtf8(fileName)) {
+        THROW_INVALID_PARAM_EXCEPTION("Invalid firmware recording file name: name must be valid UTF-8");
+    }
+    for(size_t index = 0; index < fileName.size(); ++index) {
+        const auto value = fileName[index];
+        if(value == 0 || value < 0x20 || value == 0x7F || value == '/' || value == '\\') {
+            THROW_INVALID_PARAM_EXCEPTION("Invalid firmware recording file name: path separator or control character is not allowed");
+        }
+        if(value == 0xC2 && index + 1 < fileName.size() && fileName[index + 1] >= 0x80 && fileName[index + 1] <= 0x9F) {
+            THROW_INVALID_PARAM_EXCEPTION("Invalid firmware recording file name: control character is not allowed");
+        }
+    }
+
+    const std::string name(reinterpret_cast<const char *>(fileName.data()), fileName.size());
+    if(name == "." || name == "..") {
+        THROW_INVALID_PARAM_EXCEPTION("Invalid firmware recording file name: '.' and '..' are not allowed");
     }
 }
 
@@ -195,9 +232,7 @@ std::vector<uint8_t> FwRecordingDirectoryManager::parseWirePayload(const std::ve
         THROW_INVALID_DATA_EXCEPTION("Firmware recording directory response is incomplete");
     }
 
-    std::vector<uint8_t> directory(payload.begin() + kWireHeaderSize, payload.begin() + kWireHeaderSize + pathLength);
-    validateDirectory(directory);
-    return directory;
+    return std::vector<uint8_t>(payload.begin() + kWireHeaderSize, payload.begin() + kWireHeaderSize + pathLength);
 }
 
 }  // namespace libobsensor

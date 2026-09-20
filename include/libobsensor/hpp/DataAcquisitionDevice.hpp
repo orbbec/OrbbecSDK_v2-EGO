@@ -112,6 +112,94 @@ public:
         Error::handle(&error);
     }
 
+    // ── SD-card file service ───────────────────────────────────────────────
+
+    /**
+     * @brief Query whether a path exists on the device SD card.
+     *
+     * If the path does not exist the returned info.exists is false and no
+     * exception is thrown.  An exception is thrown only on communication
+     * failures or an invalid path format.
+     *
+     * @param[in] path SD-card-relative path, e.g. "EGO_E0G677200V6_20260915_164720".
+     * @return File/directory metadata.
+     */
+    ob_device_sdcard_file_info getSdcardFileInfo(const std::string &path) const {
+        ob_device_sdcard_file_info info{};
+        ob_error                  *error = nullptr;
+        ob_device_get_sdcard_file_info(impl_, path.c_str(), &info, &error);
+        Error::handle(&error);
+        return info;
+    }
+
+    /**
+     * @brief List the contents of a directory on the device SD card.
+     *
+     * @param[in] path      SD-card-relative path; empty string for the root.
+     * @param[in] recursive Non-zero to recurse into sub-directories.
+     * @return List of entries; firmware caps the result at 5000 entries.
+     */
+    std::vector<ob_device_sdcard_file_entry> getSdcardFileList(const std::string &path, bool recursive = false) const {
+        ob_error   *error   = nullptr;
+        uint32_t    count   = 0;
+        const char *pathArg = path.empty() ? nullptr : path.c_str();
+        ob_device_get_sdcard_file_list(impl_, pathArg, recursive ? 1 : 0, nullptr, &count, &error);
+        Error::handle(&error);
+
+        std::vector<ob_device_sdcard_file_entry> entries(count);
+        if(count > 0) {
+            ob_device_get_sdcard_file_list(impl_, pathArg, recursive ? 1 : 0, entries.data(), &count, &error);
+            Error::handle(&error);
+            entries.resize(count);
+        }
+        return entries;
+    }
+
+    /**
+     * @brief Download a file or directory from the device SD card.
+     *
+     * @param[in] devicePath      SD-card-relative path.
+     * @param[in] destinationType OB_SDCARD_DOWNLOAD_TO_LOCAL or OB_SDCARD_DOWNLOAD_TO_URL.
+     * @param[in] destination     Local file path (TO_LOCAL) or remote HTTP URL (TO_URL).
+     * @param[in] callback        Optional progress callback; may be nullptr.
+     * @param[in] userData        Passed as-is to the callback; may be nullptr.
+     */
+    void downloadSdcardFile(const std::string &devicePath, ob_sdcard_download_destination destinationType,
+                            const std::string &destination,
+                            ob_device_sdcard_download_progress_callback callback = nullptr,
+                            void *userData = nullptr, bool async = false) const {
+        ob_error *error = nullptr;
+        ob_device_download_sdcard_file(impl_, devicePath.c_str(), destinationType, destination.c_str(),
+                                       callback, userData, async, &error);
+        Error::handle(&error);
+    }
+
+    /**
+     * @brief Delete a file or directory from the device SD card.
+     *
+     * @param[in] path SD-card-relative path to delete.
+     */
+    void deleteSdcardFile(const std::string &path) const {
+        ob_error *error = nullptr;
+        ob_device_delete_sdcard_file(impl_, path.c_str(), &error);
+        Error::handle(&error);
+    }
+
+    /**
+     * @brief Cancel the active SD-card file-service operation.
+     *
+     * Safe to call from any thread. The blocked downloadSdcardFile() (or
+     * other SD-card call) will throw an ob::Error with message
+     * "operation cancelled". Has no effect when no operation is running.
+     */
+    void cancelSdcardFileOperation() const noexcept {
+        ob_error *error = nullptr;
+        ob_device_cancel_sdcard_file_operation(impl_, &error);
+        Error::handle(&error, false);  // false = do not rethrow; best-effort cancel
+    }
+
+    // ── end SD-card file service ───────────────────────────────────────────
+
     /**
      * @brief Set the EGO speaker playback volume in dB.
      *
@@ -143,6 +231,29 @@ public:
         std::array<uint8_t, OB_PATH_MAX> buffer{};
         uint32_t                          dataSize = 0;
         getStructuredData(OB_STRUCT_FW_RECORDING_DIRECTORY, buffer.data(), &dataSize);
+        return std::string(reinterpret_cast<const char *>(buffer.data()), dataSize);
+    }
+
+    /**
+     * @brief Set the file name used for firmware SD-card recordings.
+     *
+     * @param[in] fileName UTF-8 file name.
+     * @throw ob::Error if the file name is invalid, firmware recording is active, or the device rejects the setting.
+     */
+    void setFwRecordingFileName(const std::string &fileName) const {
+        setStructuredData(OB_STRUCT_FW_RECORDING_FILE_NAME, reinterpret_cast<const uint8_t *>(fileName.data()),
+                          static_cast<uint32_t>(fileName.size()));
+    }
+
+    /**
+     * @brief Get the file name currently used for firmware SD-card recordings.
+     *
+     * @return UTF-8 file name.
+     */
+    std::string getFwRecordingFileName() const {
+        std::array<uint8_t, OB_PATH_MAX> buffer{};
+        uint32_t                          dataSize = 0;
+        getStructuredData(OB_STRUCT_FW_RECORDING_FILE_NAME, buffer.data(), &dataSize);
         return std::string(reinterpret_cast<const char *>(buffer.data()), dataSize);
     }
 

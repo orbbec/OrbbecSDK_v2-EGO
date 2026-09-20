@@ -270,6 +270,111 @@ OB_EXPORT void ob_device_play_audio_file(ob_device *device, const char *file_pat
 /** @brief Stop the active EGO audio playback and close its output session. */
 OB_EXPORT void ob_device_stop_audio_playback(ob_device *device, ob_error **error);
 
+// ---- SD-card file service (EGO network device) --------------------------
+
+/**
+ * @brief Query whether a path exists on the device SD card.
+ *
+ * @details Sends GET /api/fs/stat to the device HTTP file service (port 8080).
+ *          The path is relative to /mnt/sdcard and must not be empty, contain "..";
+ *          start with "/", or contain special characters.
+ *
+ *          If the path does not exist on the device (firmware HTTP 404),
+ *          @p info.exists is set to false and @p error is NOT set.
+ *          @p error is set only for communication failures or an invalid path
+ *          format (firmware HTTP 400 / 500).
+ *
+ * @param[in]  device  The device object.
+ * @param[in]  path    SD-card-relative path, e.g. "EGO_E0G677200V6_20260915_164720".
+ * @param[out] info    Populated on success; info.exists=false when path not found.
+ * @param[out] error   Set if the request fails or the path format is invalid.
+ */
+OB_EXPORT void ob_device_get_sdcard_file_info(ob_device *device, const char *path, ob_device_sdcard_file_info *info, ob_error **error);
+
+/**
+ * @brief List the contents of a directory on the device SD card.
+ *
+ * @details Sends GET /api/fs/list to the device HTTP file service (port 8080).
+ *          Pass @p entries as NULL on the first call to obtain the required
+ *          buffer size via @p entry_count, then allocate and call again.
+ *          The firmware caps the result at 5000 entries; if the actual count
+ *          exceeds that limit the result is silently truncated by the firmware.
+ *
+ * @param[in]     device       The device object.
+ * @param[in]     path         SD-card-relative path; NULL or "" for root.
+ * @param[in]     recursive    Non-zero to recurse into sub-directories.
+ * @param[out]    entries      Caller-allocated buffer; may be NULL (count-only query).
+ * @param[in,out] entry_count  Capacity on input (ignored when entries is NULL);
+ *                             actual count on output.
+ * @param[out]    error        Set if the request fails.
+ */
+OB_EXPORT void ob_device_get_sdcard_file_list(ob_device *device, const char *path, int recursive, ob_device_sdcard_file_entry *entries,
+                                               uint32_t *entry_count, ob_error **error);
+
+/**
+ * @brief Download a file from the device SD card, or push it to a remote URL (non-blocking).
+ *
+ * @details This function returns immediately. Progress, completion, and errors are
+ *          reported exclusively through @p callback. Only one download/upload operation
+ *          may be active at a time; a second call while one is in progress sets an error.
+ *
+ *          OB_SDCARD_DOWNLOAD_TO_LOCAL:
+ *            SD card file -> @p destination (local file path on the host machine).
+ *            Supports HTTP Range resume when the local file already exists.
+ *            Only single files are supported. To download a directory, call
+ *            ob_device_get_sdcard_file_list() to enumerate files, then call
+ *            this function for each file individually.
+ *            @p percent in callback: 0~100.
+ *
+ *          OB_SDCARD_DOWNLOAD_TO_URL:
+ *            Device initiates HTTP PUT to @p destination (remote URL).
+ *            Only plain http:// is supported; https:// is not supported on the
+ *            device side. @p percent in callback: real-time percent from firmware.
+ *
+ * @param[in]  device           The device object.
+ * @param[in]  device_path      SD-card-relative path.
+ * @param[in]  destination_type OB_SDCARD_DOWNLOAD_TO_LOCAL or OB_SDCARD_DOWNLOAD_TO_URL.
+ * @param[in]  destination      Local file path (TO_LOCAL) or remote HTTP URL (TO_URL).
+ * @param[in]  callback         Optional progress callback; may be NULL.
+ * @param[in]  user_data        Passed as-is to @p callback; may be NULL.
+ * @param[in]  async            false = block until complete; true = return immediately, result via callback.
+ *                               Multiple concurrent async calls are allowed and operate independently.
+ * @param[out] error            Set if the operation cannot be started (invalid params, component unavailable).
+ *                               Runtime errors are reported through the callback when async=true.
+ */
+OB_EXPORT void ob_device_download_sdcard_file(ob_device *device, const char *device_path,
+                                               ob_sdcard_download_destination destination_type,
+                                               const char *destination,
+                                               ob_device_sdcard_download_progress_callback callback,
+                                               void *user_data, bool async, ob_error **error);
+
+/**
+ * @brief Delete a file or directory from the device SD card.
+ *
+ * @details Sends POST /api/fs/delete to the device HTTP file service (port 8080).
+ *          Directories are deleted recursively on the device side.
+ *
+ * @param[in]  device  The device object.
+ * @param[in]  path    SD-card-relative path to delete.
+ * @param[out] error   Set if the request fails or the path does not exist.
+ */
+OB_EXPORT void ob_device_delete_sdcard_file(ob_device *device, const char *path, ob_error **error);
+
+/**
+ * @brief Cancel the active SD-card file-service operation on this device.
+ *
+ * @details Signals the in-progress ob_device_download_sdcard_file() or any
+ *          other SD-card file service call (on another thread) to abort.
+ *          The blocked caller receives an error with message "operation cancelled".
+ *          Safe to call from any thread; no-op when no operation is running.
+ *
+ * @param[in]  device  The device object.
+ * @param[out] error   Set only on internal failure (component not available).
+ */
+OB_EXPORT void ob_device_cancel_sdcard_file_operation(ob_device *device, ob_error **error);
+
+// ---- end SD-card file service -------------------------------------------
+
 #ifdef __cplusplus
 }
 #endif

@@ -14,6 +14,7 @@
 namespace {
 
 const OBPropertyID kDirectoryPropertyId   = OB_STRUCT_FW_RECORDING_DIRECTORY;
+const OBPropertyID kFileNamePropertyId    = OB_STRUCT_FW_RECORDING_FILE_NAME;
 const OBPropertyID kDestinationPropertyId = OB_PROP_RECORDING_DESTINATION_INT;
 const OBPropertyID kActionPropertyId      = OB_PROP_RECORDING_ACTION_INT;
 constexpr bool     kVerifyDirectoryReadback = true;
@@ -145,6 +146,57 @@ void readCurrentDirectory(const std::shared_ptr<ob::DataAcquisitionDevice> &devi
     }
 }
 
+void setAndVerifyFileName(const std::shared_ptr<ob::DataAcquisitionDevice> &device, const std::string &fileName) {
+    if(!device->isPropertySupported(kFileNamePropertyId, OB_PERMISSION_WRITE)) {
+        std::cout << "Firmware recording file name property is not supported for writing (requires firmware >= 1.1.8)." << std::endl;
+        return;
+    }
+
+    try {
+        device->setFwRecordingFileName(fileName);
+        std::cout << "Firmware recording file name set to: " << fileName << std::endl;
+    }
+    catch(const ob::Error &error) {
+        std::cerr << "Failed to set firmware recording file name. ";
+        printError(error);
+        return;
+    }
+
+    if(!device->isPropertySupported(kFileNamePropertyId, OB_PERMISSION_READ)) {
+        std::cout << "Firmware recording file name readback is not supported." << std::endl;
+        return;
+    }
+
+    try {
+        const auto actual = device->getFwRecordingFileName();
+        if(actual == fileName) {
+            std::cout << "File name readback matches." << std::endl;
+        }
+        else {
+            std::cerr << "File name readback mismatch\n  expected: " << fileName << "\n  actual:   " << actual << std::endl;
+        }
+    }
+    catch(const ob::Error &error) {
+        std::cerr << "Failed to read back firmware recording file name. ";
+        printError(error);
+    }
+}
+
+void readCurrentFileName(const std::shared_ptr<ob::DataAcquisitionDevice> &device) {
+    if(!device->isPropertySupported(kFileNamePropertyId, OB_PERMISSION_READ)) {
+        std::cout << "Firmware recording file name property is not supported for reading (requires firmware >= 1.1.8)." << std::endl;
+        return;
+    }
+
+    try {
+        std::cout << "Current firmware recording file name: " << device->getFwRecordingFileName() << std::endl;
+    }
+    catch(const ob::Error &error) {
+        std::cerr << "Failed to read firmware recording file name. ";
+        printError(error);
+    }
+}
+
 void setRecordingDestination(const std::shared_ptr<ob::DataAcquisitionDevice> &device, OBRecordingDestination destination) {
     if(!device->isPropertySupported(kDestinationPropertyId, OB_PERMISSION_WRITE)) {
         std::cout << "Recording destination property is not supported for writing." << std::endl;
@@ -259,6 +311,8 @@ Firmware SD-card recording directory test
   S  Valid leading/trailing slash: /leading_and_trailing/session_001/ (readback: leading_and_trailing/session_001)
   M  Expect rejection while firmware recording is active (start recording on the device first)
   R  Read current configured directory
+  N  Set firmware recording file name: ego_recording_test
+  K  Read current firmware recording file name
   T  Run all format tests (1-9, A-I, S; firmware recording must be stopped; changes configured directory)
   0  Set recording destination: SD card
   P  Set recording destination: host computer (action controls device voice prompts)
@@ -403,6 +457,14 @@ int main() try {
         case 'r':
         case 'R':
             readCurrentDirectory(device);
+            break;
+        case 'n':
+        case 'N':
+            setAndVerifyFileName(device, "ego_recording_test");
+            break;
+        case 'k':
+        case 'K':
+            readCurrentFileName(device);
             break;
         case 't':
         case 'T':

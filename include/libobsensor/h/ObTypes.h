@@ -2753,6 +2753,68 @@ typedef uint64_t OBCallbackId, ob_callback_id;
  */
 #define OB_DEFAULT_DECRYPT_KEY (nullptr)
 
+// ---- SD-card file service (EGO network device) --------------------------
+
+/**
+ * @brief State of an SD-card file download/transfer operation.
+ */
+typedef enum {
+    OB_SDCARD_DOWNLOAD_TRANSFERRING          = 0, /**< Transfer in progress. */
+    OB_SDCARD_DOWNLOAD_DONE                  = 1, /**< Transfer completed successfully. */
+    OB_SDCARD_DOWNLOAD_FAILED                = 2, /**< Transfer failed (unclassified). */
+    OB_SDCARD_DOWNLOAD_CANCELLED             = 3, /**< Transfer was cancelled by the caller. */
+    OB_SDCARD_DOWNLOAD_FAILED_NOT_FOUND      = 4, /**< Path not found on the SD card (HTTP 404). */
+    OB_SDCARD_DOWNLOAD_FAILED_TIMEOUT        = 5, /**< Network timeout or stalled transfer. */
+    OB_SDCARD_DOWNLOAD_FAILED_NETWORK        = 6, /**< Network / connection error. */
+    OB_SDCARD_DOWNLOAD_FAILED_SERVER         = 7, /**< Remote server rejected the upload (non-2xx). */
+    OB_SDCARD_DOWNLOAD_FAILED_BUSY           = 8, /**< Device upload task slots full (HTTP 503); retry later. */
+    OB_SDCARD_DOWNLOAD_FAILED_CAMERA_STREAMING = 9, /**< Camera is streaming; file service blocked (HTTP 409). Wait for streaming to stop. */
+} OBSdcardDownloadState,
+    ob_sdcard_download_state;
+
+/**
+ * @brief Destination type for ob_device_download_sdcard_file().
+ */
+typedef enum {
+    OB_SDCARD_DOWNLOAD_TO_LOCAL = 0, /**< Download to a local file on the host machine. */
+    OB_SDCARD_DOWNLOAD_TO_URL   = 1, /**< Device pushes to a remote HTTP URL. */
+} OBSdcardDownloadDestination,
+    ob_sdcard_download_destination;
+
+/**
+ * @brief Result of ob_device_get_sdcard_file_info().
+ */
+typedef struct {
+    bool     exists; /**< Whether the path exists on the SD card. */
+    bool     isDir;  /**< Whether the path is a directory. */
+    uint64_t size;   /**< File size in bytes; 0 for directories. */
+} OBDeviceSdcardFileInfo,
+    ob_device_sdcard_file_info;
+
+/**
+ * @brief One entry returned by ob_device_get_sdcard_file_list().
+ */
+typedef struct {
+    char     name[512]; /**< Entry name (not a full path unless recursive). Null-terminated UTF-8. */
+    bool     isDir;     /**< Whether the entry is a directory. */
+    uint64_t size;      /**< File size in bytes; 0 for directories. */
+} OBDeviceSdcardFileEntry,
+    ob_device_sdcard_file_entry;
+
+/**
+ * @brief Progress callback for ob_device_download_sdcard_file().
+ *
+ * @param[in] state     Current transfer state.
+ * @param[in] file_name Name of the file or directory being transferred.
+ * @param[in] percent   Transfer progress 0~100; -1 when unknown
+ *                      (directory .tar stream or TO_URL — no incremental
+ *                       progress is available from the device firmware).
+ * @param[in] user_data Caller context passed to ob_device_download_sdcard_file().
+ */
+typedef void (*ob_device_sdcard_download_progress_callback)(ob_sdcard_download_state state, const char *file_name, int percent, const char *md5_base64, void *user_data);
+
+// ---- end SD-card file service -------------------------------------------
+
 #ifdef __cplusplus
 }
 #endif

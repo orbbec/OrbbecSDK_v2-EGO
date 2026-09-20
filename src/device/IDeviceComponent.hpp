@@ -138,7 +138,8 @@ private:
     X(OB_DEV_COMPONENT_NETWORK_AUDIO_PLAYER, "network audio player")                                 \
     X(OB_DEV_COMPONENT_USB_AUDIO_PLAYER, "usb audio player")                                         \
     X(OB_DEV_COMPONENT_MAG_ENCODER_STREAMER, "mag encoder streamer")                                 \
-    X(OB_DEV_COMPONENT_MAG_ENCODER_SENSOR, "mag encoder sensor")
+    X(OB_DEV_COMPONENT_MAG_ENCODER_SENSOR, "mag encoder sensor")                                     \
+    X(OB_DEV_COMPONENT_HTTP_FILE_SERVICE_MANAGER, "http file service manager")
 
 // generate enum
 typedef enum {

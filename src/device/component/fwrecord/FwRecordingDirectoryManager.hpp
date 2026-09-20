@@ -24,6 +24,7 @@ public:
 
 private:
     static void                 validateDirectory(const std::vector<uint8_t> &directory);
+    static void                 validateFileName(const std::vector<uint8_t> &fileName);
     static bool                 isValidUtf8(const std::vector<uint8_t> &data);
     static std::vector<uint8_t> buildWirePayload(const std::vector<uint8_t> &directory);
     static std::vector<uint8_t> parseWirePayload(const std::vector<uint8_t> &payload);

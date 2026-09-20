@@ -1,0 +1,823 @@
+<title>SD 卡文件服务 — Ego C++ SDK</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<style>
+:root {
+  --bg: #fafbfc;
+  --bg-nav: #ffffff;
+  --bg-code: #f3f4f6;
+  --bg-callout-info: #eff6ff;
+  --bg-callout-warn: #fffbeb;
+  --bg-callout-tip: #f0fdf4;
+  --bg-table-head: #eff6ff;
+  --text: #1f2937;
+  --text-muted: #6b7280;
+  --text-nav: #374151;
+  --accent: #1d4ed8;
+  --accent-light: #3b82f6;
+  --border: #e5e7eb;
+  --border-callout-info: #bfdbfe;
+  --border-callout-warn: #fde68a;
+  --border-callout-tip: #bbf7d0;
+  --code-text: #1e3a5f;
+  --badge-bg: #dbeafe;
+  --badge-text: #1d4ed8;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f172a;
+    --bg-nav: #1e293b;
+    --bg-code: #1e293b;
+    --bg-callout-info: #1e3a5f;
+    --bg-callout-warn: #1c1a08;
+    --bg-callout-tip: #052e16;
+    --bg-table-head: #1e3a5f;
+    --text: #e2e8f0;
+    --text-muted: #94a3b8;
+    --text-nav: #cbd5e1;
+    --accent: #60a5fa;
+    --accent-light: #93c5fd;
+    --border: #334155;
+    --border-callout-info: #1d4ed8;
+    --border-callout-warn: #92400e;
+    --border-callout-tip: #166534;
+    --code-text: #93c5fd;
+    --badge-bg: #1e3a5f;
+    --badge-text: #93c5fd;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f172a; --bg-nav: #1e293b; --bg-code: #1e293b;
+  --bg-callout-info: #1e3a5f; --bg-callout-warn: #1c1a08; --bg-callout-tip: #052e16;
+  --bg-table-head: #1e3a5f; --text: #e2e8f0; --text-muted: #94a3b8;
+  --text-nav: #cbd5e1; --accent: #60a5fa; --accent-light: #93c5fd;
+  --border: #334155; --border-callout-info: #1d4ed8; --border-callout-warn: #92400e;
+  --border-callout-tip: #166534; --code-text: #93c5fd; --badge-bg: #1e3a5f; --badge-text: #93c5fd;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  font-family: 'Inter', 'Noto Sans SC', system-ui, sans-serif;
+  font-size: 15px; line-height: 1.7;
+  background: var(--bg); color: var(--text);
+}
+.layout { display: flex; min-height: 100vh; }
+
+/* Sidebar */
+.sidebar {
+  width: 264px; flex-shrink: 0;
+  background: var(--bg-nav);
+  border-right: 1px solid var(--border);
+  position: sticky; top: 0; height: 100vh;
+  overflow-y: auto;
+  padding: 24px 0 40px;
+}
+.sidebar-brand {
+  padding: 0 20px 20px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+.sidebar-brand .chapter-badge {
+  display: inline-block;
+  background: var(--badge-bg); color: var(--badge-text);
+  font-size: 11px; font-weight: 600; letter-spacing: .04em;
+  padding: 2px 8px; border-radius: 20px; margin-bottom: 6px;
+  text-transform: uppercase;
+}
+.sidebar-brand h2 {
+  font-size: 14px; font-weight: 700; line-height: 1.4;
+  color: var(--text);
+}
+.sidebar-brand p {
+  font-size: 12px; color: var(--text-muted); margin-top: 4px;
+}
+.nav-section { padding: 4px 12px; }
+.nav-section-title {
+  font-size: 11px; font-weight: 600; letter-spacing: .06em;
+  text-transform: uppercase; color: var(--text-muted);
+  padding: 8px 8px 4px;
+}
+.nav-item {
+  display: block; padding: 6px 10px;
+  font-size: 13px; color: var(--text-nav);
+  border-radius: 6px; text-decoration: none;
+  transition: background .15s, color .15s;
+}
+.nav-item:hover { background: var(--bg-code); color: var(--accent); }
+.nav-item.active { background: var(--badge-bg); color: var(--accent); font-weight: 500; }
+.nav-sub { padding-left: 14px; }
+.nav-sub .nav-item { font-size: 12.5px; }
+
+/* Theme toggle */
+.theme-btn {
+  display: flex; align-items: center; gap: 6px;
+  margin: 16px 20px 0;
+  padding: 7px 12px; border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-code); color: var(--text-muted);
+  font-size: 12px; cursor: pointer;
+  transition: all .15s;
+}
+.theme-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+/* Main content */
+.main {
+  flex: 1; min-width: 0;
+  padding: 48px 48px 80px;
+  max-width: 900px;
+}
+.chapter-header {
+  padding-bottom: 24px;
+  border-bottom: 2px solid var(--border);
+  margin-bottom: 36px;
+}
+.chapter-header .ch-num {
+  font-size: 13px; font-weight: 600; color: var(--accent);
+  letter-spacing: .05em; margin-bottom: 8px;
+}
+.chapter-header h1 {
+  font-size: 28px; font-weight: 700; line-height: 1.25;
+  color: var(--text);
+}
+.chapter-header .subtitle {
+  margin-top: 10px; font-size: 15px; color: var(--text-muted);
+}
+.prereq-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px; margin: 20px 0;
+}
+.prereq-card {
+  background: var(--bg-code); border: 1px solid var(--border);
+  border-radius: 10px; padding: 14px 16px;
+}
+.prereq-card .label {
+  font-size: 11px; font-weight: 600; color: var(--text-muted);
+  text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px;
+}
+.prereq-card .value { font-size: 14px; font-weight: 600; color: var(--text); }
+
+h2 {
+  font-size: 20px; font-weight: 700; margin: 40px 0 16px;
+  padding-bottom: 8px; border-bottom: 1px solid var(--border);
+  color: var(--text); scroll-margin-top: 20px;
+}
+h3 { font-size: 16px; font-weight: 600; margin: 28px 0 12px; color: var(--text); }
+h4 { font-size: 14px; font-weight: 600; margin: 20px 0 8px; color: var(--text-muted); }
+p { margin: 10px 0; }
+ul, ol { padding-left: 22px; margin: 10px 0; }
+li { margin: 4px 0; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* Code */
+pre {
+  background: var(--bg-code); border: 1px solid var(--border);
+  border-radius: 10px; padding: 18px 20px;
+  overflow-x: auto; margin: 14px 0;
+  font-size: 13px; line-height: 1.65;
+}
+code {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-size: .9em;
+}
+p code, li code, td code {
+  background: var(--bg-code); border: 1px solid var(--border);
+  border-radius: 4px; padding: 1px 5px;
+  font-size: .875em; color: var(--code-text);
+}
+
+/* Highlight.js overrides for dark/light */
+.hljs { background: transparent !important; }
+
+/* Tables */
+.table-wrap { overflow-x: auto; margin: 14px 0; }
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+th {
+  background: var(--bg-table-head); color: var(--accent);
+  font-weight: 600; font-size: 12px; text-transform: uppercase;
+  letter-spacing: .04em; padding: 10px 14px; text-align: left;
+  border-bottom: 2px solid var(--border);
+}
+td { padding: 9px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: var(--bg-code); }
+
+/* State table special */
+.state-badge {
+  display: inline-block; padding: 2px 8px; border-radius: 12px;
+  font-size: 11px; font-weight: 600; white-space: nowrap;
+}
+.state-ok    { background: #d1fae5; color: #065f46; }
+.state-prog  { background: #dbeafe; color: #1e40af; }
+.state-fail  { background: #fee2e2; color: #991b1b; }
+.state-cancel{ background: #f3f4f6; color: #374151; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .state-ok    { background: #064e3b; color: #6ee7b7; }
+  :root:not([data-theme="light"]) .state-prog  { background: #1e3a5f; color: #93c5fd; }
+  :root:not([data-theme="light"]) .state-fail  { background: #7f1d1d; color: #fca5a5; }
+  :root:not([data-theme="light"]) .state-cancel{ background: #1e293b; color: #94a3b8; }
+}
+:root[data-theme="dark"] .state-ok    { background: #064e3b; color: #6ee7b7; }
+:root[data-theme="dark"] .state-prog  { background: #1e3a5f; color: #93c5fd; }
+:root[data-theme="dark"] .state-fail  { background: #7f1d1d; color: #fca5a5; }
+:root[data-theme="dark"] .state-cancel{ background: #1e293b; color: #94a3b8; }
+
+/* Callouts */
+.callout {
+  border-left: 4px solid; border-radius: 0 8px 8px 0;
+  padding: 12px 16px; margin: 16px 0;
+}
+.callout-info  { background: var(--bg-callout-info);  border-color: var(--border-callout-info); }
+.callout-warn  { background: var(--bg-callout-warn);  border-color: var(--border-callout-warn); }
+.callout-tip   { background: var(--bg-callout-tip);   border-color: var(--border-callout-tip); }
+.callout .callout-title {
+  font-size: 12px; font-weight: 700; letter-spacing: .04em;
+  text-transform: uppercase; margin-bottom: 4px;
+}
+.callout-info .callout-title  { color: var(--accent); }
+.callout-warn .callout-title  { color: #92400e; }
+.callout-tip  .callout-title  { color: #166534; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .callout-warn .callout-title { color: #fbbf24; }
+  :root:not([data-theme="light"]) .callout-tip  .callout-title { color: #4ade80; }
+}
+:root[data-theme="dark"] .callout-warn .callout-title { color: #fbbf24; }
+:root[data-theme="dark"] .callout-tip  .callout-title { color: #4ade80; }
+
+/* API signature table */
+.api-sig { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--code-text); }
+.section-divider { border: none; border-top: 1px solid var(--border); margin: 36px 0; }
+
+/* Responsive */
+@media (max-width: 860px) {
+  .sidebar { display: none; }
+  .main { padding: 24px 20px 60px; }
+  .prereq-grid { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 480px) {
+  .prereq-grid { grid-template-columns: 1fr; }
+  h1 { font-size: 22px; }
+}
+</style>
+
+<div class="layout">
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="sidebar-brand">
+      <div class="chapter-badge">第 20 章</div>
+      <h2>SD 卡文件服务</h2>
+      <p>Ego C++ SDK 接入指南</p>
+    </div>
+    <div class="nav-section">
+      <div class="nav-section-title">本章目录</div>
+      <a class="nav-item" href="#s201">20.1 概述与前提</a>
+      <a class="nav-item" href="#s202">20.2 查询文件信息</a>
+      <a class="nav-item" href="#s203">20.3 列出目录内容</a>
+      <a class="nav-item" href="#s204">20.4 下载到本机</a>
+      <div class="nav-sub">
+        <a class="nav-item" href="#s204-1">进度回调定义</a>
+        <a class="nav-item" href="#s204-2">同步 / 异步下载</a>
+        <a class="nav-item" href="#s204-3">断点续传</a>
+        <a class="nav-item" href="#s204-4">下载整个目录</a>
+      </div>
+      <a class="nav-item" href="#s205">20.5 推送到云存储 URL</a>
+      <a class="nav-item" href="#s206">20.6 回调状态一览</a>
+      <a class="nav-item" href="#s207">20.7 取消操作</a>
+      <a class="nav-item" href="#s208">20.8 删除文件或目录</a>
+      <a class="nav-item" href="#s209">20.9 API 速查表</a>
+      <a class="nav-item" href="#s210">20.10 注意事项</a>
+    </div>
+    <button class="theme-btn" onclick="toggleTheme()" id="themeBtn">
+      <span id="themeIcon">🌙</span> <span id="themeLabel">深色模式</span>
+    </button>
+  </nav>
+
+  <!-- Main -->
+  <main class="main">
+    <div class="chapter-header">
+      <div class="ch-num">CHAPTER 20</div>
+      <h1>SD 卡文件服务</h1>
+      <p class="subtitle">通过 SDK 管理 Ego 设备 SD 卡上的文件：查询、列目录、下载到本机、推送到云端、删除。</p>
+    </div>
+
+    <!-- 20.1 -->
+    <h2 id="s201">20.1 功能概述与适用场景</h2>
+    <p>SD 卡文件服务让上位机可以通过 SDK 直接访问 Ego 设备 SD 卡，支持以下操作：</p>
+    <ul>
+      <li><strong>查询</strong> — 判断某路径是否存在，获取文件大小和类型</li>
+      <li><strong>列目录</strong> — 获取目录内容（可递归）</li>
+      <li><strong>下载到本机</strong> — SD 卡 → SDK → 本机磁盘；自动断点续传；大文件（≥ 50 MB）自动 8 路并行加速</li>
+      <li><strong>推送到云存储 URL</strong> — SD 卡 → 固件 HTTP Client → 腾讯云 COS / 阿里云 OSS 等</li>
+      <li><strong>删除</strong> — 删除文件或目录（目录递归删除）</li>
+    </ul>
+
+    <h3>前提条件</h3>
+    <div class="prereq-grid">
+      <div class="prereq-card">
+        <div class="label">连接方式</div>
+        <div class="value">WiFi 网络（必须）</div>
+      </div>
+      <div class="prereq-card">
+        <div class="label">固件版本</div>
+        <div class="value">≥ 1.1.8</div>
+      </div>
+      <div class="prereq-card">
+        <div class="label">通信端口</div>
+        <div class="value">8080（HTTP）</div>
+      </div>
+      <div class="prereq-card">
+        <div class="label">支持设备</div>
+        <div class="value">Ego / EgoPro / Wrist</div>
+      </div>
+    </div>
+
+    <div class="callout callout-warn">
+      <div class="callout-title">⚠ USB 模式不支持</div>
+      USB 连接时此功能不可用。固件版本不足时调用会抛出"不支持操作"异常，应在 UI 层隐藏相关入口。
+    </div>
+
+    <h3>获取 DataAcquisitionDevice</h3>
+    <pre><code class="language-cpp">#include &lt;libobsensor/ObSensor.hpp&gt;
+using namespace ob;
+
+ob::Context ctx;
+auto rawDevice = ctx.createNetDevice("10.9.191.33", 8090);   // 网络连接，端口 8090
+auto device    = DataAcquisitionDevice::fromDevice(rawDevice); // 转为 Ego 扩展类型</code></pre>
+
+    <hr class="section-divider">
+
+    <!-- 20.2 -->
+    <h2 id="s202">20.2 查询文件或目录信息：<code>getSdcardFileInfo</code></h2>
+    <p>在下载前确认路径是否存在，或获取文件大小：</p>
+    <pre><code class="language-cpp">try {
+    ob_device_sdcard_file_info info = device-&gt;getSdcardFileInfo(
+        "EGO_001_20260920_161901");   // SD 卡相对路径
+
+    if (!info.exists) {
+        std::cout &lt;&lt; "路径不存在" &lt;&lt; std::endl;
+    } else if (info.isDir) {
+        std::cout &lt;&lt; "这是一个目录" &lt;&lt; std::endl;
+    } else {
+        std::cout &lt;&lt; "文件大小: " &lt;&lt; info.size &lt;&lt; " 字节" &lt;&lt; std::endl;
+    }
+} catch (const ob::Error &amp;e) {
+    // 仅网络通信失败或路径格式非法（如含 ".."）时抛出
+    std::cerr &lt;&lt; "查询失败: " &lt;&lt; e.what() &lt;&lt; std::endl;
+}</code></pre>
+
+    <div class="callout callout-info">
+      <div class="callout-title">ℹ 路径不存在不抛异常</div>
+      路径不存在时 <code>info.exists = false</code>，<strong>不会抛出异常</strong>。只有通信失败或路径格式非法时才抛出 <code>ob::Error</code>。
+    </div>
+
+    <h3><code>ob_device_sdcard_file_info</code> 字段</h3>
+    <div class="table-wrap">
+    <table>
+      <tr><th>字段</th><th>类型</th><th>说明</th></tr>
+      <tr><td><code>exists</code></td><td><code>bool</code></td><td>路径是否存在</td></tr>
+      <tr><td><code>isDir</code></td><td><code>bool</code></td><td>是否为目录（<code>exists=true</code> 时有效）</td></tr>
+      <tr><td><code>size</code></td><td><code>uint64_t</code></td><td>文件字节数（仅文件；目录为 0）</td></tr>
+    </table>
+    </div>
+
+    <hr class="section-divider">
+
+    <!-- 20.3 -->
+    <h2 id="s203">20.3 列出目录内容：<code>getSdcardFileList</code></h2>
+    <pre><code class="language-cpp">// 列出 SD 卡根目录（非递归）
+auto entries = device-&gt;getSdcardFileList("", false);
+
+for (const auto &amp;e : entries) {
+    printf("  %s  %-48s", e.isDir ? "[DIR] " : "[FILE]", e.name);
+    if (!e.isDir) printf("  %llu B", (unsigned long long)e.size);
+    printf("\n");
+}
+
+// 递归列出某个录制目录的全部文件
+auto allFiles = device-&gt;getSdcardFileList("EGO_001_20260920_161901", true);</code></pre>
+
+    <div class="table-wrap">
+    <table>
+      <tr><th>参数</th><th>说明</th></tr>
+      <tr><td><code>path</code></td><td>SD 卡路径；传 <code>""</code> 表示根目录</td></tr>
+      <tr><td><code>recursive</code></td><td><code>false</code> = 仅当前层；<code>true</code> = 递归子目录；固件最多返回 <strong>5000 条</strong></td></tr>
+    </table>
+    </div>
+
+    <h3><code>ob_device_sdcard_file_entry</code> 每条记录字段</h3>
+    <div class="table-wrap">
+    <table>
+      <tr><th>字段</th><th>类型</th><th>说明</th></tr>
+      <tr><td><code>name</code></td><td><code>char[512]</code></td><td>文件/目录名；递归模式下含相对路径</td></tr>
+      <tr><td><code>isDir</code></td><td><code>bool</code></td><td>是否为目录</td></tr>
+      <tr><td><code>size</code></td><td><code>uint64_t</code></td><td>文件字节数（目录为 0）</td></tr>
+    </table>
+    </div>
+
+    <hr class="section-divider">
+
+    <!-- 20.4 -->
+    <h2 id="s204">20.4 下载文件到本机：<code>TO_LOCAL</code> 模式</h2>
+
+    <h3 id="s204-1">20.4.1 进度回调定义</h3>
+    <p>进度回调是一个 C 函数指针（<strong>不能使用带捕获的 lambda</strong>）。建议定义为静态函数：</p>
+    <pre><code class="language-cpp">static void onDownloadProgress(ob_sdcard_download_state state,
+                               const char *fileName,
+                               int          percent,
+                               const char  *md5_base64,  // 仅 DONE 时非空
+                               void        *userData) {
+    switch (state) {
+    case OB_SDCARD_DOWNLOAD_TRANSFERRING:
+        if (percent &gt;= 0)
+            printf("\r  [%s] %3d%%  ", fileName, percent);
+        else
+            printf("\r  [%s] 传输中...  ", fileName);
+        fflush(stdout);
+        break;
+    case OB_SDCARD_DOWNLOAD_DONE:
+        printf("\r  [%s] 完成", fileName);
+        if (md5_base64 &amp;&amp; *md5_base64)
+            printf("  MD5=%s", md5_base64);   // 可用于完整性校验
+        printf("          \n");
+        break;
+    case OB_SDCARD_DOWNLOAD_CANCELLED:
+        printf("\r  [%s] 已取消\n", fileName);          break;
+    case OB_SDCARD_DOWNLOAD_FAILED_NOT_FOUND:
+        printf("\r  [%s] 失败：路径不存在\n", fileName); break;
+    case OB_SDCARD_DOWNLOAD_FAILED_TIMEOUT:
+        printf("\r  [%s] 失败：超时\n", fileName);      break;
+    case OB_SDCARD_DOWNLOAD_FAILED_NETWORK:
+        printf("\r  [%s] 失败：网络错误\n", fileName);  break;
+    default:
+        printf("\r  [%s] 失败（state=%d）\n", fileName, (int)state);
+        break;
+    }
+}</code></pre>
+
+    <h3 id="s204-2">20.4.2 同步 / 异步下载</h3>
+    <pre><code class="language-cpp">// ── 同步（阻塞直到完成）──────────────────────────────────
+try {
+    device-&gt;downloadSdcardFile(
+        "EGO_001_20260920_161901/part0001.mcap",  // 设备端 SD 卡路径
+        OB_SDCARD_DOWNLOAD_TO_LOCAL,              // 下载到本机
+        "part0001.mcap",                          // 本地保存路径
+        onDownloadProgress,                       // 进度回调（传 nullptr 表示不需要）
+        nullptr,                                  // userData（原样透传给回调）
+        false                                     // async=false → 阻塞等待完成
+    );
+    std::cout &lt;&lt; "下载完成" &lt;&lt; std::endl;
+} catch (const ob::Error &amp;e) {
+    std::cerr &lt;&lt; "下载失败: " &lt;&lt; e.what() &lt;&lt; std::endl;
+}
+
+// ── 异步（立即返回）──────────────────────────────────────
+device-&gt;downloadSdcardFile(
+    "EGO_001_20260920_161901/part0001.mcap",
+    OB_SDCARD_DOWNLOAD_TO_LOCAL,
+    "part0001.mcap",
+    onDownloadProgress, nullptr,
+    true   // async=true → 立即返回，结果通过回调通知
+);
+// 主线程继续执行，调用 cancelSdcardFileOperation() 可随时取消</code></pre>
+
+    <h3 id="s204-3">20.4.3 断点续传</h3>
+    <p>本地已有部分文件时，SDK 自动从断点继续，<strong>无需任何额外参数</strong>：</p>
+    <pre><code class="language-cpp">// 首次下载中途中断后，再次用相同本地路径调用即自动续传
+device-&gt;downloadSdcardFile(
+    "EGO_001_20260920_161901/part0001.mcap",
+    OB_SDCARD_DOWNLOAD_TO_LOCAL,
+    "part0001.mcap",   // 本地已有同名文件 → SDK 自动从文件末尾继续
+    onDownloadProgress, nullptr, false
+);</code></pre>
+
+    <h3 id="s204-4">20.4.4 下载整个目录</h3>
+    <p>SDK 单次只支持单文件下载；下载整个目录时先枚举、再逐文件下载：</p>
+    <pre><code class="language-cpp">const std::string dirPath   = "EGO_001_20260920_161901";
+const std::string localBase = "./recordings/" + dirPath;
+
+// 1. 递归枚举目录内所有文件
+auto entries = device-&gt;getSdcardFileList(dirPath, true);
+
+int done = 0;
+for (const auto &amp;e : entries) {
+    if (e.isDir) continue;   // 跳过目录项，只处理文件
+
+    const std::string localPath = localBase + "/" + e.name;
+
+    // 2. 创建本地父目录（伪代码，需按平台实现）
+    // createDirs(parentDir(localPath));
+
+    printf("[%d/%zu] %s\n", ++done, entries.size(), e.name);
+    try {
+        // 3. 逐文件同步下载
+        device-&gt;downloadSdcardFile(
+            e.name,                       // 设备端文件路径（来自枚举结果）
+            OB_SDCARD_DOWNLOAD_TO_LOCAL,
+            localPath,
+            onDownloadProgress, nullptr, false
+        );
+    } catch (const ob::Error &amp;err) {
+        fprintf(stderr, "  跳过 %s: %s\n", e.name, err.what());
+    }
+}</code></pre>
+
+    <div class="callout callout-tip">
+      <div class="callout-title">⚡ 大文件自动加速</div>
+      文件 ≥ 50 MB 时，SDK 自动启用 <strong>8 路并行分块下载</strong>（HTTP Range 请求），明显提升 WiFi 吞吐效率，无需任何额外配置。
+    </div>
+
+    <hr class="section-divider">
+
+    <!-- 20.5 -->
+    <h2 id="s205">20.5 推送文件到云存储 URL：<code>TO_URL</code> 模式</h2>
+    <p>这种模式下，<strong>设备固件</strong>直接向指定 URL 发起 HTTP PUT 请求，把 SD 卡文件上传到云端。上位机（SDK）负责生成预签名 URL，不参与实际数据传输。</p>
+
+    <div class="callout callout-warn">
+      <div class="callout-title">⚠ 网络要求</div>
+      设备所在 WiFi 网络必须能访问公网。固件仅支持 <code>http://</code>，<strong>不支持 <code>https://</code></strong>。
+    </div>
+
+    <pre><code class="language-cpp">// 1. 在上位机生成预签名 PUT URL（以腾讯云 COS 为例）
+const std::string cosUrl = generateCosPresignedUrl(
+    secretId, secretKey, bucket, "EGO_001_20260920_161901/calibration.yaml");
+// URL 格式: http://bucket.cos.region.myqcloud.com/path?q-sign-algorithm=sha1&amp;...
+
+// 2. 让设备推送文件到该 URL（同步等待设备回报完成）
+try {
+    device-&gt;downloadSdcardFile(
+        "EGO_001_20260920_161901/calibration.yaml",  // 设备端路径
+        OB_SDCARD_DOWNLOAD_TO_URL,                   // 推送到 URL
+        cosUrl,                                       // 预签名 PUT URL
+        onDownloadProgress, nullptr,
+        false   // 同步等待固件完成
+    );
+} catch (const ob::Error &amp;e) {
+    std::cerr &lt;&lt; "推送失败: " &lt;&lt; e.what() &lt;&lt; std::endl;
+}</code></pre>
+
+    <h3>批量异步推送整个目录</h3>
+    <pre><code class="language-cpp">auto entries = device-&gt;getSdcardFileList("EGO_001_20260920_161901", true);
+
+for (const auto &amp;e : entries) {
+    if (e.isDir) continue;
+
+    // 每个文件单独生成预签名 URL（上位机负责，设备无需知道密钥）
+    const std::string url = generateCosPresignedUrl(secretId, secretKey, bucket, e.name);
+
+    // async=true → 全部异步启动，SDK 自动限流到最多 2 个并发
+    device-&gt;downloadSdcardFile(
+        e.name, OB_SDCARD_DOWNLOAD_TO_URL, url,
+        onDownloadProgress, nullptr, true
+    );
+}
+// SDK 内置信号量，超出 2 个并发的请求自动排队，调用方无需额外限流</code></pre>
+
+    <div class="callout callout-info">
+      <div class="callout-title">ℹ 并发限制说明</div>
+      固件最多同时处理 <strong>2 个</strong>上传任务。SDK 内置信号量，第 3 个及以上请求自动在 SDK 侧排队等待槽位释放，业务层无需额外控制。
+    </div>
+
+    <hr class="section-divider">
+
+    <!-- 20.6 -->
+    <h2 id="s206">20.6 进度回调状态一览</h2>
+    <p>回调函数签名：</p>
+    <pre><code class="language-cpp">void callback(ob_sdcard_download_state state,   // 当前状态（下表）
+              const char *file_name,             // 当前文件名
+              int         percent,               // 进度 0~100；-1 表示未知
+              const char *md5_base64,            // 文件 MD5（Base64）；仅 DONE 时有值
+              void       *user_data);            // 调用方透传的指针</code></pre>
+
+    <div class="table-wrap">
+    <table>
+      <tr><th>值</th><th>枚举名</th><th>状态</th><th>含义</th></tr>
+      <tr>
+        <td>0</td>
+        <td><code>TRANSFERRING</code></td>
+        <td><span class="state-badge state-prog">传输中</span></td>
+        <td><code>percent</code> = 0~99 实时进度；<code>-1</code> 表示大小未知（续传 / 目录）</td>
+      </tr>
+      <tr>
+        <td>1</td>
+        <td><code>DONE</code></td>
+        <td><span class="state-badge state-ok">成功</span></td>
+        <td><code>percent=100</code>，<code>md5_base64</code> 含文件 MD5（Base64），可验证完整性</td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td><code>FAILED</code></td>
+        <td><span class="state-badge state-fail">失败</span></td>
+        <td>未分类失败</td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td><code>CANCELLED</code></td>
+        <td><span class="state-badge state-cancel">取消</span></td>
+        <td>调用 <code>cancelSdcardFileOperation()</code> 后取消</td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td><code>FAILED_NOT_FOUND</code></td>
+        <td><span class="state-badge state-fail">失败</span></td>
+        <td>设备端路径不存在（HTTP 404）</td>
+      </tr>
+      <tr>
+        <td>5</td>
+        <td><code>FAILED_TIMEOUT</code></td>
+        <td><span class="state-badge state-fail">超时</span></td>
+        <td>网络超时或传输长时间停滞；重新调用会从断点续传</td>
+      </tr>
+      <tr>
+        <td>6</td>
+        <td><code>FAILED_NETWORK</code></td>
+        <td><span class="state-badge state-fail">失败</span></td>
+        <td>网络错误（DNS 失败、TCP 断线等）</td>
+      </tr>
+      <tr>
+        <td>7</td>
+        <td><code>FAILED_SERVER</code></td>
+        <td><span class="state-badge state-fail">失败</span></td>
+        <td>远端服务器拒绝（HTTP 5xx 或上传目标返回非 2xx）</td>
+      </tr>
+      <tr>
+        <td>8</td>
+        <td><code>FAILED_BUSY</code></td>
+        <td><span class="state-badge state-fail">繁忙</span></td>
+        <td>固件上传槽位已满，稍后重试</td>
+      </tr>
+      <tr>
+        <td>9</td>
+        <td><code>FAILED_CAMERA_STREAMING</code></td>
+        <td><span class="state-badge state-fail">冲突</span></td>
+        <td>设备正在视频流传输，文件服务被拦截；停止视频流后重试</td>
+      </tr>
+    </table>
+    </div>
+
+    <h3>MD5 完整性校验示例</h3>
+    <pre><code class="language-cpp">case OB_SDCARD_DOWNLOAD_DONE:
+    if (md5_base64 &amp;&amp; *md5_base64) {
+        printf("[%s] 完成  MD5=%s\n", file_name, md5_base64);
+        // 与预期 MD5 对比，验证文件完整性
+        if (std::string(md5_base64) == expectedMd5) {
+            printf("  校验通过\n");
+        } else {
+            printf("  ⚠ MD5 不匹配，文件可能损坏\n");
+        }
+    }
+    break;</code></pre>
+
+    <hr class="section-divider">
+
+    <!-- 20.7 -->
+    <h2 id="s207">20.7 取消正在进行的操作：<code>cancelSdcardFileOperation</code></h2>
+    <pre><code class="language-cpp">// 可从任意线程安全调用，立即通知所有进行中的操作停止
+device-&gt;cancelSdcardFileOperation();
+// 被取消的任务将通过回调收到 OB_SDCARD_DOWNLOAD_CANCELLED</code></pre>
+
+    <div class="table-wrap">
+    <table>
+      <tr><th>特性</th><th>说明</th></tr>
+      <tr><td>线程安全</td><td>可在回调线程、UI 线程或任意后台线程调用</td></tr>
+      <tr><td>noexcept</td><td>不抛异常，可安全用于析构函数或紧急停止路径</td></tr>
+      <tr><td>无副作用</td><td>未运行任何操作时调用，静默忽略</td></tr>
+      <tr><td>同步调用</td><td>阻塞中的 <code>async=false</code> 调用会抛出 <code>ob::Error</code>（"operation cancelled"）</td></tr>
+    </table>
+    </div>
+
+    <hr class="section-divider">
+
+    <!-- 20.8 -->
+    <h2 id="s208">20.8 删除文件或目录：<code>deleteSdcardFile</code></h2>
+    <pre><code class="language-cpp">try {
+    // 删除单个文件
+    device-&gt;deleteSdcardFile("EGO_001_20260920_161901/part0001.mcap");
+
+    // 删除整个目录（固件递归删除，操作不可撤销）
+    device-&gt;deleteSdcardFile("EGO_001_20260920_161901");
+
+    std::cout &lt;&lt; "删除成功" &lt;&lt; std::endl;
+} catch (const ob::Error &amp;e) {
+    std::cerr &lt;&lt; "删除失败: " &lt;&lt; e.what() &lt;&lt; std::endl;
+}</code></pre>
+
+    <div class="callout callout-warn">
+      <div class="callout-title">⚠ 不可撤销</div>
+      目录删除由固件递归处理，操作完成后无法恢复。请在 UI 层完成二次确认后再调用。
+    </div>
+
+    <hr class="section-divider">
+
+    <!-- 20.9 -->
+    <h2 id="s209">20.9 API 速查表</h2>
+
+    <h3>主要接口</h3>
+    <div class="table-wrap">
+    <table>
+      <tr><th>接口</th><th>说明</th></tr>
+      <tr>
+        <td><code class="api-sig">getSdcardFileInfo(path)</code></td>
+        <td>查询路径元信息；路径不存在时 <code>info.exists=false</code>，不抛异常</td>
+      </tr>
+      <tr>
+        <td><code class="api-sig">getSdcardFileList(path, recursive)</code></td>
+        <td>列目录内容；<code>path=""</code> 为根目录；固件最多返回 5000 条</td>
+      </tr>
+      <tr>
+        <td><code class="api-sig">downloadSdcardFile(devicePath, destType, destination, callback, userData, async)</code></td>
+        <td>下载到本机（<code>TO_LOCAL</code>）或推送到 URL（<code>TO_URL</code>）；支持同步/异步/并发/断点续传</td>
+      </tr>
+      <tr>
+        <td><code class="api-sig">deleteSdcardFile(path)</code></td>
+        <td>删除文件或目录；目录递归删除，不可撤销</td>
+      </tr>
+      <tr>
+        <td><code class="api-sig">cancelSdcardFileOperation()</code></td>
+        <td>取消所有进行中的文件服务操作；<strong>线程安全，noexcept，无副作用</strong></td>
+      </tr>
+    </table>
+    </div>
+
+    <h3>相关类型</h3>
+    <div class="table-wrap">
+    <table>
+      <tr><th>类型</th><th>说明</th></tr>
+      <tr><td><code>ob_sdcard_download_destination</code></td><td><code>OB_SDCARD_DOWNLOAD_TO_LOCAL</code> / <code>OB_SDCARD_DOWNLOAD_TO_URL</code></td></tr>
+      <tr><td><code>ob_sdcard_download_state</code></td><td>进度回调状态枚举（值 0~9，见 20.6 节）</td></tr>
+      <tr><td><code>ob_device_sdcard_download_progress_callback</code></td><td><code>void(*)(state, fileName, percent, md5, userData)</code></td></tr>
+      <tr><td><code>ob_device_sdcard_file_info</code></td><td><code>{ bool exists; bool isDir; uint64_t size; }</code></td></tr>
+      <tr><td><code>ob_device_sdcard_file_entry</code></td><td><code>{ char name[512]; bool isDir; uint64_t size; }</code></td></tr>
+    </table>
+    </div>
+
+    <hr class="section-divider">
+
+    <!-- 20.10 -->
+    <h2 id="s210">20.10 注意事项与最佳实践</h2>
+
+    <h3>下载到本机（<code>TO_LOCAL</code>）</h3>
+    <ul>
+      <li>文件 ≥ 50 MB 时 SDK 自动使用 <strong>8 路并行下载</strong>，充分利用 WiFi 带宽，无需额外配置。</li>
+      <li>下载中断（超时、网络错误）后，重新调用相同本地路径会自动续传，无需手动处理。</li>
+      <li>并行下载失败后，SDK 自动清除本地预分配文件，下次重新全量下载，不会留下损坏文件。</li>
+    </ul>
+
+    <h3>推送到 URL（<code>TO_URL</code>）</h3>
+    <ul>
+      <li>预签名 URL 有效期建议 ≥ 预计上传时长（大文件按设备出口带宽估算）。</li>
+      <li>每个文件单独生成预签名 URL，不要多个文件共用同一 URL。</li>
+      <li>SDK 内置最多 2 路并发上传限制，超出时自动排队，无需业务层限流。</li>
+    </ul>
+
+    <h3>并发与线程安全</h3>
+    <ul>
+      <li>所有接口均线程安全；多个 <code>downloadSdcardFile(async=true)</code> 可同时运行，彼此独立。</li>
+      <li>进度回调在 SDK 后台线程中触发；更新 UI 控件时需切换到主线程。</li>
+      <li>多个文件的回调可能并发到达，若回调内有共享状态（如进度列表），需加锁保护。</li>
+    </ul>
+
+    <h3>异常处理</h3>
+    <ul>
+      <li>设备固件版本 &lt; 1.1.8 时，接口抛出"不支持操作"异常，应在 UI 层隐藏该功能入口。</li>
+      <li><code>cancelSdcardFileOperation()</code> 是唯一 <code>noexcept</code> 的接口；其余接口均可能抛出 <code>ob::Error</code>，需用 <code>try/catch</code> 处理。</li>
+      <li>异步操作（<code>async=true</code>）的运行时错误通过回调中的失败状态报告，不会抛到调用线程。</li>
+    </ul>
+
+  </main>
+</div>
+
+<script>
+hljs.highlightAll();
+
+// Determine initial theme
+const stored = localStorage.getItem('theme');
+const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+let current = stored || (prefersDark ? 'dark' : 'light');
+function applyTheme(t) {
+  document.documentElement.setAttribute('data-theme', t);
+  document.getElementById('themeIcon').textContent  = t === 'dark' ? '☀️' : '🌙';
+  document.getElementById('themeLabel').textContent = t === 'dark' ? '浅色模式' : '深色模式';
+}
+applyTheme(current);
+
+function toggleTheme() {
+  current = current === 'dark' ? 'light' : 'dark';
+  applyTheme(current);
+  try { localStorage.setItem('theme', current); } catch(e) {}
+}
+
+// Active nav highlight on scroll
+const sections = document.querySelectorAll('h2[id], h3[id]');
+const navItems = document.querySelectorAll('.nav-item[href]');
+const io = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if (e.isIntersecting) {
+      const id = e.target.id;
+      navItems.forEach(a => {
+        a.classList.toggle('active', a.getAttribute('href') === '#' + id);
+      });
+    }
+  });
+}, { rootMargin: '-20% 0px -70% 0px' });
+sections.forEach(s => io.observe(s));
+</script>

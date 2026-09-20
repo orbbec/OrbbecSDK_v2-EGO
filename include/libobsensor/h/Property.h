@@ -1063,6 +1063,17 @@ typedef enum {
     OB_STRUCT_RECORDING_SESSION_RESULT = 1107,
 
     /**
+     * @brief File name used for firmware SD-card recordings.
+     *
+     * @details The SDK-facing payload is a UTF-8 file name without a trailing '\0'.
+     *          Supported by Ego and Wrist series firmware 1.1.8 and newer.
+     *
+     * @attention Read and write.
+     * @attention The file name can only be changed when firmware recording is stopped.
+     */
+    OB_STRUCT_FW_RECORDING_FILE_NAME = 1122,
+
+    /**
      * @brief Device model type for EgoPro and EgoProNet devices.
      *
      * Payload is a null-terminated 32-byte character buffer.

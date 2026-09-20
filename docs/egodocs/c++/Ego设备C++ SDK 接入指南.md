@@ -35,6 +35,7 @@
 17. [固件录制目录与结果回调](#ch17)
 18. [固件日志导出与设备状态回调](#ch18)
 19. [蓝牙配对与 Wi-Fi 配网信息管理](#ch19)
+20. [SD 卡文件服务](#ch20)
 
 ---
 
@@ -73,6 +74,7 @@ Ego 支持 **USB** 与**网络（以太网）** 两种接入。二者使用相�
 | 17 | 固件录制目录与结果回调 | 新增 |
 | 18 | 固件日志导出与设备状态回调 | 新增 |
 | 19 | 蓝牙配对与 Wi-Fi 配网信息管理 | 新增 |
+| 20 | SD 卡文件服务（网络设备，固件 ≥ 1.1.8） | 新增 |
 
 > 标 ✅ 的章节覆盖 `ego_sample.cpp` 的全部调用路径；标「补充」的章节为示例之外、实际集成常用的接口。
 
@@ -883,6 +885,13 @@ auto egoDev = ob::DataAcquisitionDevice::fromDevice(rawDevice);
 egoDev->setFwRecordingDirectory("all_raw_data/session_001");
 auto dir = egoDev->getFwRecordingDirectory();
 
+// 录制文件名仅在 Ego/Wrist 固件 1.1.8 及以上版本支持。
+if(egoDev->isPropertySupported(OB_STRUCT_FW_RECORDING_FILE_NAME, OB_PERMISSION_READ)
+   && egoDev->isPropertySupported(OB_STRUCT_FW_RECORDING_FILE_NAME, OB_PERMISSION_WRITE)) {
+    egoDev->setFwRecordingFileName("session_001");
+    auto fileName = egoDev->getFwRecordingFileName();
+}
+
 egoDev->setEgoRecordingResultCallback([](const ob::DataAcquisitionDevice::EgoRecordingResult &result) {
     // result.state / result.recordingDirectory / result.partNames
 });
@@ -891,6 +900,8 @@ egoDev->setEgoRecordingResultCallback([](const ob::DataAcquisitionDevice::EgoRec
 const auto result = egoDev->getRecordingSessionResult("all_raw_data/session_001");
 // result.fileExists / result.recordingDuration
 ```
+
+`OB_STRUCT_FW_RECORDING_FILE_NAME`（1122）用于读取和设置设备端固件录制的文件名，支持 EgoDevice、EgoNetDevice 与 Wrist 系列。该属性要求设备固件版本不低于 **1.1.8**；低版本设备不会注册该属性，应用应先通过 `isPropertySupported(..., OB_PERMISSION_READ/WRITE)` 判断能力。文件名与录制目录一样，仅可在固件录制停止时修改；文件名为 UTF-8 文本，不能包含路径分隔符 `/` 或 `\`。
 
 ### 17.1 查询某次录制的结果：`getRecordingSessionResult`
 
@@ -941,6 +952,7 @@ catch(const ob::Error &error) {
 能力点：
 
 - 目录路径按 UTF-8 Linux 风格校验（示例覆盖空路径、非法分段、过长路径等边界）；
+- 支持读取/设置固件录制文件名（`OB_STRUCT_FW_RECORDING_FILE_NAME`，固件 ≥ 1.1.8）；
 - 支持录制目标切换（SD 卡 / Host）与录制动作触发（`OB_PROP_RECORDING_ACTION_INT`）；
 - 支持读取/设置固件录制 profile、MCAP topic 列表、最近一次录制分片目录。
 
@@ -950,6 +962,8 @@ catch(const ob::Error &error) {
 |-----|------|
 | `void setFwRecordingDirectory(const std::string &directory) const` | 设置固件录制目录 |
 | `std::string getFwRecordingDirectory() const` | 获取当前固件录制目录 |
+| `void setFwRecordingFileName(const std::string &fileName) const` | 设置固件录制文件名；要求固件 ≥ 1.1.8 |
+| `std::string getFwRecordingFileName() const` | 获取当前固件录制文件名；要求固件 ≥ 1.1.8 |
 | `OBRecordingSessionResult getRecordingSessionResult(const std::string &recordingTaskDirectory) const` | 查询指定录制任务目录在设备端的当前结果；`recordingDuration` 单位为秒 |
 | `void setEgoRecordingResultCallback(EgoRecordingResultCallback callback)` | 注册录制结果回调 |
 | `std::vector<OBFwRecordStreamProfile> getFwRecordProfileList() const` | 获取固件录制 profile 列表 |
@@ -1107,3 +1121,406 @@ catch(const ob::Error &error) {
 | `OBBluetoothPairingInfo getBluetoothPairingInfo() const` | 获取 SDK 解析后的蓝牙配对信息；通过 `pairing_state`、`paired_device_count`、`pairing_time_s` 与 `paired_devices` 读取结果 |
 | `void clearBluetoothPairing() const` | 清除设备保存的全部蓝牙配对记录 |
 | `void clearWifiConfig() const` | 清除 Ego 或 Wrist 设备保存的 Wi-Fi 配网信息 |
+
+---
+
+<a id="ch20"></a>
+
+## 20. SD 卡文件服务（仅网络设备，固件 ≥ 1.1.8）
+
+### 20.1 功能概述与适用场景
+
+SD 卡文件服务让上位机可以通过 SDK 直接管理 Ego 设备 SD 卡上的文件：
+
+- **查询** 某个路径是否存在及其元数据（大小、类型）
+- **列出** 目录内容（支持递归）
+- **下载** SD 卡文件到本机磁盘（支持断点续传、大文件并行加速）
+- **推送** SD 卡文件到远端 HTTP URL（对接腾讯云 COS / 阿里云 OSS 等对象存储）
+- **删除** 文件或目录
+
+**前提条件：**
+
+| 条件 | 说明 |
+|------|------|
+| 连接方式 | 必须通过 **WiFi 网络**连接；USB 模式不支持此功能 |
+| 固件版本 | 设备固件 **≥ 1.1.8**；低于此版本调用时 SDK 抛出"不支持操作"异常 |
+| 设备类型 | Ego / EgoPro / Wrist（网络型）|
+
+SDK 通过设备 **8080 端口**的 HTTP 文件服务与固件通信；创建 `DataAcquisitionDevice` 后即可调用，无需额外初始化。
+
+```cpp
+#include <libobsensor/ObSensor.hpp>
+using namespace ob;
+
+ob::Context ctx;
+auto rawDevice = ctx.createNetDevice("10.9.191.33", 8090);          // 网络连接
+auto device    = DataAcquisitionDevice::fromDevice(rawDevice);       // 转为扩展类型
+```
+
+---
+
+### 20.2 查询文件或目录信息：`getSdcardFileInfo`
+
+在下载前确认路径是否存在，或查询文件大小：
+
+```cpp
+try {
+    ob_device_sdcard_file_info info = device->getSdcardFileInfo(
+        "EGO_001_20260920_161901");   // SD 卡相对路径
+
+    if (!info.exists) {
+        std::cout << "路径不存在" << std::endl;
+    } else if (info.isDir) {
+        std::cout << "这是一个目录" << std::endl;
+    } else {
+        std::cout << "文件大小: " << info.size << " 字节" << std::endl;
+    }
+} catch (const ob::Error &e) {
+    std::cerr << "查询失败（通信错误或路径格式非法）: " << e.what() << std::endl;
+}
+```
+
+> 路径不存在时，`info.exists = false`，**不会抛出异常**。只有网络通信失败或路径格式非法（如含 `..`）时才抛出 `ob::Error`。
+
+`ob_device_sdcard_file_info` 字段说明：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `exists` | `bool`     | 路径是否存在 |
+| `isDir`  | `bool`     | 是否为目录（`exists=true` 时有效）|
+| `size`   | `uint64_t` | 文件字节数（仅文件；目录为 0）|
+
+---
+
+### 20.3 列出目录内容：`getSdcardFileList`
+
+```cpp
+// 列出 SD 卡根目录（非递归）
+auto entries = device->getSdcardFileList("", false);
+
+for (const auto &e : entries) {
+    printf("  %s  %-48s", e.isDir ? "[DIR] " : "[FILE]", e.name);
+    if (!e.isDir) printf("  %llu B", (unsigned long long)e.size);
+    printf("\n");
+}
+
+// 递归列出某个录制目录的全部文件
+auto allFiles = device->getSdcardFileList("EGO_001_20260920_161901", true);
+```
+
+| 参数 | 说明 |
+|------|------|
+| `path` | SD 卡路径；传 `""` 表示根目录 |
+| `recursive` | `false` = 仅当前层；`true` = 递归子目录；固件最多返回 **5000 条** |
+
+`ob_device_sdcard_file_entry` 每条记录字段：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `name`  | `char[512]` | 文件/目录名；递归模式下含相对路径 |
+| `isDir` | `bool`      | 是否为目录 |
+| `size`  | `uint64_t`  | 文件字节数（目录为 0）|
+
+---
+
+### 20.4 下载文件到本机：`TO_LOCAL` 模式
+
+#### 20.4.1 进度回调定义
+
+```cpp
+// 进度回调函数签名（C 函数指针，不能是带捕获的 lambda）
+static void onDownloadProgress(ob_sdcard_download_state state,
+                               const char *fileName,
+                               int          percent,
+                               const char  *md5_base64,
+                               void        *userData) {
+    switch (state) {
+    case OB_SDCARD_DOWNLOAD_TRANSFERRING:
+        if (percent >= 0)
+            printf("\r  [%s] %3d%%  ", fileName, percent);
+        else
+            printf("\r  [%s] 传输中...  ", fileName);
+        fflush(stdout);
+        break;
+    case OB_SDCARD_DOWNLOAD_DONE:
+        printf("\r  [%s] 完成", fileName);
+        if (md5_base64 && *md5_base64)
+            printf("  MD5=%s", md5_base64);   // 可用于文件完整性校验
+        printf("          \n");
+        break;
+    case OB_SDCARD_DOWNLOAD_CANCELLED:
+        printf("\r  [%s] 已取消          \n", fileName);  break;
+    case OB_SDCARD_DOWNLOAD_FAILED_NOT_FOUND:
+        printf("\r  [%s] 失败：路径不存在\n", fileName);  break;
+    case OB_SDCARD_DOWNLOAD_FAILED_TIMEOUT:
+        printf("\r  [%s] 失败：超时      \n", fileName);  break;
+    case OB_SDCARD_DOWNLOAD_FAILED_NETWORK:
+        printf("\r  [%s] 失败：网络错误  \n", fileName);  break;
+    default:
+        printf("\r  [%s] 失败（state=%d）\n", fileName, (int)state);
+        break;
+    }
+}
+```
+
+#### 20.4.2 同步下载（阻塞）
+
+```cpp
+try {
+    device->downloadSdcardFile(
+        "EGO_001_20260920_161901/part0001.mcap",  // 设备端 SD 卡路径
+        OB_SDCARD_DOWNLOAD_TO_LOCAL,              // 下载到本机
+        "part0001.mcap",                          // 本地保存路径
+        onDownloadProgress,                       // 进度回调（可传 nullptr）
+        nullptr,                                  // userData（原样回传给回调）
+        false                                     // async=false → 阻塞等待完成
+    );
+    std::cout << "下载完成" << std::endl;
+} catch (const ob::Error &e) {
+    std::cerr << "下载失败: " << e.what() << std::endl;
+}
+```
+
+#### 20.4.3 异步下载（非阻塞）
+
+```cpp
+// async=true → 立即返回；结果通过回调通知
+device->downloadSdcardFile(
+    "EGO_001_20260920_161901/part0001.mcap",
+    OB_SDCARD_DOWNLOAD_TO_LOCAL,
+    "part0001.mcap",
+    onDownloadProgress, nullptr,
+    true   // 异步
+);
+// 主线程继续执行；调用 cancelSdcardFileOperation() 可随时取消
+```
+
+#### 20.4.4 断点续传
+
+本地已有部分文件时，SDK 自动从断点继续，**无需任何额外参数**：
+
+```cpp
+// 首次下载中途失败后，再次用相同本地路径调用即自动续传
+device->downloadSdcardFile(
+    "EGO_001_20260920_161901/part0001.mcap",
+    OB_SDCARD_DOWNLOAD_TO_LOCAL,
+    "part0001.mcap",   // 若本地已有同名文件，SDK 自动从文件末尾继续
+    onDownloadProgress, nullptr, false
+);
+```
+
+#### 20.4.5 下载整个目录
+
+SDK 单次仅支持单文件下载；下载整个目录时先枚举再逐文件下载：
+
+```cpp
+const std::string dirPath   = "EGO_001_20260920_161901";
+const std::string localBase = "./recordings/" + dirPath;
+
+// 递归列出所有文件
+auto entries = device->getSdcardFileList(dirPath, true);
+
+int done = 0;
+for (const auto &e : entries) {
+    if (e.isDir) continue;
+
+    const std::string localPath = localBase + "/" + e.name;
+
+    // 创建本地父目录（跨平台示例）
+    // ...
+
+    printf("[%d/%zu] %s\n", ++done, entries.size(), e.name);
+    try {
+        device->downloadSdcardFile(
+            e.name, OB_SDCARD_DOWNLOAD_TO_LOCAL, localPath,
+            onDownloadProgress, nullptr, false
+        );
+    } catch (const ob::Error &err) {
+        fprintf(stderr, "  跳过: %s\n", err.what());
+    }
+}
+```
+
+> **大文件加速：** 文件 ≥ 50 MB 时，SDK 自动启用 **8 路并行分块下载**（HTTP Range 请求），明显提升 WiFi 下载吞吐量。
+
+---
+
+### 20.5 推送文件到云存储 URL：`TO_URL` 模式
+
+这种模式下，**设备固件**直接向指定 URL 发起 HTTP PUT 请求，把 SD 卡文件上传到云端对象存储（腾讯云 COS、阿里云 OSS 等）。
+
+> **前提：** 设备所在 WiFi 网络必须能访问公网；固件仅支持 `http://`，不支持 `https://`。
+
+#### 阻塞与非阻塞的语义说明
+
+`TO_URL` 与 `TO_LOCAL` 的"阻塞"含义**有本质区别**，使用前请务必理解：
+
+| 模式 | `async=false` 阻塞的含义 | `async=true` 的行为 |
+|------|--------------------------|---------------------|
+| `TO_LOCAL` | SDK（上位机）等待文件完整下载到本机磁盘后返回 | SDK 后台线程继续下载，调用线程立即返回 |
+| `TO_URL` | SDK 轮询设备，**等待固件向云端上传完成**后返回 | 调用线程立即返回；固件在设备后台上传，结果通过回调通知 |
+
+对于 `TO_URL`，无论 `async` 取何值，数据传输都在**设备固件内**进行，SDK 仅负责发起任务并轮询状态。
+
+#### 同步推送（阻塞等待固件上传完成）
+
+```cpp
+// 1. 在上位机生成预签名 PUT URL（以腾讯云 COS 为例，有效期 600 秒）
+const std::string cosUrl = generateCosPresignedUrl(
+    secretId, secretKey, bucket, "EGO_001_20260920_161901/calibration_camera.yaml");
+
+// 2. 同步等待：调用线程阻塞，直到设备固件上传完成并回报结果
+try {
+    device->downloadSdcardFile(
+        "EGO_001_20260920_161901/calibration_camera.yaml",
+        OB_SDCARD_DOWNLOAD_TO_URL,
+        cosUrl,
+        onDownloadProgress, nullptr,
+        false   // async=false → 阻塞直到固件回报完成/失败
+    );
+    std::cout << "推送完成" << std::endl;
+} catch (const ob::Error &e) {
+    std::cerr << "推送失败: " << e.what() << std::endl;
+}
+```
+
+#### 异步推送单文件（立即返回）
+
+```cpp
+// async=true → 调用线程立即返回；固件在设备后台继续上传，结果通过回调通知
+device->downloadSdcardFile(
+    "EGO_001_20260920_161901/calibration_camera.yaml",
+    OB_SDCARD_DOWNLOAD_TO_URL,
+    cosUrl,
+    onDownloadProgress, nullptr,
+    true   // async=true → 立即返回，不等待固件上传完成
+);
+// 可继续执行其他逻辑；调用 cancelSdcardFileOperation() 可随时取消
+```
+
+#### 20.5.1 批量异步推送整个目录
+
+```cpp
+auto entries = device->getSdcardFileList("EGO_001_20260920_161901", true);
+
+for (const auto &e : entries) {
+    if (e.isDir) continue;
+
+    // 每个文件单独生成预签名 URL（上位机负责，设备无需知道密钥）
+    const std::string url = generateCosPresignedUrl(
+        secretId, secretKey, bucket, e.name);
+
+    device->downloadSdcardFile(
+        e.name, OB_SDCARD_DOWNLOAD_TO_URL, url,
+        onDownloadProgress, nullptr, true  // async=true
+    );
+    // SDK 内部维护最多 2 个并发槽位；超出时自动排队，调用方无需限流
+}
+```
+
+> **并发限制：** 固件最多同时处理 **2 个**上传任务。SDK 内置信号量，第 3 个及以上请求自动排队等待，业务层无需额外控制。
+
+---
+
+### 20.6 进度回调状态一览
+
+| 状态值 | 枚举名 | 触发时机 | `percent` | `md5_base64` |
+|--------|--------|---------|-----------|--------------|
+| 0 | `OB_SDCARD_DOWNLOAD_TRANSFERRING` | 传输进行中 | 0~99；`-1` 表示大小未知 | 空 |
+| 1 | `OB_SDCARD_DOWNLOAD_DONE` | 传输成功完成 | 100 | 文件 MD5（Base64）；可用于完整性校验 |
+| 2 | `OB_SDCARD_DOWNLOAD_FAILED` | 未分类失败 | -1 | 空 |
+| 3 | `OB_SDCARD_DOWNLOAD_CANCELLED` | 调用 `cancelSdcardFileOperation()` 后取消 | -1 | 空 |
+| 4 | `OB_SDCARD_DOWNLOAD_FAILED_NOT_FOUND` | 设备端路径不存在（HTTP 404）| -1 | 空 |
+| 5 | `OB_SDCARD_DOWNLOAD_FAILED_TIMEOUT` | 网络超时或传输长时间停滞 | -1 | 空 |
+| 6 | `OB_SDCARD_DOWNLOAD_FAILED_NETWORK` | 网络错误（DNS 失败、TCP 断线等）| -1 | 空 |
+| 7 | `OB_SDCARD_DOWNLOAD_FAILED_SERVER` | 远端服务器拒绝（非 2xx 响应）| -1 | 空 |
+| 8 | `OB_SDCARD_DOWNLOAD_FAILED_BUSY` | 固件上传槽位已满，请稍后重试 | -1 | 空 |
+| 9 | `OB_SDCARD_DOWNLOAD_FAILED_CAMERA_STREAMING` | 设备正在视频流传输，文件服务被拦截（停流后重试）| -1 | 空 |
+
+**状态处理建议：**
+
+- 状态 `TRANSFERRING` 期间可持续更新进度条；`percent=-1` 时显示"传输中"动画即可。
+- 状态 `DONE` 时，若 `md5_base64` 非空，可将其与预期 MD5 比对，验证文件完整性。
+- 状态 `TIMEOUT` 或 `NETWORK` 时，可提示用户检查网络后重新下载；SDK 支持断点续传，重新调用会从断点继续。
+- 状态 `CAMERA_STREAMING` 时，等待设备停止视频流采集后再重试。
+
+---
+
+### 20.7 取消正在进行的操作：`cancelSdcardFileOperation`
+
+```cpp
+// 可从任意线程安全调用，立即通知所有进行中的操作停止
+device->cancelSdcardFileOperation();
+// 被取消的任务将通过回调收到 OB_SDCARD_DOWNLOAD_CANCELLED
+```
+
+特点：
+
+- **线程安全**：可在回调线程、UI 线程或任意后台线程调用。
+- **noexcept**：不抛异常，可安全用于析构函数或紧急停止路径。
+- **无副作用**：未运行任何操作时调用，静默忽略。
+- 对 `async=false` 的阻塞调用，取消后调用线程会收到 `ob::Error`（"operation cancelled"）。
+
+---
+
+### 20.8 删除文件或目录：`deleteSdcardFile`
+
+```cpp
+try {
+    // 删除单个文件
+    device->deleteSdcardFile("EGO_001_20260920_161901/part0001.mcap");
+
+    // 删除整个目录（固件递归删除，操作不可撤销）
+    device->deleteSdcardFile("EGO_001_20260920_161901");
+
+    std::cout << "删除成功" << std::endl;
+} catch (const ob::Error &e) {
+    std::cerr << "删除失败: " << e.what() << std::endl;
+}
+```
+
+> **注意：** 目录删除由固件递归处理，**操作不可撤销**，请在 UI 层完成二次确认后再调用。
+
+---
+
+### 20.9 API 速查表
+
+| API | 说明 |
+|-----|------|
+| `ob_device_sdcard_file_info getSdcardFileInfo(const std::string &path) const` | 查询路径元信息；路径不存在时 `info.exists=false`，不抛异常 |
+| `std::vector<ob_device_sdcard_file_entry> getSdcardFileList(const std::string &path, bool recursive=false) const` | 列目录内容；`path=""` 为 SD 卡根目录；固件最多返回 5000 条 |
+| `void downloadSdcardFile(devicePath, destType, destination, callback=nullptr, userData=nullptr, async=false) const` | 下载到本机（`TO_LOCAL`）或推送到 URL（`TO_URL`）；支持同步/异步/并发/断点续传 |
+| `void deleteSdcardFile(const std::string &path) const` | 删除文件或目录；目录递归删除，不可撤销 |
+| `void cancelSdcardFileOperation() const noexcept` | 取消所有进行中的文件服务操作；线程安全，无副作用 |
+
+相关类型：
+
+| 类型 | 说明 |
+|------|------|
+| `ob_sdcard_download_destination` | `OB_SDCARD_DOWNLOAD_TO_LOCAL`（下载到本机）/ `OB_SDCARD_DOWNLOAD_TO_URL`（推送到 URL）|
+| `ob_sdcard_download_state` | 进度回调状态枚举（值 0~9，见 20.6 节）|
+| `ob_device_sdcard_download_progress_callback` | `void(*)(ob_sdcard_download_state, const char*, int, const char*, void*)` |
+| `ob_device_sdcard_file_info` | `{ bool exists; bool isDir; uint64_t size; }` |
+| `ob_device_sdcard_file_entry` | `{ char name[512]; bool isDir; uint64_t size; }` |
+
+---
+
+### 20.10 注意事项与最佳实践
+
+**下载到本机（`TO_LOCAL`）**
+- 文件 ≥ 50 MB 时 SDK 自动使用 **8 路并行下载**，充分利用 WiFi 带宽；小文件走单连接。
+- 下载中断（超时、网络错误）后，重新调用相同本地路径会自动续传，无需人工干预。
+- 并行下载失败后，SDK 自动清除本地预分配文件，下次重新全量下载。
+
+**推送到 URL（`TO_URL`）**
+- 预签名 URL 有效期建议设置为 **≥ 预计上传时长**（大文件按 10 Mbps 估算时长）。
+- 每个文件单独生成一个预签名 URL，不要多个文件共用同一 URL。
+- SDK 内置最多 2 路并发上传限制，超出的请求自动排队。
+
+**并发与线程安全**
+- 所有接口均线程安全；多个 `downloadSdcardFile(async=true)` 可同时运行，彼此独立。
+- 进度回调在 SDK 后台线程中触发；更新 UI 控件时需切换到主线程。
+
+**异常处理**
+- 设备固件版本不满足要求（< 1.1.8）时，接口抛出"不支持操作"异常，应在 UI 层隐藏该功能入口。
+- `cancelSdcardFileOperation()` 是唯一 `noexcept` 的接口，其余接口均可能抛出 `ob::Error`，需用 `try/catch` 处理。

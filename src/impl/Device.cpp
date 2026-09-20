@@ -26,6 +26,7 @@
 #include "ICustomMetadataManager.hpp"
 #include "component/fwlog/FirmwareLogManager.hpp"
 #include "component/audio/IAudioPlayer.hpp"
+#include "component/httpfileservice/IHttpFileServiceManager.hpp"
 #include "hid/EgoStateService.hpp"
 #include "hid/BatteryInfoService.hpp"
 #include "hid/DirectionKeyService.hpp"
@@ -730,6 +731,106 @@ void ob_device_stop_audio_playback(ob_device *device, ob_error **error) BEGIN_AP
     player->stop();
 }
 HANDLE_EXCEPTIONS_NO_RETURN(device)
+
+// ── SD-card file service ──────────────────────────────────────────────────
+
+void ob_device_get_sdcard_file_info(ob_device *device, const char *path, ob_device_sdcard_file_info *info, ob_error **error) BEGIN_API_CALL {
+    VALIDATE_NOT_NULL(device);
+    VALIDATE_NOT_NULL(path);
+    VALIDATE_NOT_NULL(info);
+    auto mgr = device->device->getComponentT<libobsensor::IHttpFileServiceManager>(libobsensor::OB_DEV_COMPONENT_HTTP_FILE_SERVICE_MANAGER, false);
+    if(!mgr) {
+        THROW_UNSUPPORTED_OPERATION_EXCEPTION("SD-card file service is not supported by this device");
+    }
+    const auto result = mgr->getFileInfo(path);
+    info->exists = result.exists;
+    info->isDir  = result.isDir;
+    info->size   = result.size;
+}
+HANDLE_EXCEPTIONS_NO_RETURN(device, path, info)
+
+void ob_device_get_sdcard_file_list(ob_device *device, const char *path, int recursive, ob_device_sdcard_file_entry *entries, uint32_t *entry_count,
+                                     ob_error **error) BEGIN_API_CALL {
+    VALIDATE_NOT_NULL(device);
+    VALIDATE_NOT_NULL(entry_count);
+    auto mgr = device->device->getComponentT<libobsensor::IHttpFileServiceManager>(libobsensor::OB_DEV_COMPONENT_HTTP_FILE_SERVICE_MANAGER, false);
+    if(!mgr) {
+        THROW_UNSUPPORTED_OPERATION_EXCEPTION("SD-card file service is not supported by this device");
+    }
+    const std::string pathStr = (path && *path) ? path : "";
+    const auto list = mgr->listFiles(pathStr, recursive != 0);
+
+    if(entries == nullptr) {
+        // count-only query
+        *entry_count = static_cast<uint32_t>(list.size());
+        return;
+    }
+
+    const uint32_t copyCount = (std::min)(static_cast<uint32_t>(list.size()), *entry_count);
+    for(uint32_t i = 0; i < copyCount; ++i) {
+        std::strncpy(entries[i].name, list[i].name.c_str(), sizeof(entries[i].name) - 1);
+        entries[i].name[sizeof(entries[i].name) - 1] = '\0';
+        entries[i].isDir = list[i].isDir;
+        entries[i].size  = list[i].size;
+    }
+    *entry_count = copyCount;
+}
+HANDLE_EXCEPTIONS_NO_RETURN(device, path, entries, entry_count)
+
+void ob_device_download_sdcard_file(ob_device *device, const char *device_path,
+                                     ob_sdcard_download_destination destination_type,
+                                     const char *destination,
+                                     ob_device_sdcard_download_progress_callback callback,
+                                     void *user_data, bool async, ob_error **error) BEGIN_API_CALL {
+    VALIDATE_NOT_NULL(device);
+    VALIDATE_NOT_NULL(device_path);
+    VALIDATE_NOT_NULL(destination);
+    auto mgr = device->device->getComponentT<libobsensor::IHttpFileServiceManager>(libobsensor::OB_DEV_COMPONENT_HTTP_FILE_SERVICE_MANAGER, false);
+    if(!mgr) {
+        THROW_UNSUPPORTED_OPERATION_EXCEPTION("SD-card file service is not supported by this device");
+    }
+
+    libobsensor::SdcardDownloadProgressCallback internalCb;
+    if(callback) {
+        internalCb = [callback, user_data](ob_sdcard_download_state state, const std::string &fileName,
+                                           int percent, const std::string &md5) {
+            callback(state, fileName.c_str(), percent,
+                     md5.empty() ? nullptr : md5.c_str(),
+                     user_data);
+        };
+    }
+
+    if(destination_type == OB_SDCARD_DOWNLOAD_TO_LOCAL) {
+        mgr->downloadToLocal(device_path, destination, internalCb, async);
+    }
+    else {
+        mgr->downloadToUrl(device_path, destination, internalCb, async);
+    }
+}
+HANDLE_EXCEPTIONS_NO_RETURN(device, device_path, destination)
+
+void ob_device_delete_sdcard_file(ob_device *device, const char *path, ob_error **error) BEGIN_API_CALL {
+    VALIDATE_NOT_NULL(device);
+    VALIDATE_NOT_NULL(path);
+    auto mgr = device->device->getComponentT<libobsensor::IHttpFileServiceManager>(libobsensor::OB_DEV_COMPONENT_HTTP_FILE_SERVICE_MANAGER, false);
+    if(!mgr) {
+        THROW_UNSUPPORTED_OPERATION_EXCEPTION("SD-card file service is not supported by this device");
+    }
+    mgr->deleteFile(path);
+}
+HANDLE_EXCEPTIONS_NO_RETURN(device, path)
+
+void ob_device_cancel_sdcard_file_operation(ob_device *device, ob_error **error) BEGIN_API_CALL {
+    VALIDATE_NOT_NULL(device);
+    auto mgr = device->device->getComponentT<libobsensor::IHttpFileServiceManager>(libobsensor::OB_DEV_COMPONENT_HTTP_FILE_SERVICE_MANAGER, false);
+    if(mgr) {
+        mgr->cancel();
+    }
+    // If the component is not available, silently succeed — cancel is best-effort.
+}
+HANDLE_EXCEPTIONS_NO_RETURN(device)
+
+// ── end SD-card file service ──────────────────────────────────────────────
 
 void ob_device_set_device_user_name(ob_device *device, const char *name, ob_error **error) BEGIN_API_CALL {
     VALIDATE_NOT_NULL(device);
