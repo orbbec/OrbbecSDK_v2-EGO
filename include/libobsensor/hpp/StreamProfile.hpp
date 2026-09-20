@@ -440,6 +440,19 @@ public:
 };
 
 /**
+ * @brief Class representing a magnetic angle encoder stream profile.
+ *
+ * The encoder stream has a fixed payload layout and no additional profile
+ * parameters beyond those inherited from StreamProfile.
+ */
+class MagEncoderStreamProfile : public StreamProfile {
+public:
+    explicit MagEncoderStreamProfile(const ob_stream_profile_t *impl) : StreamProfile(impl) {}
+
+    ~MagEncoderStreamProfile() noexcept override = default;
+};
+
+/**
  * @brief Class representing a LiDAR stream profile.
  */
 
@@ -519,6 +532,8 @@ template <typename T> bool StreamProfile::is() const {
         return typeid(T) == typeid(GyroStreamProfile);
     case OB_STREAM_MAG:
         return typeid(T) == typeid(MagStreamProfile);
+    case OB_STREAM_MAG_ENCODER:
+        return typeid(T) == typeid(MagEncoderStreamProfile);
     case OB_STREAM_LIDAR:
         return typeid(T) == typeid(LiDARStreamProfile);
     case OB_STREAM_AUDIO:
@@ -555,6 +570,10 @@ public:
             return std::make_shared<GyroStreamProfile>(impl);
         case OB_STREAM_MAG:
             return std::make_shared<MagStreamProfile>(impl);
+        case OB_STREAM_MAG_ENCODER:
+            // The magnetic encoder has a fixed payload format and no additional
+            // stream-profile parameters, so a lightweight dedicated wrapper is enough.
+            return std::make_shared<MagEncoderStreamProfile>(impl);
         case OB_STREAM_LIDAR:
             return std::make_shared<LiDARStreamProfile>(impl);
         case OB_STREAM_AUDIO:

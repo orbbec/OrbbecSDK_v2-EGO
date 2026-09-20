@@ -91,6 +91,7 @@ MagSensor::MagSensor(IDevice *owner, const std::shared_ptr<ISourcePort> &backend
     }
 
     if(!magPresetsLoaded) {
+        //TODO：
         // Devices without usable magnetometer presets: describe the sensor with a single stream profile whose
         // sample rate mirrors the accelerometer's when available, otherwise leave it unknown. The range
         // falls back to the smallest supported value instead of the "any/unknown" sentinel so that the
@@ -99,8 +100,19 @@ MagSensor::MagSensor(IDevice *owner, const std::shared_ptr<ISourcePort> &backend
         streamProfileList_.clear();
         auto            lazySensor = std::make_shared<LazySensor>(owner, OB_SENSOR_MAG);
         OBIMUSampleRate sampleRate = OB_SAMPLE_RATE_UNKNOWN;
-        if(propServer->isPropertySupported(OB_PROP_ACCEL_ODR_INT, PROP_OP_READ, PROP_ACCESS_INTERNAL)) {
-            sampleRate = propServer->getPropertyValueT<OBIMUSampleRate>(OB_PROP_ACCEL_ODR_INT);
+        // Some UMI firmware revisions expose the magnetometer sensor but do not
+        // implement the optional IMU ODR properties. Do not let that optional
+        // query abort creation of the whole device.
+        try {
+            if(propServer->isPropertySupported(OB_PROP_ACCEL_ODR_INT, PROP_OP_READ, PROP_ACCESS_INTERNAL)) {
+                sampleRate = propServer->getPropertyValueT<OBIMUSampleRate>(OB_PROP_ACCEL_ODR_INT);
+            }
+        }
+        catch(const std::exception &e) {
+            LOG_WARN("Failed to read accel ODR for magnetometer fallback profile: {}", e.what());
+        }
+        catch(...) {
+            LOG_WARN("Failed to read accel ODR for magnetometer fallback profile");
         }
         LOG_DEBUG("Mag fallback profile: odr={} (mirrored from accel when available), fullScaleRange={}", static_cast<int>(sampleRate), static_cast<int>(OB_MAG_FS_4G));
 

@@ -16,6 +16,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
+#include <map>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -347,30 +348,39 @@ int main(void) try {
     bool hasColor      = hasSensorType(device, OB_SENSOR_COLOR);
     bool hasLeftColor  = hasSensorType(device, OB_SENSOR_COLOR_LEFT);
     bool hasRightColor = hasSensorType(device, OB_SENSOR_COLOR_RIGHT);
+    bool hasLeftIr     = hasSensorType(device, OB_SENSOR_IR_LEFT);
+    bool hasRightIr    = hasSensorType(device, OB_SENSOR_IR_RIGHT);
 
-    // Configure which streams to enable. Wrist exposes one normal Color stream; EGO exposes left/right Color streams.
+    // Enable each stream independently by its own sensor presence, so the sample adapts to any device layout:
+    // Wrist exposes one Color; EGO exposes left/right Color; UMI Finger exposes one Color plus left/right IR.
+    // All EGO-family cameras are MJPEG/H264/H265 capable; H264 is used here.
     std::shared_ptr<ob::Config> config = std::make_shared<ob::Config>();
-    std::string                  windowTitle;
     if(hasColor) {
         config->enableVideoStream(OB_STREAM_COLOR, OB_WIDTH_ANY, OB_HEIGHT_ANY, OB_FPS_ANY, OB_FORMAT_H264);
-        windowTitle = "EGO/Wrist: Color (+ optional Audio)";
         std::cout << "Enabled COLOR stream." << std::endl;
     }
-    else if(hasLeftColor || hasRightColor) {
-        if(hasLeftColor) {
-            config->enableVideoStream(OB_STREAM_COLOR_LEFT, OB_WIDTH_ANY, OB_HEIGHT_ANY, OB_FPS_ANY, OB_FORMAT_H264);
-            std::cout << "Enabled COLOR_LEFT stream." << std::endl;
-        }
-        if(hasRightColor) {
-            config->enableVideoStream(OB_STREAM_COLOR_RIGHT, OB_WIDTH_ANY, OB_HEIGHT_ANY, OB_FPS_ANY, OB_FORMAT_H264);
-            std::cout << "Enabled COLOR_RIGHT stream." << std::endl;
-        }
-        windowTitle = (hasLeftColor && hasRightColor) ? "EGO: Dual Color (+ optional Audio)" : "EGO/Wrist: Color (+ optional Audio)";
+    if(hasLeftColor) {
+        config->enableVideoStream(OB_STREAM_COLOR_LEFT, OB_WIDTH_ANY, OB_HEIGHT_ANY, OB_FPS_ANY, OB_FORMAT_H264);
+        std::cout << "Enabled COLOR_LEFT stream." << std::endl;
     }
-    else {
-        std::cerr << "No color sensor found." << std::endl;
+    if(hasRightColor) {
+        config->enableVideoStream(OB_STREAM_COLOR_RIGHT, OB_WIDTH_ANY, OB_HEIGHT_ANY, OB_FPS_ANY, OB_FORMAT_H264);
+        std::cout << "Enabled COLOR_RIGHT stream." << std::endl;
+    }
+    if(hasLeftIr) {
+        config->enableVideoStream(OB_STREAM_IR_LEFT, OB_WIDTH_ANY, OB_HEIGHT_ANY, OB_FPS_ANY, OB_FORMAT_H264);
+        std::cout << "Enabled IR_LEFT stream." << std::endl;
+    }
+    if(hasRightIr) {
+        config->enableVideoStream(OB_STREAM_IR_RIGHT, OB_WIDTH_ANY, OB_HEIGHT_ANY, OB_FPS_ANY, OB_FORMAT_H264);
+        std::cout << "Enabled IR_RIGHT stream." << std::endl;
+    }
+    if(!hasColor && !hasLeftColor && !hasRightColor && !hasLeftIr && !hasRightIr) {
+        std::cerr << "No color or IR sensor found." << std::endl;
         return EXIT_FAILURE;
     }
+
+    std::string windowTitle = "EGO Sample: Color + IR (+ optional Audio)";
 
     // Start the pipeline with config.
     pipe.start(config);
@@ -492,14 +502,69 @@ int main(void) try {
         imuPipe = nullptr;
     }
 
+    // ---- Magnetic angle encoder (MT6826S, UMI Finger only): start the sensor directly and log the angle ----
+    std::shared_ptr<ob::Sensor> magEncoderSensor;
+    try {
+        if(hasSensorType(device, OB_SENSOR_MAG_ENCODER)) {
+            magEncoderSensor = device->getSensor(OB_SENSOR_MAG_ENCODER);
+            if(magEncoderSensor) {
+                auto profiles = magEncoderSensor->getStreamProfileList();
+                if(profiles && profiles->getCount() > 0) {
+                    // The encoder carries no range / rate presets, so it has a single stream profile.
+                    auto profile = profiles->getProfile(0);
+                    magEncoderSensor->start(profile, [](std::shared_ptr<ob::Frame> frame) {
+                        if(!frame || frame->getDataSize() < sizeof(OBMagEncoderFrameData)) {
+                            return;
+                        }
+                        static uint64_t magCount = 0;
+                        if(magCount++ % 50 != 0) {
+                            return;
+                        }
+                        auto data = reinterpret_cast<const OBMagEncoderFrameData *>(frame->getData());
+                        std::cout << "MagEncoder #" << frame->getIndex() << " tsp=" << data->timestampUs << "us " 
+                                  << " angleDegree=" << data->angleDegree << "deg status=0x" << std::hex << static_cast<int>(data->status) << std::dec
+                                  << std::endl;
+                    });
+                    std::cout << "Magnetic angle encoder streaming started." << std::endl;
+                }
+            }
+        }
+    }
+    catch(ob::Error &e) {
+        // The encoder is optional; keep streaming video even if it is unavailable.
+        std::cerr << "Magnetic angle encoder unavailable: " << e.what() << std::endl;
+        magEncoderSensor = nullptr;
+    }
+
     // Create a window for rendering. ARRANGE_ONE_ROW keeps EGO dual color side by side and is harmless for Wrist single color.
     ob_smpl::CVWindow win(windowTitle.c_str(), 1280, 720, ob_smpl::ARRANGE_ONE_ROW);
+
+    // Per-stream frame-rate log: count frames by type and report fps every 3 seconds. This confirms each video
+    // stream is actually delivering frames even when the format (e.g. H264) is not rendered in the window.
+    std::map<OBFrameType, uint64_t> videoFrameCounts;
+    auto                            lastVideoLog = std::chrono::steady_clock::now();
 
     while(win.run()) {
         // Wait for up to 100ms for a frameset in blocking mode.
         auto frameSet = pipe.waitForFrameset();
         if(frameSet == nullptr) {
             continue;
+        }
+
+        for(uint32_t i = 0; i < frameSet->getCount(); i++) {
+            auto frame = frameSet->getFrameByIndex(i);
+            if(frame) {
+                ++videoFrameCounts[frame->getType()];
+            }
+        }
+        auto elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - lastVideoLog).count();
+        if(elapsedMs >= 3000) {
+            for(const auto &entry: videoFrameCounts) {
+                std::cout << ob::TypeHelper::convertOBFrameTypeToString(entry.first) << " frame rate: " << (entry.second * 1000.0 / elapsedMs) << " fps"
+                          << std::endl;
+            }
+            videoFrameCounts.clear();
+            lastVideoLog = std::chrono::steady_clock::now();
         }
 
         // Render every frame in the set.
@@ -515,6 +580,15 @@ int main(void) try {
         }
     }
     audioPlayer.close();
+
+    // Stop the magnetic angle encoder sensor.
+    if(magEncoderSensor) {
+        try {
+            magEncoderSensor->stop();
+        }
+        catch(ob::Error &) {
+        }
+    }
 
     // Stop IMU pipeline before stopping the video pipeline.
     if(imuPipe) {

@@ -56,8 +56,8 @@ std::shared_ptr<Frame> FrameFactory::createFrameFromOtherFrame(std::shared_ptr<c
 }
 
 std::shared_ptr<Frame> FrameFactory::createVideoFrame(OBFrameType frameType, OBFormat frameFormat, uint32_t width, uint32_t height, uint32_t strideBytes) {
-    if(frameType == OB_FRAME_UNKNOWN || frameType == OB_FRAME_ACCEL || frameType == OB_FRAME_GYRO || frameType == OB_FRAME_MAG || frameType == OB_FRAME_SET
-       || frameType == OB_FRAME_LIDAR_POINTS) {
+    if(frameType == OB_FRAME_UNKNOWN || frameType == OB_FRAME_ACCEL || frameType == OB_FRAME_GYRO || frameType == OB_FRAME_MAG
+       || frameType == OB_FRAME_MAG_ENCODER || frameType == OB_FRAME_SET || frameType == OB_FRAME_LIDAR_POINTS) {
         THROW_INVALID_PARAM_EXCEPTION("Invalid frame type for video frame.");
     }
 
@@ -112,6 +112,10 @@ std::shared_ptr<Frame> FrameFactory::createFrameFromUserBuffer(OBFrameType frame
         frame = std::make_shared<MagFrame>(buffer, bufferSize, bufferReclaimFunc);
         sp    = StreamProfileFactory::createMagStreamProfile(OB_MAG_FS_4G, OB_SAMPLE_RATE_1_5625_HZ);
         break;
+    case OB_FRAME_MAG_ENCODER:
+        frame = std::make_shared<MagEncoderFrame>(buffer, bufferSize, bufferReclaimFunc);
+        sp    = StreamProfileFactory::createMagEncoderStreamProfile(nullptr);
+        break;
     case OB_FRAME_LIDAR_POINTS:
         // TODO: OB_LIDAR_SCAN_ANY is invalid here, need to get the real scan rate from user or device
         frame = std::make_shared<LiDARPointsFrame>(buffer, bufferSize, bufferReclaimFunc);
@@ -152,6 +156,9 @@ std::shared_ptr<Frame> FrameFactory::createFrameFromUserBuffer(OBFrameType frame
         break;
     case OB_FRAME_MAG:
         sp = StreamProfileFactory::createMagStreamProfile(OB_MAG_FS_4G, OB_SAMPLE_RATE_1_5625_HZ);
+        break;
+    case OB_FRAME_MAG_ENCODER:
+        sp = StreamProfileFactory::createMagEncoderStreamProfile(nullptr);
         break;
     case OB_FRAME_LIDAR_POINTS:
         // TODO: OB_LIDAR_SCAN_ANY is invalid here, need to get the real scan rate from user or device

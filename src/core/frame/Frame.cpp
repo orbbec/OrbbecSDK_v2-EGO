@@ -479,6 +479,22 @@ float MagFrame::temperature() const {
     return ((MagFrame::Data *)getData())->temp;
 }
 
+MagEncoderFrame::MagEncoderFrame(uint8_t *data, size_t dataBufSize, FrameBufferReclaimFunc bufferReclaimFunc)
+    : Frame(data, dataBufSize, OB_FRAME_MAG_ENCODER, bufferReclaimFunc) {}
+
+
+float MagEncoderFrame::angleDegree() const {
+    return ((MagEncoderFrame::Data *)getData())->angleDegree;
+}
+
+uint8_t MagEncoderFrame::status() const {
+    return ((MagEncoderFrame::Data *)getData())->status;
+}
+
+uint64_t MagEncoderFrame::encoderTimestampUs() const {
+    return ((MagEncoderFrame::Data *)getData())->timestampUs;
+}
+
 LiDARPointsFrame::LiDARPointsFrame(uint8_t *data, size_t dataBufSize, FrameBufferReclaimFunc bufferReclaimFunc)
     : Frame(data, dataBufSize, OB_FRAME_LIDAR_POINTS, bufferReclaimFunc) {}
 

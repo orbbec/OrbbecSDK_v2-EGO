@@ -13,7 +13,8 @@ namespace libobsensor {
 
 // UMI Finger USB device: Ego-derived three-camera product (1 Color + 2 IR).
 // Each camera occupies its own UVC streaming interface (1:1 endpoint -> stream, no demux).
-// IMU (accel/gyro) and audio reuse the Ego HID/UAC links. Magnetometer is not yet implemented.
+// IMU (ICM42668P accel/gyro, reportId=1) and audio reuse the Ego HID/UAC links. The magnetometer
+// (reportId=6) and the MT6826S magnetic encoder (reportId=5) are separate streams on the same HID port.
 class UMIFingerDevice : public DeviceBase {
 public:
     UMIFingerDevice(const std::shared_ptr<const IDeviceEnumInfo> &info);

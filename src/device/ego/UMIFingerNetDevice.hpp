@@ -13,8 +13,9 @@
 namespace libobsensor {
 
 // UMI Finger network device: Ego-derived three-camera product (1 Color + 2 IR) over RTSP
-// (independent URL paths color/ir_left/ir_right), audio over RTSP, IMU over an independent
-// private TCP data stream. Magnetometer is not yet implemented.
+// (independent URL paths color/ir_left/ir_right), audio over RTSP, IMU (ICM42668P accel/gyro,
+// reportId=1) over an independent private TCP data stream. The magnetometer (reportId=6) and the
+// MT6826S magnetic encoder (reportId=5) are separate streams on the same data stream.
 class UMIFingerNetDevice : public DeviceBase {
 public:
     UMIFingerNetDevice(const std::shared_ptr<const IDeviceEnumInfo> &info);

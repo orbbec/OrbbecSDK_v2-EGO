@@ -201,6 +201,7 @@ typedef enum {
     OB_SENSOR_COLOR_SIDE_RIGHT = 15, /**< Side right Color */
     OB_SENSOR_COLOR_TOP        = 16, /**< Top Color */
     OB_SENSOR_MAG              = 17, /**< Magnetometer */
+    OB_SENSOR_MAG_ENCODER      = 18, /**< Magnetic angle encoder (e.g. MT6826S) */
     OB_SENSOR_TYPE_COUNT,            /**The total number of sensor types, is not a valid sensor type */
 } OBSensorType,
     ob_sensor_type;
@@ -228,6 +229,7 @@ typedef enum {
     OB_STREAM_COLOR_SIDE_RIGHT = 15, /**< Side right Color stream */
     OB_STREAM_COLOR_TOP        = 16, /**< Top Color stream */
     OB_STREAM_MAG              = 17, /**< Magnetometer data stream */
+    OB_STREAM_MAG_ENCODER      = 18, /**< Magnetic angle encoder data stream (e.g. MT6826S) */
     OB_STREAM_TYPE_COUNT,            /**< The total number of stream type,is not a valid stream type */
 } OBStreamType,
     ob_stream_type;
@@ -257,6 +259,7 @@ typedef enum {
     OB_FRAME_COLOR_SIDE_RIGHT = 17, /**< Side right Color frame */
     OB_FRAME_COLOR_TOP        = 18, /**< Top Color frame */
     OB_FRAME_MAG              = 19, /**< Magnetometer data frame */
+    OB_FRAME_MAG_ENCODER      = 20, /**< Magnetic angle encoder data frame (e.g. MT6826S) */
     OB_FRAME_TYPE_COUNT,            /**< The total number of frame types, is not a valid frame type */
 } OBFrameType,
     ob_frame_type;
@@ -319,6 +322,7 @@ typedef enum {
     OB_FORMAT_LIDAR_SCAN         = 37, /**< LiDAR single-line scan mode data format, @ref OBLiDARScanPoint */
     OB_FORMAT_LIDAR_CALIBRATION  = 38, /**< LiDAR calibration mode point format */
     OB_FORMAT_PCM                = 39, /**< PCM audio format (first version fixed at 16-bit little-endian) */
+    OB_FORMAT_MAG_ENCODER        = 40, /**< Magnetic angle encoder data format, @ref OBMagEncoderFrameData */
 } OBFormat,
     ob_format;
 
@@ -850,6 +854,18 @@ typedef struct {
     float y;  ///< Y-direction component
     float z;  ///< Z-direction component
 } OBAccelValue, OBGyroValue, OBMagValue, OBFloat3D, ob_accel_value, ob_gyro_value, ob_mag_value, ob_float_3d;
+
+/**
+ * @brief Data structure for a magnetic angle encoder (e.g. MT6826S) frame.
+ *
+ * Carried by an @ref OB_FRAME_MAG_ENCODER frame; the frame data buffer is exactly one of these structs.
+ */
+typedef struct {
+    float    angleDegree; /**< Angle converted to degrees, range [0, 360) */
+    uint8_t  status;      /**< Status bits: bit0 overspeed, bit1 weak magnetic field, bit2 undervoltage */
+    uint8_t  reserved[3];
+    uint64_t timestampUs; /**< Device timestamp of the sample, microseconds (CLOCK_MONOTONIC) */
+} OBMagEncoderFrameData, ob_mag_encoder_frame_data;
 
 /**
  * @brief Data structures for LiDAR scan rate

@@ -49,7 +49,9 @@ static const uint16_t UMI_COLOR_RTSP_PORT    = 8888;
 static const uint16_t UMI_IR_LEFT_RTSP_PORT  = 8889;
 static const uint16_t UMI_RTSP_AUDIO_PORT    = 8890;
 static const uint16_t UMI_IR_RIGHT_RTSP_PORT = 8891;
-static const uint16_t UMI_IMU_TCP_PORT       = 8900;  // private TCP IMU data stream (accel/gyro)
+static const uint16_t UMI_IMU_TCP_PORT       = 8900;  // private TCP IMU data stream (accel/gyro/magnetometer)
+static const uint32_t UMI_IMU_TCP_PACKET_SIZE =
+    248;  // fixed framing: 8-byte HID header + up to ten 24-byte groups; firmware pads every reportId packet to this size
 
 // EGO, EGOPro and EGODepth are split into separate series lists (EGODevPids / EGOProDevPids / EGODepthDevPids)
 // so that device-class selection is driven by list membership instead of a hardcoded PID. Enumeration still
@@ -199,8 +201,8 @@ std::vector<std::shared_ptr<IDeviceEnumInfo>> EGODeviceInfo::pickNetDevices(cons
                 // Audio is an independent RTSP stream
                 iter->emplace_back(std::make_shared<RTSPStreamPortInfo>(*portInfo, UMI_RTSP_AUDIO_PORT, portInfo->port, OB_STREAM_AUDIO));
 
-                // IMU (accel/gyro) over an independent private TCP data stream
-                iter->emplace_back(std::make_shared<NetDataStreamPortInfo>(*portInfo, UMI_IMU_TCP_PORT, portInfo->port));
+                // IMU (accel/gyro/magnetometer) over an independent private TCP data stream.
+                iter->emplace_back(std::make_shared<NetDataStreamPortInfo>(*portInfo, UMI_IMU_TCP_PORT, portInfo->port, UMI_IMU_TCP_PACKET_SIZE));
 
                 auto deviceEnumInfo = std::make_shared<EGODeviceInfo>(*iter);
                 egoDeviceInfos.push_back(deviceEnumInfo);

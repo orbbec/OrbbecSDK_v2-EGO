@@ -319,6 +319,25 @@ std::ostream &MagStreamProfile::operator<<(std::ostream &os) const {
     return os;
 }
 
+MagEncoderStreamProfile::MagEncoderStreamProfile(std::shared_ptr<LazySensor> owner, uint32_t sampleRate)
+    : StreamProfile{ owner, OB_STREAM_MAG_ENCODER, OB_FORMAT_MAG_ENCODER }, sampleRate_(sampleRate) {}
+
+uint32_t MagEncoderStreamProfile::getSampleRate() const {
+    return sampleRate_;
+}
+
+std::shared_ptr<StreamProfile> MagEncoderStreamProfile::clone() const {
+    auto sp = std::make_shared<MagEncoderStreamProfile>(owner_.lock(), sampleRate_);
+    sp->bindSameExtrinsicTo(shared_from_this());
+    return sp;
+}
+
+std::ostream &MagEncoderStreamProfile::operator<<(std::ostream &os) const {
+    os << "{"
+       << "type: " << type_ << ", format: " << format_ << ", sampleRate: " << sampleRate_ << "}";
+    return os;
+}
+
 LiDARStreamProfile::LiDARStreamProfile(std::shared_ptr<LazySensor> owner, OBLiDARScanRate scanRate, OBFormat format)
     : StreamProfile{ owner, OB_STREAM_LIDAR, format }, scanRate_(scanRate) {}
 
@@ -541,7 +560,7 @@ std::vector<std::shared_ptr<const GyroStreamProfile>> matchGyroStreamProfile(con
 }
 
 std::vector<std::shared_ptr<const MagStreamProfile>> matchMagStreamProfile(const StreamProfileList &profileList, OBMagFullScaleRange fullScaleRange,
-                                                                          OBMagSampleRate sampleRate) {
+                                                                           OBMagSampleRate sampleRate) {
     std::vector<std::shared_ptr<const MagStreamProfile>> matchProfileList;
     for(auto profile: profileList) {
         if(profile->is<MagStreamProfile>()) {

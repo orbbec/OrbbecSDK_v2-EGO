@@ -26,7 +26,7 @@ std::shared_ptr<IDevice> EgoProBoadDeviceInfo::createDevice(OBDeviceAccessMode m
 }
 std::vector<std::shared_ptr<IDeviceEnumInfo>> EgoProBoadDeviceInfo::pickDevices(const SourcePortInfoList &ports) {
     std::vector<std::shared_ptr<IDeviceEnumInfo>> out;
-    const std::vector<uint16_t>                   pids    = { EGOPRO_BOADER_PID };
+    const std::vector<uint16_t>                   pids    = { EGOPRO_BOADER_PID, UMI_FINGER_BOADER_PID };
     auto                                          matched = FilterUSBPortInfoByVidPid(ports, EGOPRO_BOADER_VID, pids);
     // The RockUSB download gadget presents a single vendor-specific bulk
     // interface. On Windows it is bound to rockusb.sys, so libusb cannot open

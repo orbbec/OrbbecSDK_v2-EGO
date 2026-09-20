@@ -25,6 +25,22 @@ typedef struct {
 } OBImuOriginData;
 
 #pragma pack(push, 1)
+// Raw magnetometer data group carried by a reportId=6 HID packet. magX/Y/Z are int16 register
+// values; the SDK converts them to physical quantities (uT) using the active full-scale range.
+// 24 bytes per group, matching OBImuOriginData / Mt6826sAngleReport.
+typedef struct {
+    int16_t  groupId;  // group index inside the pack
+    int16_t  magX;
+    int16_t  magY;
+    int16_t  magZ;
+    uint32_t timestamp[2];
+    uint8_t  reserved[8];
+} OBMagnetometerData;
+#pragma pack(pop)
+
+static_assert(sizeof(OBMagnetometerData) == 24, "OBMagnetometerData must be 24 bytes");
+
+#pragma pack(push, 1)
 // DMC640 imu data, firmware outputs physical quantities directly (float), plus magnetometer,
 // attitude angles, temperature and timestamp. 64 bytes per group.
 typedef struct {

@@ -28,6 +28,9 @@ std::shared_ptr<GyroStreamProfile> createGyroStreamProfile(std::shared_ptr<LazyS
 std::shared_ptr<MagStreamProfile> createMagStreamProfile(OBMagFullScaleRange fullScaleRange, OBMagSampleRate sampleRate);
 std::shared_ptr<MagStreamProfile> createMagStreamProfile(std::shared_ptr<LazySensor> owner, OBMagFullScaleRange fullScaleRange, OBMagSampleRate sampleRate);
 
+std::shared_ptr<MagEncoderStreamProfile> createMagEncoderStreamProfile(std::shared_ptr<LazySensor> owner);
+std::shared_ptr<MagEncoderStreamProfile> createMagEncoderStreamProfile(std::shared_ptr<LazySensor> owner, uint32_t sampleRate);
+
 std::shared_ptr<LiDARStreamProfile> createLiDARStreamProfile(OBLiDARScanRate scanRate, OBFormat format);
 std::shared_ptr<LiDARStreamProfile> createLiDARStreamProfile(std::shared_ptr<LazySensor> owner, OBLiDARScanRate scanRate, OBFormat format);
 

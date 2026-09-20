@@ -86,6 +86,7 @@ private:
     X(OB_DEV_COMPONENT_GYRO_SENSOR, "gyro sensor")                                                   \
     X(OB_DEV_COMPONENT_ACCEL_SENSOR, "accel sensor")                                                 \
     X(OB_DEV_COMPONENT_MAG_SENSOR, "mag sensor")                                                     \
+    X(OB_DEV_COMPONENT_MAG_STREAMER, "mag streamer")                                                 \
     X(OB_DEV_COMPONENT_IMU_STREAMER, "imu sensor")                                                   \
     X(OB_DEV_COMPONENT_SHARED_HID_STREAM, "shared hid stream")                                       \
     X(OB_DEV_COMPONENT_DIRECTION_KEY_SERVICE, "direction key service")                               \
@@ -130,12 +131,14 @@ private:
     X(OB_DEV_COMPONENT_DEVICE_LICENSE_INFO_MANAGER, "device license info manager")                   \
     X(OB_DEV_COMPONENT_AUDIO_SENSOR, "audio sensor")                                                 \
     X(OB_DEV_COMPONENT_FW_LOG_MANAGER, "firmware log manager")                                       \
-    X(OB_DEV_COMPONENT_FW_RECORD_PROFILE_MANAGER, "firmware record profile manager") \
-    X(OB_DEV_COMPONENT_RECORDING_SESSION_RESULT_MANAGER, "recording session result manager") \
-    X(OB_DEV_COMPONENT_HOST_TIME_INFO_MANAGER, "host time info manager")                \
-    X(OB_DEV_COMPONENT_CUSTOM_METADATA_MANAGER, "custom metadata manager") \
-    X(OB_DEV_COMPONENT_NETWORK_AUDIO_PLAYER, "network audio player") \
-    X(OB_DEV_COMPONENT_USB_AUDIO_PLAYER, "usb audio player")
+    X(OB_DEV_COMPONENT_FW_RECORD_PROFILE_MANAGER, "firmware record profile manager")                 \
+    X(OB_DEV_COMPONENT_RECORDING_SESSION_RESULT_MANAGER, "recording session result manager")         \
+    X(OB_DEV_COMPONENT_HOST_TIME_INFO_MANAGER, "host time info manager")                             \
+    X(OB_DEV_COMPONENT_CUSTOM_METADATA_MANAGER, "custom metadata manager")                           \
+    X(OB_DEV_COMPONENT_NETWORK_AUDIO_PLAYER, "network audio player")                                 \
+    X(OB_DEV_COMPONENT_USB_AUDIO_PLAYER, "usb audio player")                                         \
+    X(OB_DEV_COMPONENT_MAG_ENCODER_STREAMER, "mag encoder streamer")                                 \
+    X(OB_DEV_COMPONENT_MAG_ENCODER_SENSOR, "mag encoder sensor")
 
 // generate enum
 typedef enum {

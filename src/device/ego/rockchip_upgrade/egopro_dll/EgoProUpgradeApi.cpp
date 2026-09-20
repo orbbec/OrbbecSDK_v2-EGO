@@ -44,7 +44,8 @@
 
 namespace {
 const uint_16 EGOPRO_VID = 0x2207;
-const uint_16 EGOPRO_PID = 0x350E;
+const uint_16 EGOPRO_PID     = 0x350E;
+const uint_16 UMI_FINGER_PID = 0x110F;
 
 // Single upgrade at a time; the SDK serializes update calls per device.
 egopro_progress_cb  g_cb     = NULL;
@@ -134,7 +135,7 @@ extern "C" EGOPRO_API int egopro_rk_upgrade_file(const char *image_path, egopro_
         bool                 found = false;
         for(int i = 0; i < scan->DEVICE_COUNTS; ++i) {
             STRUCT_RKDEVICE_DESC d;
-            if(scan->GetDevice(d, i) && d.usVid == EGOPRO_VID && d.usPid == EGOPRO_PID) {
+            if(scan->GetDevice(d, i) && d.usVid == EGOPRO_VID && (d.usPid == EGOPRO_PID || d.usPid == UMI_FINGER_PID)) {
                 desc  = d;
                 found = true;
                 break;

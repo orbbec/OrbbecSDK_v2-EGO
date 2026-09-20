@@ -1236,6 +1236,11 @@ typedef enum {
     OB_PROP_IR_RECTIFY_BOOL = 2040,
 
     /**
+     * @brief magnetic encoder stream switch.
+     */
+    OB_PROP_MAG_ENCODER_SWITCH_BOOL = 2055,
+
+    /**
      * @brief Depth camera priority
      *
      */

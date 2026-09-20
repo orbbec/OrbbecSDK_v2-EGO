@@ -105,6 +105,10 @@ std::shared_ptr<IFrameBufferManager> FrameMemoryPool::createFrameBufferManager(O
         frameBufMgr = std::shared_ptr<FrameBufferManager<MagFrame>>(new FrameBufferManager<MagFrame>(frameBufferSize));
         LOG_DEBUG("MagFrame bufferManager created!");
         break;
+    case OB_FRAME_MAG_ENCODER:
+        frameBufMgr = std::shared_ptr<FrameBufferManager<MagEncoderFrame>>(new FrameBufferManager<MagEncoderFrame>(frameBufferSize));
+        LOG_DEBUG("MagEncoderFrame bufferManager created!");
+        break;
     case OB_FRAME_POINTS:
         frameBufMgr = std::shared_ptr<FrameBufferManager<PointsFrame>>(new FrameBufferManager<PointsFrame>(frameBufferSize));
         LOG_DEBUG("PointsFrame bufferManager created!");
@@ -152,6 +156,9 @@ std::shared_ptr<IFrameBufferManager> FrameMemoryPool::createFrameBufferManager(O
     }
     else if(streamProfile->is<MagStreamProfile>()) {
         return createFrameBufferManager(type, sizeof(MagFrame::Data));
+    }
+    else if(streamProfile->is<MagEncoderStreamProfile>()) {
+        return createFrameBufferManager(type, sizeof(MagEncoderFrame::Data));
     }
     else if(streamProfile->is<LiDARStreamProfile>()) {
         auto sp   = streamProfile->as<LiDARStreamProfile>();

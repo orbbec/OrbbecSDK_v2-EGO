@@ -43,6 +43,7 @@ constexpr uint16_t PID_EGO_BOOT_ROM              = 0x0300;
 constexpr uint16_t PID_EGO_BOOT_UBOOT            = 0x0301;
 constexpr uint16_t EGOPRO_RK_BOOT_DEVICE_VID     = 0x2207;
 constexpr uint16_t PID_EGOPRO_RK_BOOT_LOADER     = 0x350E;
+constexpr uint16_t PID_UMI_RK_BOOT_LOADER        = 0x110F;
 namespace libobsensor {
 
 class WinUsbDeviceWatcher : public IDeviceWatcher {
@@ -429,7 +430,7 @@ LRESULT CALLBACK WinUsbDeviceWatcher::onWinEvent(HWND hWnd, UINT message, WPARAM
                         const bool isUsbDeviceInterface  = (devIntf->dbcc_classguid == GUID_DEVINTERFACE_USB_DEVICE);
                         const bool isUvcBootloader       = (ORBBEC_DEVICE_VID == vid) && (PID_BOOTLOADER_UVC == pid);
                         const bool isEgoBootDevice       = (vid == EGO_BOOT_DEVICE_VID) && (pid == PID_EGO_BOOT_ROM || pid == PID_EGO_BOOT_UBOOT);
-                        const bool isEgoProRkBootDevice = (vid == EGOPRO_RK_BOOT_DEVICE_VID) && (pid == PID_EGOPRO_RK_BOOT_LOADER);
+                        const bool isEgoProRkBootDevice = (vid == EGOPRO_RK_BOOT_DEVICE_VID) && (pid == PID_EGOPRO_RK_BOOT_LOADER || pid == PID_UMI_RK_BOOT_LOADER);
 
                         // Generic USB-device notifications are normally suppressed because a
                         // UVC/HID device also generates its own interface notifications. EGO

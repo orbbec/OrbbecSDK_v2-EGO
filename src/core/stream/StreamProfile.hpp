@@ -178,14 +178,34 @@ public:
     MagStreamProfile(std::shared_ptr<LazySensor> owner, OBMagFullScaleRange fullScaleRange, OBMagSampleRate sampleRate);
     ~MagStreamProfile() noexcept override = default;
 
-    OBMagFullScaleRange           getFullScaleRange() const;
-    OBMagSampleRate               getSampleRate() const;
+    OBMagFullScaleRange            getFullScaleRange() const;
+    OBMagSampleRate                getSampleRate() const;
     std::shared_ptr<StreamProfile> clone() const override;
     std::ostream                  &operator<<(std::ostream &os) const override;
 
 protected:
     OBMagFullScaleRange fullScaleRange_;
     OBMagSampleRate     sampleRate_;
+};
+
+/**
+ * @brief Class representing a magnetic angle encoder (e.g. MT6826S) stream profile.
+ *
+ * The encoder streams a self-contained angle report on its own HID report id. It has no full-scale
+ * range, but does expose a sampling-rate (ODR) preset, so the profile carries the sample rate; a
+ * value of 0 means the rate is unknown and the device keeps its current setting.
+ */
+class MagEncoderStreamProfile : public StreamProfile {
+public:
+    explicit MagEncoderStreamProfile(std::shared_ptr<LazySensor> owner, uint32_t sampleRate = 0);
+    ~MagEncoderStreamProfile() noexcept override = default;
+
+    uint32_t                       getSampleRate() const;
+    std::shared_ptr<StreamProfile> clone() const override;
+    std::ostream                  &operator<<(std::ostream &os) const override;
+
+protected:
+    uint32_t sampleRate_;
 };
 
 /**
@@ -255,7 +275,7 @@ std::vector<std::shared_ptr<const GyroStreamProfile>> matchGyroStreamProfile(con
                                                                              OBGyroSampleRate sampleRate);
 
 std::vector<std::shared_ptr<const MagStreamProfile>> matchMagStreamProfile(const StreamProfileList &profileList, OBMagFullScaleRange fullScaleRange,
-                                                                          OBMagSampleRate sampleRate);
+                                                                           OBMagSampleRate sampleRate);
 
 std::vector<std::shared_ptr<const LiDARStreamProfile>> matchLiDARStreamProfile(const StreamProfileList &profileList, OBLiDARScanRate scanRate, OBFormat format);
 

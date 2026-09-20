@@ -307,6 +307,17 @@ public:
     float      temperature() const;
 };
 
+class MagEncoderFrame : public Frame {
+public:
+    typedef OBMagEncoderFrameData Data;
+
+public:
+    MagEncoderFrame(uint8_t *data, size_t dataBufSize, FrameBufferReclaimFunc bufferReclaimFunc = nullptr);
+    float    angleDegree() const;
+    uint8_t  status() const;
+    uint64_t encoderTimestampUs() const;
+};
+
 class LiDARPointsFrame : public Frame {
 public:
     LiDARPointsFrame(uint8_t *data, size_t dataBufSize, FrameBufferReclaimFunc bufferReclaimFunc = nullptr);

@@ -8,9 +8,15 @@
 #include "stream/StreamProfileFactory.hpp"
 #include "sensor/video/VideoSensor.hpp"
 #include "sensor/imu/ImuStreamer.hpp"
+#include "sensor/imu/ImuPayloadDecoder.hpp"
 #include "sensor/imu/AccelSensor.hpp"
 #include "sensor/imu/GyroSensor.hpp"
+#include "sensor/imu/MagSensor.hpp"
+#include "sensor/imu/MagStreamer.hpp"
+#include "sensor/imu/MagEncoderStreamer.hpp"
+#include "sensor/imu/MagEncoderSensor.hpp"
 #include "sensor/audio/AudioSensor.hpp"
+#include "hid/DirectionKeyService.hpp"
 #include "hid/EgoStateService.hpp"
 #include "hid/SharedDataStreamPort.hpp"
 
@@ -314,13 +320,20 @@ void UMIFingerNetDevice::initSensorList() {
             return sharedHidPort;
         });
 
-        registerComponent(OB_DEV_COMPONENT_IMU_STREAMER, [this, imuPortInfo]() {
-            // no correction filter applied: EGOAlgParamManager is disabled, so no intrinsics would be bound
+        registerComponent(OB_DEV_COMPONENT_IMU_STREAMER, [this]() {
+            // Accel and gyro share the private TCP data stream (reportId=1) as legacy 24-byte int16
+            // register groups, decoded via LegacyImuCalculatorDecoder.
+            // The IMU chip is the ICM42668P, so ImuCalculatorICM42668P is used for register conversion.
             auto sharedHidPort  = getComponentT<SharedDataStreamPort>(OB_DEV_COMPONENT_SHARED_HID_STREAM);
             auto dataStreamPort = sharedHidPort->createClientPort();
             auto imuStreamer =
-                std::make_shared<ImuStreamer>(this, dataStreamPort, std::vector<std::shared_ptr<IFilter>>{}, std::make_shared<ImuCalculatorBMI088>());
+                std::make_shared<ImuStreamer>(this, dataStreamPort, std::vector<std::shared_ptr<IFilter>>{}, std::make_shared<ImuCalculatorICM42668P>());
             return imuStreamer;
+        });
+
+        registerComponent(OB_DEV_COMPONENT_DIRECTION_KEY_SERVICE, [this]() {
+            auto sharedHidPort = getComponentT<SharedDataStreamPort>(OB_DEV_COMPONENT_SHARED_HID_STREAM);
+            return std::make_shared<DirectionKeyService>(this, sharedHidPort->createClientPort());
         });
 
         registerComponent(OB_DEV_COMPONENT_EGO_STATE_SERVICE, [this]() {
@@ -359,6 +372,55 @@ void UMIFingerNetDevice::initSensorList() {
             },
             true);
         registerSensorPortInfo(OB_SENSOR_GYRO, imuPortInfo);
+
+        // ---- Magnetometer (reportId=6) ----
+        // Independent HID stream parsed by its own MagStreamer (not ImuStreamer); int16 magX/Y/Z are
+        // converted to uT using the active full-scale range.
+        registerComponent(OB_DEV_COMPONENT_MAG_STREAMER, [this]() {
+            auto sharedHidPort  = getComponentT<SharedDataStreamPort>(OB_DEV_COMPONENT_SHARED_HID_STREAM);
+            auto dataStreamPort = sharedHidPort->createClientPort();
+            return std::make_shared<MagStreamer>(this, dataStreamPort);
+        });
+
+        registerComponent(
+            OB_DEV_COMPONENT_MAG_SENSOR,
+            [this, imuPortInfo]() {
+                auto port             = getSourcePort(imuPortInfo);
+                auto magStreamer      = getComponentT<MagStreamer>(OB_DEV_COMPONENT_MAG_STREAMER);
+                auto magStreamerShare = magStreamer.get();
+                auto sensor           = std::make_shared<MagSensor>(this, port, magStreamerShare, true);
+
+                sensor->enableTimestampAnomalyDetection(false);
+
+                initSensorStreamProfile(sensor);
+                return sensor;
+            },
+            true);
+        registerSensorPortInfo(OB_SENSOR_MAG, imuPortInfo);
+
+        // ---- Magnetic angle encoder (MT6826S, HID reportId=5) ----
+        // Self-contained HID report parsed independently of the accel/gyro IMU group, sharing the HID port.
+        registerComponent(OB_DEV_COMPONENT_MAG_ENCODER_STREAMER, [this]() {
+            auto sharedHidPort  = getComponentT<SharedDataStreamPort>(OB_DEV_COMPONENT_SHARED_HID_STREAM);
+            auto dataStreamPort = sharedHidPort->createClientPort();
+            return std::make_shared<MagEncoderStreamer>(this, dataStreamPort);
+        });
+
+        registerComponent(
+            OB_DEV_COMPONENT_MAG_ENCODER_SENSOR,
+            [this, imuPortInfo]() {
+                auto port           = getSourcePort(imuPortInfo);
+                auto streamer       = getComponentT<MagEncoderStreamer>(OB_DEV_COMPONENT_MAG_ENCODER_STREAMER);
+                auto streamerShared = streamer.get();
+                auto sensor         = std::make_shared<MagEncoderSensor>(this, port, streamerShared);
+
+                sensor->enableTimestampAnomalyDetection(false);
+
+                initSensorStreamProfile(sensor);
+                return sensor;
+            },
+            true);
+        registerSensorPortInfo(OB_SENSOR_MAG_ENCODER, imuPortInfo);
     }
 }
 
@@ -425,6 +487,15 @@ void UMIFingerNetDevice::initProperties() {
     propertyServer->registerProperty(OB_STRUCT_GET_GYRO_PRESETS_FULL_SCALE_LIST, "", "r", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_PROP_ACCEL_SWITCH_BOOL, "", "rw", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_PROP_GYRO_SWITCH_BOOL, "", "rw", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_PROP_MAG_ODR_INT, "rw", "rw", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_PROP_MAG_FULL_SCALE_INT, "rw", "rw", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_STRUCT_GET_MAG_PRESETS_ODR_LIST, "", "r", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_STRUCT_GET_MAG_PRESETS_FULL_SCALE_LIST, "", "r", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_PROP_MAG_SWITCH_BOOL, "", "rw", vendorPropertyAccessor);
+    // MT6826S is a separate reportId=5 stream, not the magnetometer (reportId=6) or the ICM42668P accel/gyro (reportId=1).
+    propertyServer->registerProperty(OB_PROP_MAG_ENCODER_SWITCH_BOOL, "", "rw", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_PROP_MAG_ENCODER_ODR_INT, "rw", "rw", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_STRUCT_GET_MAG_ENCODER_PRESETS_ODR_LIST, "", "rw", vendorPropertyAccessor);
 
     propertyServer->registerProperty(OB_RAW_DATA_ALIGN_CALIB_YAML, "r", "r", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_RAW_DATA_IMU_CALIB_YAML, "r", "r", vendorPropertyAccessor);

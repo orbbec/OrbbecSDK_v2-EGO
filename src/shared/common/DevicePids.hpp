@@ -153,7 +153,7 @@ const std::vector<uint16_t> G305DevPids = {
 
 // PN2608_EGO: head-mounted dual-RGB + IMU + audio device (USB-UVC/UAC and WiFi-RTSP paths)
 #define OB_DEVICE_EGO_PID 0x1201
-// UMI Finger: Ego-derived three-camera device (1 Color + 2 IR) + IMU + audio (magnetometer not yet implemented)
+// UMI Finger: Ego-derived three-camera device (1 Color + 2 IR) + 9-axis IMU + audio.
 #define OB_DEVICE_UMI_PID 0x1202
 
 const uint16_t              EGO_BOOT_VID       = 0x1B20;
