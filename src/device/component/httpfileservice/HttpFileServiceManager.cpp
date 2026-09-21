@@ -11,13 +11,20 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <cstdio>
 #include <cstdint>
 #include <cstring>
+#include <exception>
 #include <fstream>
 #include <sstream>
 #include <thread>
+#include <utility>
 
 namespace libobsensor {
+
+// C++11 requires an out-of-class definition when this constexpr member is
+// odr-used (for example, when passed by reference through the logger).
+constexpr int HttpFileServiceManager::kParallelChunks;
 
 // ── libcurl helpers ────────────────────────────────────────────────────────
 
@@ -120,7 +127,7 @@ static ob_sdcard_download_state stateFromCurrentException(
     return OB_SDCARD_DOWNLOAD_FAILED;
 }
 
-void throwCurlError(CURLcode res, const std::string &url) {
+[[noreturn]] void throwCurlError(CURLcode res, const std::string &url) {
     if(res == CURLE_ABORTED_BY_CALLBACK)
         throw FileServiceError(OB_SDCARD_DOWNLOAD_CANCELLED,
                                "HTTP file service: operation cancelled");
@@ -173,7 +180,13 @@ struct ChunkWriteCtx {
     int64_t                totalSize;
     const std::string     *name;
     SdcardDownloadProgressCallback *cb;
-    int                    lastPercent{ -1 };
+    int                    lastPercent;
+
+    ChunkWriteCtx(std::ofstream *outputFile, std::atomic<int64_t> *received,
+                  int64_t expectedSize, const std::string *fileName,
+                  SdcardDownloadProgressCallback *progressCallback)
+        : file(outputFile), totalReceived(received), totalSize(expectedSize),
+          name(fileName), cb(progressCallback), lastPercent(-1) {}
 };
 
 static size_t chunkWriteCb(char *ptr, size_t sz, size_t nmemb, void *ud) {

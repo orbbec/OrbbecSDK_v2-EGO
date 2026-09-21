@@ -31,7 +31,7 @@ using SdcardDownloadProgressCallback =
 
 class IHttpFileServiceManager : public IDeviceComponent {
 public:
-    virtual ~IHttpFileServiceManager() = default;
+    ~IHttpFileServiceManager() override = default;
 
     /**
      * Query existence and metadata of a path on the SD card.

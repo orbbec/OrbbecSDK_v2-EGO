@@ -40,6 +40,7 @@
 13. [EGO 音频播放](#13-ego-音频播放)
 14. [蓝牙配对与 Wi-Fi 配置清理](#14-蓝牙配对与-wi-fi-配置清理)
 15. [SDK 错误码捕获与处理](#15-sdk-错误码捕获与处理)
+16. [EGO SD 卡文件服务](#16-ego-sd-卡文件服务)
 
 ---
 
@@ -550,6 +551,23 @@ if (info != null) {
 | `String getAsicName()` | 芯片型号 |
 | `String getIpAddress()` | IP 地址（仅网络设备有效，否则 `"0.0.0.0"`） |
 | `DeviceType getDeviceType()` | 设备类型枚举 |
+
+#### 获取设备型号（Model Type）
+
+对于支持型号查询的 EGO 数据采集设备，可直接调用 `Device.getModelType()` 读取固件上报的设备型号。该值用于区分具体产品型号；`DeviceInfo.getName()` 返回的是设备产品名称，两者含义不同。
+
+```java
+try {
+    String modelType = mDevice.getModelType();
+    Log.i(TAG, "EGO model type: " + modelType);
+} catch (OBException e) {
+    Log.e(TAG, "Failed to get EGO model type", e);
+}
+```
+
+| API | 说明 |
+|-----|------|
+| `String Device.getModelType()` | 读取 EGO 数据采集设备的型号字符串；设备或固件不支持、通信失败、返回内容不是有效 UTF-8 时抛出 `OBException` |
 
 
 
@@ -1378,6 +1396,40 @@ device.executeRecordingAction(RecordingAction.OB_RECORDING_ACTION_STOP);
 
 示例应用提供了完整页面：`OrbbecSdkJavaExamples > Ego-FW-Recording-Directory`。页面可读取和设置目录，并提供开始、停止固件 SD 卡录制按钮。详细示例见 [EGO 自定义目录 SD 卡录制示例](EgoSdCardRecordingDirectoryExample.md)。
 
+### 5.7 设置固件录制文件名
+
+`Device.setFwRecordingFileName(String fileName)` 用于设置设备端 SD 卡录制生成文件的名称；`Device.getFwRecordingFileName()` 用于读回当前名称。文件名与上一节的录制目录组合决定设备端录制文件的存放位置和命名。
+
+该能力对应属性 `OB_STRUCT_FW_RECORDING_FILE_NAME`（ID：`1122`），适用于 EgoDevice、EgoNetDevice 和 Wrist 系列的固件 **1.1.8 及以上版本**。低版本固件不会注册此属性，因此调用前必须检查读写权限。
+
+文件名使用 UTF-8 编码，不能为空，不能包含路径分隔符 `/` 或 `\\`。与录制目录相同，**仅能在固件录制停止时修改**；录制进行中设置会失败并抛出 `OBException`。
+
+```java
+import android.util.Log;
+
+import com.orbbec.obsensor.Device;
+import com.orbbec.obsensor.property.DeviceProperty;
+import com.orbbec.obsensor.types.PermissionType;
+
+DeviceProperty fileNameProperty = DeviceProperty.OB_STRUCT_FW_RECORDING_FILE_NAME;
+if (!device.isPropertySupported(fileNameProperty, PermissionType.OB_PERMISSION_WRITE)) {
+    throw new UnsupportedOperationException(
+            "Firmware recording file name requires firmware 1.1.8 or later");
+}
+
+// 请在 executeRecordingAction(START) 前设置；不要包含目录，例如 "session_001"。
+device.setFwRecordingFileName("session_001");
+
+if (device.isPropertySupported(fileNameProperty, PermissionType.OB_PERMISSION_READ)) {
+    Log.i(TAG, "Recording file name: " + device.getFwRecordingFileName());
+}
+```
+
+| API | 参数 / 返回值 | 说明 |
+|-----|---------------|------|
+| `setFwRecordingFileName(String fileName)` | `fileName`：非空 UTF-8 文件名 | 设置后续固件录制使用的文件名；设备不支持、录制未停止或名称非法时抛出 `OBException`。 |
+| `getFwRecordingFileName()` | 返回 `String` | 读取当前固件录制文件名；属性不支持或读取失败时抛出 `OBException`。 |
+
 ## 6. 标定参数与资源释放
 
 ### 6.1 导出标定参数
@@ -1575,11 +1627,14 @@ void releaseDevice() {
 |---------|------|
 | `Sensor getSensor(SensorType)` | 获取传感器（不支持返回 null） |
 | `DeviceInfo getInfo()` | 获取设备信息 |
+| `String getModelType()` | 获取 EGO 数据采集设备的型号；不支持或读取失败时抛出 `OBException` |
 | `void timerSyncWithHost()` | 设备计时器同步主机 |
 | `byte[] getRawData(int propertyId)` | 读原始数据（标定等） |
 | `List<FwRecordStreamProfile> getFwRecordProfileList()` | 回读设备端 SD 卡录制 Profile 列表 |
 | `void setFwRecordProfileList(FwRecordStreamProfile...)` | 设置设备端 SD 卡录制 Profile |
 | `void setFwRecordProfileList(List<? extends FwRecordStreamProfile>)` | 以列表形式设置设备端 SD 卡录制 Profile |
+| `void setFwRecordingFileName(String)` | 设置设备端 SD 卡录制文件名；要求固件版本不低于 1.1.8，且录制已停止 |
+| `String getFwRecordingFileName()` | 读取设备端 SD 卡录制文件名；要求固件版本不低于 1.1.8 |
 | `TFCardCapacity getTFCardCapacity()` | 读取 TF 卡插入状态、总容量和剩余容量 |
 | `boolean isPropertySupported(DeviceProperty, PermissionType)` | 查属性是否支持指定读写权限 |
 | `boolean getPropertyValueB(DeviceProperty)` / `void setPropertyValueB(DeviceProperty, boolean)` | 读/写布尔属性（如彩色 AE 使能） |
@@ -1600,6 +1655,7 @@ void releaseDevice() {
 | `OB_PROP_COLOR_DYNAMIC_BITRATE_ENABLE_BOOL` | boolean | 彩色动态码率使能 | `getPropertyValueB` / `setPropertyValueB` |
 | `OB_PROP_VIDEO_GOP_INT` | int | 视频 GOP（通用整型设备属性） | `getPropertyValueI` / `setPropertyValueI` |
 | `OB_PROP_FW_RECORDING_FILE_SPLIT_DURATION_MIN_INT` | int | SD 卡录制文件切片时长（分钟） | `getPropertyValueI` / `setPropertyValueI` |
+| `OB_STRUCT_FW_RECORDING_FILE_NAME` | UTF-8 字符串 | SD 卡录制文件名（属性 ID：1122，固件 ≥ 1.1.8） | `getFwRecordingFileName` / `setFwRecordingFileName` |
 | `OB_PROP_RECORDING_DESTINATION_INT` | int（`RecordingDestination`） | 录制目标：设备 SD 卡（0）或主机（1） | `getPropertyValueI` / `setPropertyValueI` |
 | `OB_PROP_DEVICE_VOICE_PROMPT_LANGUAGE_INT` | int（`DeviceVoicePromptLanguage`） | 设备语音提示语言：中文（0）或英文（1） | `getPropertyValueI` / `setPropertyValueI` |
 | `OB_PROP_DEVICE_AUDIO_OUTPUT_VOLUME_INT` | int | 扬声器播放音量（dB，范围取决于设备/固件） | `getMinRangeI` / `getMaxRangeI` / `setAudioPlaybackVolume` |
@@ -2681,3 +2737,164 @@ private void handleRecordingSdkError(OBException exception) {
 
 `OBStatus` 可能随 SDK 演进增加新值。`getStatus()` 对未知值会返回 `OB_STATUS_UNRECOGNIZED`，因此业务代码必须保留
 `default` 分支，并始终记录 `getStatusCode()`。这可让旧版 App 在配合新版 SDK 时仍能安全显示通用错误，而不会因枚举值变化崩溃。
+
+## 16. EGO SD 卡文件服务
+
+本章介绍设备端 SD 卡中的文件浏览、查询、下载、上传、取消和删除。它与第 5 章“固件录制配置”配合使用：第 5 章决定设备如何写入 SD 卡，本章用于在录制完成后管理这些文件。
+
+该服务适用于支持 EGO SD 卡文件服务的**网络设备**。先在后台线程创建网络 `Device`，再执行文件服务操作：
+
+```java
+Device device = context.createNetDevice("192.168.1.10", 8090);
+```
+
+设备端路径均为 SD 卡相对路径，使用 `/` 分隔，例如 `EGO_AZEL/record.mp4`；不能使用 Android 本地路径、`..` 或 Windows 路径分隔符。文件传输未收到终态回调前，不要关闭 `Device`。
+
+### 16.1 功能与接口对应关系
+
+| 目标 | 接口 |
+|------|------|
+| 查询文件或目录是否存在、类型和大小 | `getSdcardFileInfo` |
+| 浏览 SD 卡根目录或递归浏览目录 | `getSdcardFileList` |
+| 下载一个设备文件到 Android 本地 | `downloadSdcardFile(..., LOCAL, ...)` |
+| 上传一个设备文件到 HTTP / 腾讯 COS | `downloadSdcardFile(..., URL, ...)` |
+| 取消当前文件传输 | `cancelSdcardFileOperation` |
+| 删除文件或目录 | `deleteSdcardFile` |
+
+下载到 Android 本地的示例目录为 `/storage/emulated/0/Orbbec/Downloads`。应用应按 Android 版本和自身存储方案申请目标目录的写入权限；示例工程使用 `MANAGE_EXTERNAL_STORAGE`。
+
+### 16.2 查询和递归浏览
+
+```java
+SdcardFileInfo getSdcardFileInfo(String path)
+List<SdcardFileEntry> getSdcardFileList(String path, boolean recursive)
+```
+
+`getSdcardFileInfo` 用于确认单个目标，参数 `path` 是非空设备端相对路径。返回对象提供以下信息：
+
+| `SdcardFileInfo` 方法 | 说明 |
+|------|------|
+| `exists()` | 路径是否存在。 |
+| `isDirectory()` | 是否为目录。 |
+| `getSize()` | 文件大小，单位字节；目录通常为 `0`。 |
+
+`getSdcardFileList` 的 `path` 为待列出的目录；传入空字符串表示 SD 卡根目录。`recursive` 为 `false` 时仅返回直接子项，为 `true` 时返回所有子目录和文件。每个 `SdcardFileEntry` 提供 `getName()`、`isDirectory()` 和 `getSize()`；递归列表中的 `getName()` 可直接作为后续查询、传输或删除的设备端路径。
+
+```java
+List<SdcardFileEntry> entries = device.getSdcardFileList("EGO_AZEL", true);
+for (SdcardFileEntry entry : entries) {
+    Log.i(TAG, (entry.isDirectory() ? "DIR  " : "FILE ") + entry.getName());
+}
+```
+
+### 16.3 下载和上传单个文件
+
+```java
+void downloadSdcardFile(
+        String devicePath,
+        SdcardDownloadDestination destinationType,
+        String destination,
+        SdcardDownloadProgressCallback callback,
+        boolean async)
+```
+
+该接口每次仅传输一个**文件**；不能直接传输目录。
+
+| 参数 | 说明 |
+|------|------|
+| `devicePath` | 存在的设备端文件相对路径，不能是目录，不能包含 `..`。 |
+| `destinationType` | `LOCAL` 表示下载到 Android 本地；`URL` 表示由设备上传到 HTTP URL。 |
+| `destination` | `LOCAL` 时为完整本地文件路径；`URL` 时为设备可访问的完整 HTTP 预签名 URL。 |
+| `callback` | 进度和结果回调；建议始终提供。 |
+| `async` | `true` 立即返回并在后台传输；`false` 阻塞当前调用线程直至完成，因此不得在 UI 线程使用。 |
+
+下载本地文件：
+
+```java
+device.downloadSdcardFile(
+        "EGO_AZEL/record.mp4",
+        SdcardDownloadDestination.LOCAL,
+        "/storage/emulated/0/Orbbec/Downloads/EGO_AZEL/record.mp4",
+        this::onTransferProgress,
+        true);
+```
+
+上传到 HTTP/COS：
+
+```java
+String putUrl = createPresignedUrlFor("EGO_AZEL/record.mp4");
+device.downloadSdcardFile(
+        "EGO_AZEL/record.mp4",
+        SdcardDownloadDestination.URL,
+        putUrl,
+        this::onTransferProgress,
+        true);
+```
+
+设备端上传使用完整 `http://` URL。使用腾讯 COS 等对象存储时，必须为**每个文件**生成独立、未过期的 PUT 预签名 URL，否则多个文件可能写入同一对象而互相覆盖。示例工程中的 `TencentCosPresignUrlGenerator` 仅用于演示；生产环境应由业务服务端签发短期 URL，不能把长期密钥放入 APK。
+
+目录下载或上传时，先调用 `getSdcardFileList(directory, true)`，过滤出 `isDirectory() == false` 的条目，再逐文件调用传输接口。本地下载应按设备相对路径创建子目录；上传时应逐文件创建 URL。建议串行传输，避免超过设备端的并发能力。
+
+### 16.4 进度、完成和失败处理
+
+```java
+public interface SdcardDownloadProgressCallback {
+    void onProgress(SdcardDownloadProgress progress);
+}
+```
+
+回调在 native 工作线程中触发。更新 Android UI 时必须切回主线程。`SdcardDownloadProgress` 的字段如下：
+
+| 方法 | 说明 |
+|------|------|
+| `getState()` | 当前 `SdcardDownloadState`。 |
+| `getFileName()` | 当前处理的文件名。 |
+| `getPercent()` | 进度 `0`–`100`；`-1` 表示暂时无法计算百分比，并非失败。 |
+| `getMd5Base64()` | 完成时设备返回的 Base64 MD5；未提供时可能为空。 |
+
+| 状态 | 处理建议 |
+|------|----------|
+| `TRANSFERRING` | 正在传输，刷新进度。 |
+| `DONE` | 成功完成，可进入下一文件或提示成功。 |
+| `CANCELLED` | 已取消，恢复 UI 可操作状态。 |
+| `FAILED`、`FAILED_NOT_FOUND`、`FAILED_TIMEOUT`、`FAILED_NETWORK`、`FAILED_SERVER`、`FAILED_BUSY`、`FAILED_CAMERA_STREAMING` | 传输失败；记录状态和文件名，向用户显示可理解的错误提示。 |
+
+除 `TRANSFERRING` 外均为终态。必须以终态回调判断一次传输是否结束，不能仅以进度到 `100` 判断成功。
+
+```java
+private void onTransferProgress(SdcardDownloadProgress progress) {
+    String percent = progress.getPercent() >= 0
+            ? progress.getPercent() + "%" : "calculating";
+    Log.i(TAG, progress.getState() + " " + progress.getFileName() + " " + percent);
+    runOnUiThread(() -> updateTransferUi(progress));
+}
+```
+
+### 16.5 取消和删除
+
+```java
+void cancelSdcardFileOperation()
+void deleteSdcardFile(String path)
+```
+
+`cancelSdcardFileOperation()` 取消当前 `Device` 上的下载或上传。调用后继续等待终态回调（通常为 `CANCELLED`），再关闭页面或设备。
+
+`deleteSdcardFile(path)` 删除设备端文件或目录。`path` 为非空设备端相对路径，不能包含 `..`。若目标是目录，设备会**递归删除**其所有子目录和文件，且不可恢复；应用必须先显示二次确认，并建议先查询确认目标类型。
+
+```java
+SdcardFileInfo info = device.getSdcardFileInfo("EGO_AZEL");
+if (info.exists()) {
+    // 目录会被递归删除，执行前应完成用户确认。
+    device.deleteSdcardFile("EGO_AZEL");
+}
+```
+
+### 16.6 推荐接入顺序和示例
+
+1. 后台线程创建网络设备，保持 `Device` 有效。
+2. 使用 `getSdcardFileList("", true)` 获取可选文件和目录；用户选中后用 `getSdcardFileInfo` 确认类型。
+3. 对文件直接下载或上传；对目录递归列出后逐文件传输。
+4. 始终注册进度回调，并仅在终态后处理下一步或释放资源。
+5. 用户取消时调用取消接口；删除目录前始终二次确认。
+
+完整交互式实现请参考示例工程的 `EgoSdcardFileServiceActivity`；独立专题说明见 [EGO SD 卡文件服务接口说明](EgoSdcardFileServiceApiGuide.md)。
