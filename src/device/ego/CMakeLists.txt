@@ -37,6 +37,12 @@ target_sources(
              ${CMAKE_CURRENT_LIST_DIR}/EGODeviceInfo.cpp
              ${CMAKE_CURRENT_LIST_DIR}/EGOAlgParamManager.hpp
              ${CMAKE_CURRENT_LIST_DIR}/EGOAlgParamManager.cpp
+             ${CMAKE_CURRENT_LIST_DIR}/WristDevice.hpp
+             ${CMAKE_CURRENT_LIST_DIR}/WristDevice.cpp
+             ${CMAKE_CURRENT_LIST_DIR}/WristNetDevice.hpp
+             ${CMAKE_CURRENT_LIST_DIR}/WristNetDevice.cpp
+             ${CMAKE_CURRENT_LIST_DIR}/WristDeviceInfo.hpp
+             ${CMAKE_CURRENT_LIST_DIR}/WristDeviceInfo.cpp
              ${CMAKE_CURRENT_LIST_DIR}/boot/EGOBootDevice.hpp
              ${CMAKE_CURRENT_LIST_DIR}/boot/EGOBootDevice.cpp
              ${CMAKE_CURRENT_LIST_DIR}/boot/EGOBootDeviceInfo.hpp

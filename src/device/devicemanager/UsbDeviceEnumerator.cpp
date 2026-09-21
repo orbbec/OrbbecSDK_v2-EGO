@@ -13,7 +13,7 @@
 #include "femtobolt/FemtoBoltDeviceInfo.hpp"
 #include "femtomega/FemtoMegaDeviceInfo.hpp"
 #include "ego/EGODeviceInfo.hpp"
-#include "wrist/WristDeviceInfo.hpp"
+#include "ego/WristDeviceInfo.hpp"
 #include "ego/boot/EGOBootDeviceInfo.hpp"
 #include "ego/boot/EgoProBoadDeviceInfo.hpp"
 #include "openni/OpenNIDeviceInfo.hpp"

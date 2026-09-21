@@ -4,7 +4,7 @@
 #include "NetDeviceEnumerator.hpp"
 #include "femtomega/FemtoMegaDeviceInfo.hpp"
 #include "ego/EGODeviceInfo.hpp"
-#include "wrist/WristDeviceInfo.hpp"
+#include "ego/WristDeviceInfo.hpp"
 #include "gemini330/G330DeviceInfo.hpp"
 #include "lidar/LiDARDeviceInfo.hpp"
 #include "gemini2/G2DeviceInfo.hpp"
