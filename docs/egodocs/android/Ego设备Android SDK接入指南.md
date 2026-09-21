@@ -1,6 +1,6 @@
 # Ego 双目相机 Android SDK 接入指南（USB / 网络）
 
-> 本文面向将 Ego 接入 Android App 的开发人员。按本文完成后，应用可发现或连接设备，采集**左/右彩色（H264）**、**音频（PCM）**和 **IMU（加速度/陀螺仪）** 数据，并安全处理拔插、断网和页面退出。
+> 本文面向将 Ego 接入 Android App 的开发人员。按本文完成后，应用可发现或连接设备，采集**左/右彩色（H264）**、**音频（PCM）**、**IMU（加速度/陀螺仪/磁力计）**，以及支持 MT6826S 的 UMI Finger 设备上的**磁角度编码器**数据，并安全处理拔插、断网和页面退出。
 >
 > **建议首次接入按第 2 章完成一次“最小验证”，确认能稳定拿到左彩色帧后，再按第 4 章逐项加入右彩色、音频、IMU、标定、录制或升级功能。** 不建议一开始同时接入全部能力；这样出现问题时很难区分是连接、权限、开流还是数据处理导致。
 >
@@ -77,7 +77,7 @@
 | 5. 可选能力 | 逐项加入音频、IMU、标定、录制等 | 每增加一项都能独立验证并可正常停止 | Sensor 与 Pipeline 的分工、回调耗时、线程串行化 |
 | 6. 异常场景 | 拔插、断网、页面退出、重复进入 | 不崩溃、不复用旧句柄，能再次连接 | 按 6.2 的顺序停止并做到幂等 |
 
-SDK 支持在一台 Ego 相机上**五类数据流的同时采集**：
+SDK 支持以下数据流。左/右彩色、音频、加速度计和陀螺仪是本文主线；磁力计和磁角度编码器为**设备可选能力**，应先通过 `Device.getSensor(...)` 检查是否支持。磁角度编码器当前用于配备 MT6826S 的 UMI Finger 设备。
 
 | 数据流 | 传感器类型 | 格式 | 取流方式 | 对应 API 入口 |
 |--------|-----------|------|---------|--------------|
@@ -86,8 +86,35 @@ SDK 支持在一台 Ego 相机上**五类数据流的同时采集**：
 | 音频 | `AUDIO` | PCM | Sensor 直连 | `Sensor.start(profile, callback)` |
 | 加速度计 | `ACCEL` | float[3] (x,y,z) | Sensor 直连 | `Sensor.start(profile, callback)` |
 | 陀螺仪 | `GYRO` | float[3] (x,y,z) | Sensor 直连 | `Sensor.start(profile, callback)` |
+| 磁力计（可选） | `MAG` | `float[3]` (x,y,z)，单位 μT | Pipeline | `Config.enableMagStream()` |
+| 磁角度编码器（可选，UMI Finger） | `MAG_ENCODER` | 角度、状态位、时间戳 | Pipeline | `Config.enableMagEncoderStream()` |
 | SD 卡固件录制配置 | Color / Depth / IR / IMU 等 | Profile 列表 | Device | `Device.setFwRecordProfileList(...)` |
 | 标定参数 | — | YAML | 设备属性 | `Device.getRawData(propertyId)` |
+
+### 1.4 设备型号与数据流支持矩阵
+
+下表根据 OpenOrbbecSDK 各设备类实际注册的 `Sensor` 组件整理。它表示该**设备类可提供的流类型**，不是对每一台实物设备、每个固件和当前工作模式的无条件承诺；端口不存在、功能被固件关闭或设备工作模式切换后，相应流不会出现在设备列表中。
+
+应用不得只根据型号硬编码启流。连接成功后仍应调用 `Device.getSensor(SensorType)` 或 `Device.querySensors()` 确认当前设备实际暴露的传感器，再读取其 Profile 列表并启流。
+
+| SDK 设备类 | 连接方式 | 可提供的数据流（`SensorType`） |
+|---|---|---|
+| `EGODevice` | USB | `COLOR_LEFT`、`COLOR_RIGHT`、`AUDIO`、`ACCEL`、`GYRO` |
+| `EGONetDevice` | 网络 | `COLOR_LEFT`、`COLOR_RIGHT`、`AUDIO`、`ACCEL`、`GYRO` |
+| `EgoProDevice` | USB | `COLOR_LEFT`、`COLOR_RIGHT`、`COLOR_SIDE_LEFT`、`COLOR_SIDE_RIGHT`、`AUDIO`、`ACCEL`、`GYRO` |
+| `EgoProNetDevice` | 网络 | `COLOR_LEFT`、`COLOR_RIGHT`、`COLOR_SIDE_LEFT`、`COLOR_SIDE_RIGHT`、`AUDIO`、`ACCEL`、`GYRO` |
+| `WristDevice` | USB | `COLOR`、`ACCEL`、`GYRO` |
+| `WristNetDevice` | 网络 | `COLOR`、`ACCEL`、`GYRO` |
+| `EGODepthDevice` | USB | `COLOR_LEFT`、`COLOR_RIGHT`、`COLOR_TOP`、`COLOR`、`DEPTH`、`IR_LEFT`、`IR_RIGHT`、`AUDIO`、`ACCEL`、`GYRO`、`MAG` |
+| `EGODepthNetDevice` | 网络 | `COLOR_LEFT`、`COLOR_RIGHT`、`COLOR_TOP`、`COLOR`、`DEPTH`、`IR_LEFT`、`IR_RIGHT`、`AUDIO`、`ACCEL`、`GYRO`、`MAG` |
+| `UMIFingerDevice` | USB | `COLOR`、`IR_LEFT`、`IR_RIGHT`、`AUDIO`、`ACCEL`、`GYRO`、`MAG`、`MAG_ENCODER` |
+| `UMIFingerNetDevice` | 网络 | `COLOR`、`IR_LEFT`、`IR_RIGHT`、`AUDIO`、`ACCEL`、`GYRO`、`MAG`、`MAG_ENCODER` |
+
+特别说明：
+
+- `MAG_ENCODER` 是 MT6826S 磁角度编码器流，仅在 `UMIFingerDevice` / `UMIFingerNetDevice` 的相应硬件与固件上注册。
+- `EGODepthDevice` / `EGODepthNetDevice` 会根据当前深度工作模式裁剪传感器树；例如某些模式下 `DEPTH`、`IR_LEFT`、`IR_RIGHT` 可能不可用。
+- `EgoProDevice` / `EgoProNetDevice` 的左右及侧向彩色流来自多路虚拟/网络视频端口；具体分辨率、编码格式和帧率必须通过各流的 `StreamProfileList` 获取，不能由本表推断。
 
 **API 调用流程：**
 
@@ -355,6 +382,8 @@ flowchart TD
 
 - **Sensor 直连模型**——用于**独立、高频**的流（音频、加速度、陀螺仪）。
   直接 `Sensor.start(profile, callback)`，每来一帧回调一次，不进 Pipeline。
+
+- **磁传感扩展流**——磁力计 `MAG` 和磁角度编码器 `MAG_ENCODER` 的 SDK 示例使用 Pipeline：通过 `Config.enableMagStream()` 或 `Config.enableMagEncoderStream()` 选流，再从 `FrameSet` 取帧。详见 4.7。它们不是所有 Ego 设备均具备的能力。
 
 > 一台设备上，Pipeline 与 Sensor 直连**可以并存**（范例即如此），
 > 但**同一个传感器**不能既被 Pipeline 使用又被 Sensor 直连使用。
@@ -1097,6 +1126,88 @@ private void startImuSensor(SensorType sensorType, FrameType frameType, String c
 | `AccelFrame.getAccelData()` | 加速度 `float[3]` {x,y,z} |
 | `GyroFrame.getGyroData()` | 角速度 `float[3]` {x,y,z} |
 
+### 4.7 磁力计与磁角度编码器流（可选）
+
+`MAG` 是三轴磁力计流，数据单位为 μT；`MAG_ENCODER` 是磁角度编码器流，当前用于配备 MT6826S 的 UMI Finger。两者均为设备可选能力：若 `device.getSensor(SensorType.MAG)` 或 `device.getSensor(SensorType.MAG_ENCODER)` 返回 `null`，应隐藏该功能，而不是继续启流。
+
+这两路流按 C++ SDK 样例通过 Pipeline 使用。可分别启用，也可放入同一个 `Config` 后同时启用；实际可用 Profile 与采样率以设备返回列表为准。
+
+```java
+import java.math.BigInteger;
+
+Pipeline pipeline = new Pipeline(device);
+Config config = new Config();
+try {
+    boolean hasEnabledStream = false;
+    if (device.getSensor(SensorType.MAG) != null) {
+        config.enableMagStream();
+        hasEnabledStream = true;
+    }
+    if (device.getSensor(SensorType.MAG_ENCODER) != null) {
+        config.enableMagEncoderStream(); // 使用设备默认采样率
+        hasEnabledStream = true;
+    }
+    if (!hasEnabledStream) {
+        throw new UnsupportedOperationException("This device has no magnetic sensor stream");
+    }
+
+    pipeline.start(config, frameSet -> {
+        if (frameSet == null) {
+            return;
+        }
+        try {
+            Frame mag = frameSet.getFrame(FrameType.MAG);
+            if (mag != null) {
+                try {
+                    MagFrame magFrame = mag.as(FrameType.MAG);
+                    float[] fieldUt = magFrame.getMagData(); // x, y, z，单位 μT
+                    float temperatureC = magFrame.getTemperature();
+                    BigInteger timestampUs = magFrame.getTimeStampUs();
+                    // 使用 fieldUt、temperatureC、timestampUs
+                } finally {
+                    mag.close();
+                }
+            }
+
+            Frame encoder = frameSet.getFrame(FrameType.MAG_ENCODER);
+            if (encoder != null) {
+                try {
+                    MagEncoderFrame encoderFrame = encoder.as(FrameType.MAG_ENCODER);
+                    float angleDegree = encoderFrame.getAngleDegree(); // [0, 360)
+                    int status = encoderFrame.getStatus();
+                    BigInteger timestampUs = encoderFrame.getTimeStampUs();
+                    boolean overspeed = encoderFrame.hasStatus(
+                            MagEncoderFrame.STATUS_OVERSPEED);
+                    // 使用 angleDegree、status、timestampUs、overspeed
+                } finally {
+                    encoder.close();
+                }
+            }
+        } finally {
+            frameSet.close();
+        }
+    });
+} finally {
+    config.close(); // Pipeline 已在 start 时复制配置
+}
+```
+
+如果需要从设备支持列表中选择具体采样率，使用 `Pipeline.getStreamProfileList(SensorType.MAG)` 或 `Pipeline.getStreamProfileList(SensorType.MAG_ENCODER)` 遍历 Profile：前者转为 `MagStreamProfile` 后可读取 `getFullScaleRange()` 与 `getSampleRate()`；后者转为 `MagEncoderStreamProfile` 后可读取 `getSampleRate()`，然后调用 `Config.enableStream(profile)`。
+
+| 磁力计 / 编码器 API | 说明 |
+|-----|------|
+| `Config.enableMagStream(MagFullScaleRange, IMUSampleRate)` / `enableMagStream()` | 开启磁力计流；无参版本使用设备默认量程与采样率。 |
+| `Config.enableMagEncoderStream(IMUSampleRate)` / `enableMagEncoderStream()` | 开启磁角度编码器流；无参版本使用设备默认采样率。 |
+| `MagStreamProfile.getFullScaleRange()` / `getSampleRate()` | 获取磁力计 Profile 的量程与采样率。 |
+| `MagEncoderStreamProfile.getSampleRate()` | 获取磁角度编码器 Profile 的采样率。 |
+| `MagFrame.getMagData()` / `getTemperature()` | 获取三轴磁场值和采样温度。 |
+| `MagEncoderFrame.getAngleDegree()` | 获取角度，单位度，范围 `[0, 360)`。 |
+| `MagEncoderFrame.getStatus()` | 获取状态位掩码。bit0：超速；bit1：磁场过弱；bit2：欠压。 |
+| `MagEncoderFrame.hasStatus(int)` | 判断指定状态位是否置位。常量为 `STATUS_OVERSPEED`、`STATUS_WEAK_MAGNETIC_FIELD`、`STATUS_UNDERVOLTAGE`。 |
+| `Frame.getTimeStampUs()` / `getIndex()` | 获取设备时间戳和帧序号。时间戳为 `BigInteger`，避免无符号 64 位时间戳溢出。 |
+
+> `MAG_ENCODER` 当前是实时数据流适配；Android JNI 尚未提供 `FwRecordStreamProfile.from(MagEncoderStreamProfile)`，因此不要把它加入固件 SD 卡录制 Profile 列表。
+
 ## 5. 设备端 SD 卡录制与存储设置
 
 > 本章配置的是**设备端**的录制行为：设备根据设置写入 TF 卡或主机。它与 App 侧通过回调自行保存音视频不同，也不依赖 IMU 功能；可单独接入和验收。
@@ -1726,6 +1837,8 @@ if (device.isPropertySupported(gopProperty, PermissionType.OB_PERMISSION_READ)
 | `Config()` | 创建配置 |
 | `void enableStream(StreamProfile)` | 开启指定配置的流 |
 | `void enableStream(SensorType)` | 以默认配置开某传感器的流 |
+| `void enableMagStream(MagFullScaleRange, IMUSampleRate)` / `void enableMagStream()` | 开启磁力计流；无参版本使用设备默认参数 |
+| `void enableMagEncoderStream(IMUSampleRate)` / `void enableMagEncoderStream()` | 开启磁角度编码器流；仅支持该传感器的设备可用 |
 | `void setFrameAggregateOutputMode(FrameAggregateOutputMode)` | 设置帧聚合模式 |
 | `void close()` | 释放 |
 
@@ -1742,6 +1855,8 @@ if (device.isPropertySupported(gopProperty, PermissionType.OB_PERMISSION_READ)
 | `AccelFullScaleRange AccelStreamProfile.getFullScaleRange()` | 加速度量程 |
 | `IMUSampleRate GyroStreamProfile.getSampleRate()` | 陀螺仪采样率（枚举） |
 | `GyroFullScaleRange GyroStreamProfile.getFullScaleRange()` | 陀螺仪量程 |
+| `MagFullScaleRange MagStreamProfile.getFullScaleRange()` / `IMUSampleRate getSampleRate()` | 磁力计量程与采样率 |
+| `IMUSampleRate MagEncoderStreamProfile.getSampleRate()` | 磁角度编码器采样率 |
 
 ### FwRecordStreamProfile / 子类
 
@@ -1777,6 +1892,9 @@ if (device.isPropertySupported(gopProperty, PermissionType.OB_PERMISSION_READ)
 | `<T> T FrameSet.getFrame(FrameType)` | 从帧集取指定帧；左右彩色请用 `FrameType.COLOR_LEFT` / `FrameType.COLOR_RIGHT` 从 `FrameSet` 取 |
 | `float[] AccelFrame.getAccelData()` | 加速度 {x,y,z} |
 | `float[] GyroFrame.getGyroData()` | 角速度 {x,y,z} |
+| `float[] MagFrame.getMagData()` / `float MagFrame.getTemperature()` | 三轴磁场值（μT）/ 采样温度（℃） |
+| `float MagEncoderFrame.getAngleDegree()` | 磁角度编码器角度，范围 `[0, 360)` |
+| `int MagEncoderFrame.getStatus()` / `boolean hasStatus(int)` | 磁角度编码器状态位和状态判断 |
 
 ### 回调接口
 
@@ -1790,10 +1908,10 @@ if (device.isPropertySupported(gopProperty, PermissionType.OB_PERMISSION_READ)
 
 | 枚举 | 常用常量 |
 |------|---------|
-| `SensorType` | `COLOR_LEFT` `COLOR_RIGHT` `AUDIO` `ACCEL` `GYRO` |
-| `FrameType` | `COLOR_LEFT` `COLOR_RIGHT` `ACCEL` `GYRO` |
-| `StreamType` | `COLOR_LEFT` `COLOR_RIGHT` `AUDIO` `ACCEL` `GYRO` |
-| `Format` | `H264`（Ego 彩色流格式） |
+| `SensorType` | `COLOR_LEFT` `COLOR_RIGHT` `AUDIO` `ACCEL` `GYRO` `MAG` `MAG_ENCODER` |
+| `FrameType` | `COLOR_LEFT` `COLOR_RIGHT` `ACCEL` `GYRO` `MAG` `MAG_ENCODER` |
+| `StreamType` | `COLOR_LEFT` `COLOR_RIGHT` `AUDIO` `ACCEL` `GYRO` `MAG` `MAG_ENCODER` |
+| `Format` | `H264`（Ego 彩色流格式）、`MAG`、`MAG_ENCODER` |
 | `FrameAggregateOutputMode` | `OB_FRAME_AGGREGATE_OUTPUT_DISABLE`（H264 推荐） |
 
 ---

@@ -163,15 +163,16 @@ void checkHttpCode(long httpCode, const std::string &responseBody, const std::st
                            "HTTP file service: " + url + " returned " + msg);
 }
 
-constexpr long kConnectTimeoutMs     = 5000;
+constexpr long kConnectTimeoutMs         = 5000;
+constexpr long kDownloadConnectTimeoutMs = 3000;
 constexpr long kQuickOpTimeoutMs     = 30000;
 constexpr long kUploadPollTimeoutMs  = 30000;   // 30 s — device may be slow to respond while uploading
 constexpr long kLowSpeedLimitBps     = 1;
-constexpr long kLowSpeedTimeSec      = 120;   // 2 min stall tolerance for slow/flaky WiFi
+constexpr long kLowSpeedTimeSec      = 30;    // fail quickly when transfer makes no progress
 constexpr int  kFileServicePort      = 8080;
 constexpr int  kUploadPollIntervalMs = 500;
-constexpr int  kMaxDownloadRetries   = 2;     // auto-retry on timeout/network error (resume-capable)
-constexpr int  kRetryBaseDelaySec    = 3;     // retry back-off: 3s, 6s
+constexpr int  kMaxDownloadRetries   = 1;     // one resume-capable retry on timeout/network error
+constexpr int  kRetryBaseDelaySec    = 2;
 
 // ── Write callback context for a single parallel chunk ─────────────────────
 struct ChunkWriteCtx {
@@ -336,7 +337,7 @@ void HttpFileServiceManager::httpGetToFile(const std::string &url, const std::st
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &file);
     curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, headerCallback);
     curl_easy_setopt(curl, CURLOPT_HEADERDATA, &outMd5);
-    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, kConnectTimeoutMs);
+    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, kDownloadConnectTimeoutMs);
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
     curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, kLowSpeedLimitBps);
     curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME,  kLowSpeedTimeSec);
@@ -405,7 +406,7 @@ void HttpFileServiceManager::httpGetChunkToFile(const std::string &url,
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, chunkWriteCb);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, &wCtx);
     curl_easy_setopt(curl, CURLOPT_RANGE, range.c_str());
-    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, kConnectTimeoutMs);
+    curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, kDownloadConnectTimeoutMs);
     curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
     curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, kLowSpeedLimitBps);
     curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME,  kLowSpeedTimeSec);
@@ -565,7 +566,7 @@ void HttpFileServiceManager::downloadSingleFileToLocal(const std::string &device
                                     e.state == OB_SDCARD_DOWNLOAD_FAILED_NETWORK);
             if(retryable && attempt < kMaxDownloadRetries &&
                !cancelFlag.load(std::memory_order_relaxed)) {
-                const int delaySec = kRetryBaseDelaySec * (1 << attempt);  // 3s, 6s
+                const int delaySec = kRetryBaseDelaySec * (1 << attempt);
                 LOG_WARN("HttpFileServiceManager: download {} on attempt {}/{}, retry in {}s: {}",
                          static_cast<int>(e.state), attempt + 1, kMaxDownloadRetries, delaySec, e.what());
                 std::this_thread::sleep_for(std::chrono::seconds(delaySec));
