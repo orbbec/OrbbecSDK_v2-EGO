@@ -21,6 +21,8 @@
 
 #include <map>
 #include <string>
+#include <chrono>
+#include <thread>
 
 namespace libobsensor {
 
@@ -374,16 +376,34 @@ bool NetDeviceEnumerator::onPlatformDeviceChanged(OBDeviceChangedType changeType
 }
 
 std::shared_ptr<const IDeviceEnumInfo> NetDeviceEnumerator::queryNetDevice(std::string address, uint16_t port) {
-    auto info              = std::make_shared<NetSourcePortInfo>(SOURCE_PORT_NET_VENDOR);
-    info->netInterfaceName = "Unknown";
-    info->localMac         = "Unknown";
-    info->localAddress     = "Unknown";
-    info->address          = address;
-    info->port             = port;
-    info->mac              = address + ":" + std::to_string(port);
-    info->serialNumber     = "Unknown";
-    info->pid              = NetDeviceEnumerator::getDevicePid(info, OB_DEVICE_EGO_PID);
-    info->vid              = ORBBEC_DEVICE_VID;
+    auto info                       = std::make_shared<NetSourcePortInfo>(SOURCE_PORT_NET_VENDOR);
+    info->netInterfaceName          = "Unknown";
+    info->localMac                  = "Unknown";
+    info->localAddress              = "Unknown";
+    info->address                   = address;
+    info->port                      = port;
+    info->mac                       = address + ":" + std::to_string(port);
+    info->serialNumber              = "Unknown";
+    constexpr int kPidQueryAttempts = 3;
+    info->pid                       = 0;
+    for(int attempt = 1; attempt <= kPidQueryAttempts; ++attempt) {
+        // Use 0 as the failure sentinel so a real EGO PID remains distinguishable from a fallback PID.
+        info->pid = NetDeviceEnumerator::getDevicePid(info, 0);
+        if(info->pid != 0) {
+            break;
+        }
+
+        LOG_WARN("Failed to get real PID, attempt {}/{}. address:{}, port:{}", attempt, kPidQueryAttempts, address, port);
+        if(attempt < kPidQueryAttempts) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+    }
+
+    if(info->pid == 0) {
+        LOG_WARN("Failed to get real PID after {} attempts; use default EGO PID. address:{}, port:{}", kPidQueryAttempts, address, port);
+        info->pid = OB_DEVICE_EGO_PID;
+    }
+    info->vid = ORBBEC_DEVICE_VID;
 
     if(isDeviceInContainer(G335LeDevPids, info->vid, info->pid)) {
         THROW_INVALID_DATA_EXCEPTION("G335Le device detected but not supported: " + address + ":" + std::to_string(port));
