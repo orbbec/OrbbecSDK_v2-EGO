@@ -27,12 +27,19 @@ public:
 
     std::vector<std::shared_ptr<IFilter>> createRecommendedPostProcessingFilters(OBSensorType type) override;
 
+    // Everything that instantiates a sensor/component must run here rather than in the constructor.
+    // Creating a sensor pulls in FrameProcessorFactory, whose constructor calls IDevice::shared_from_this(),
+    // which throws std::bad_weak_ptr while the device is still under construction.
+    // Mirrors the G330Device / G330NetDevice pattern.
+    void postInitialize() override;
+
 private:
     void init() override;
     void initSensorList();
     void initProperties();
     void initSensorStreamProfile(std::shared_ptr<ISensor> sensor);
-    void fixSensorList();
+    void fixSensorList();                       // structural trimming only (deregister*), safe from init()
+    void applyEffectiveStreamProfileFilters();  // instantiates sensors, postInitialize() only
     void fetchDeviceInfo() override;
 
 private:

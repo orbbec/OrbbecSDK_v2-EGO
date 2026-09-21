@@ -25,12 +25,17 @@ public:
 
     std::vector<std::shared_ptr<IFilter>> createRecommendedPostProcessingFilters(OBSensorType type) override;
 
+    // See EGODepthDevice::postInitialize(): instantiating sensors from the constructor would make
+    // FrameProcessorFactory's constructor throw std::bad_weak_ptr.
+    void postInitialize() override;
+
 private:
     void init() override;
     void initSensorList();
     void initProperties();
     void initSensorStreamProfile(std::shared_ptr<ISensor> sensor);
-    void fixSensorList();
+    void fixSensorList();                       // structural trimming only (deregister*), safe from init()
+    void applyEffectiveStreamProfileFilters();  // instantiates sensors, postInitialize() only
     void fetchAllVideoStreamProfileList();
 
     void fetchDeviceInfo() override;

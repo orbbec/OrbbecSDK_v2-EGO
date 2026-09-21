@@ -136,8 +136,26 @@ void EGODepthDevice::init() {
     BEGIN_TRY_EXECUTE({ hostTimeInfoManager->setHostTimeInfoToDevice(); })
     CATCH_EXCEPTION_AND_EXECUTE({ LOG_WARN("Failed to initialize host time information for EGODepth device"); })
 
-    // Apply the current depth work mode to the sensor tree (register/trim sensors and components).
+    // Apply the current depth work mode to the sensor tree. Structural changes only: init() runs from the
+    // constructor, so nothing here may instantiate a sensor/component (see postInitialize()).
     fixSensorList();
+}
+
+void EGODepthDevice::postInitialize() {
+    // Called by DeviceManager::createDevice() once construction is complete, i.e. when
+    // IDevice::shared_from_this() is finally valid.
+    //
+    // Applying the firmware's effective stream profiles has to instantiate the sensors, and creating a
+    // sensor pulls in FrameProcessorFactory -> owner->shared_from_this(), which throws std::bad_weak_ptr if
+    // attempted from the constructor. Doing it here instead is what G330Device/G330NetDevice do for their
+    // own eager component initialization.
+    //
+    // Ordered before DeviceBase::postInitialize() so the profile filters are still attached before
+    // activateDeviceAccessor() eagerly creates the frame processors, matching the previous ordering.
+    BEGIN_TRY_EXECUTE({ applyEffectiveStreamProfileFilters(); })
+    CATCH_EXCEPTION_AND_EXECUTE({ LOG_WARN("EGODepth: failed to apply effective stream profile filters"); })
+
+    DeviceBase::postInitialize();
 }
 
 void EGODepthDevice::fetchDeviceInfo() {
@@ -846,6 +864,22 @@ void EGODepthDevice::fixSensorList() {
         // Note: OB_PROP_STOP_IR_STREAM_BOOL is intentionally NOT registered in initProperties() (the IR
         // demuxer sends it when the last channel of the IR group closes), so nothing to unregister here.
     }
+    // Structural trimming only, mirroring G305Device::fixSensorList(). Do NOT call getSensor() or any
+    // throwing getComponentT<T>() here: fixSensorList() is reached from init(), i.e. from the constructor,
+    // where IDevice::shared_from_this() is not yet usable.
+}
+
+// Instantiate the sensors that survived fixSensorList() and attach the effective stream profiles reported by
+// the firmware for the active work mode. getSensor() creates components (which may pull in
+// FrameProcessorFactory -> owner->shared_from_this()), so this must only run after construction completes.
+void EGODepthDevice::applyEffectiveStreamProfileFilters() {
+    auto depthWorkModeManager = getComponentT<EGODepthDepthWorkModeManager>(OB_DEV_COMPONENT_DEPTH_WORK_MODE_MANAGER, false);
+    if(!depthWorkModeManager || depthWorkModeManager->getDepthWorkModeList().empty()) {
+        // Preserve fixSensorList()'s early-out semantics: without depth work modes nothing gets filtered.
+        return;
+    }
+
+    auto propServer = getPropertyServer();
 
     std::vector<OBEffectiveStreamProfile> effectiveProfiles;
     bool                                  effectiveProfilesRead = false;
