@@ -611,20 +611,30 @@ void testVideoStreams(const std::shared_ptr<ob::Device> &device, int durationSec
         { OB_SENSOR_COLOR_SIDE_LEFT, OB_STREAM_COLOR_SIDE_LEFT, OB_FRAME_COLOR_SIDE_LEFT, "COLOR_SIDE_LEFT" },
         { OB_SENSOR_COLOR_SIDE_RIGHT, OB_STREAM_COLOR_SIDE_RIGHT, OB_FRAME_COLOR_SIDE_RIGHT, "COLOR_SIDE_RIGHT" },
         { OB_SENSOR_COLOR, OB_STREAM_COLOR, OB_FRAME_COLOR, "COLOR" },
+        { OB_SENSOR_DEPTH, OB_STREAM_DEPTH, OB_FRAME_DEPTH, "DEPTH" },
+        { OB_SENSOR_IR, OB_STREAM_IR, OB_FRAME_IR, "IR" },
+        { OB_SENSOR_IR_LEFT, OB_STREAM_IR_LEFT, OB_FRAME_IR_LEFT, "IR_LEFT" },
+        { OB_SENSOR_IR_RIGHT, OB_STREAM_IR_RIGHT, OB_FRAME_IR_RIGHT, "IR_RIGHT" },
     };
 
     std::vector<StreamEntry> enabled;
     auto                     config = std::make_shared<ob::Config>();
     for(const auto &c: candidates) {
         if(hasSensorType(device, c.sensorType)) {
-            // H264 is the safe encoded default advertised by EgoPro; resolution/fps left to the device.
-            config->enableVideoStream(c.streamType, OB_WIDTH_ANY, OB_HEIGHT_ANY, OB_FPS_ANY, OB_FORMAT_H264);
+            if(is_color_sensor(c.sensorType)) {
+                // H264 is the safe encoded default advertised by EgoPro; resolution/fps left to the device.
+                config->enableVideoStream(c.streamType, OB_WIDTH_ANY, OB_HEIGHT_ANY, OB_FPS_ANY, OB_FORMAT_H264);
+            }
+            else {
+                // Depth and IR formats vary by device; let the pipeline resolve a supported default profile.
+                config->enableStream(c.streamType);
+            }
             enabled.push_back(c);
         }
     }
 
     if(enabled.empty()) {
-        record(name, Status::SKIP, "no color sensor present");
+        record(name, Status::SKIP, "no video sensor present");
         return;
     }
 
