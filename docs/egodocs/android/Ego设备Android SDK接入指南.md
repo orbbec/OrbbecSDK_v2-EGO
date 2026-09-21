@@ -41,6 +41,7 @@
 14. [蓝牙配对与 Wi-Fi 配置清理](#14-蓝牙配对与-wi-fi-配置清理)
 15. [SDK 错误码捕获与处理](#15-sdk-错误码捕获与处理)
 16. [EGO SD 卡文件服务](#16-ego-sd-卡文件服务)
+17. [EGODepth 深度工作模式](#17-egodepth-深度工作模式)
 
 ---
 
@@ -852,6 +853,20 @@ if (mDevice.isPropertySupported(aeMaxExposure, PermissionType.OB_PERMISSION_READ
 | `void setPropertyValueI(DeviceProperty, int)` | 写整型属性 |
 | `int getMinRangeI(DeviceProperty)` / `getMaxRangeI(DeviceProperty)` / `getStepI(DeviceProperty)` | 查整型属性的最小/最大/步进 |
 | `boolean isPropertySupported(DeviceProperty, PermissionType)` | 查属性是否支持指定读写权限 |
+
+#### 深度 / IR / 磁编码器相关属性
+
+以下属性同样通过本节上述通用属性接口读写。属性是否存在、读写权限和整型取值范围均由具体设备与固件决定；调用前必须使用 `isPropertySupported()` 检查，整型属性还应通过 `getMinRangeI()`、`getMaxRangeI()` 和 `getStepI()` 校验目标值。
+
+| 属性 | Property ID | 类型 | 功能与取值 |
+|---|---:|---|---|
+| `OB_PROP_LASER_CONTROL_INT` | 182 | `int` | 激光控制：`0` 关闭、`1` 打开、`2` 自动。仅在支持激光的深度设备上使用。 |
+| `OB_PROP_IR_BRIGHTNESS_INT` | 184 | `int` | 设置 IR 亮度；有效范围由设备返回。 |
+| `OB_PROP_IR_AE_MAX_EXPOSURE_INT` | 190 | `int` | 设置 IR 自动曝光允许使用的最大曝光时间；有效范围和单位以设备返回值为准。 |
+| `OB_PROP_DEPTH_AUTO_EXPOSURE_PRIORITY_INT` | 2052 | `int` | 设置深度相机自动曝光优先级；具体可选值由设备固件定义。 |
+| `OB_PROP_MAG_ENCODER_SWITCH_BOOL` | 2055 | `boolean` | 磁角度编码器流开关，仅适用于支持该传感器的设备。实时取流优先使用 `Config.enableMagEncoderStream()`。 |
+
+激光、IR 曝光和亮度设置会影响深度/IR 图像效果。修改前应明确业务目标，并避免与自动曝光、深度工作模式切换或其它设备控制线程并发操作。
 
 #### 彩色编码码率控制
 
@@ -3014,5 +3029,90 @@ if (info.exists()) {
 3. 对文件直接下载或上传；对目录递归列出后逐文件传输。
 4. 始终注册进度回调，并仅在终态后处理下一步或释放资源。
 5. 用户取消时调用取消接口；删除目录前始终二次确认。
+
+完整交互式实现请参考示例工程的 `EgoSdcardFileServiceActivity`；独立专题说明见 [EGO SD 卡文件服务接口说明](EgoSdcardFileServiceApiGuide.md)。
+
+## 17. EGODepth 深度工作模式
+
+深度工作模式仅适用于支持该能力的 `EGODepthDevice`（USB）和 `EGODepthNetDevice`（网络）。模式由设备固件提供；不同模式可暴露不同的传感器和视频流配置。例如，固件可能提供 `Default` 与 `Factory Calib` 两种模式，但应用**不能硬编码模式名称**，必须先读取设备实际返回的列表。
+
+该功能已通过 `Device` 的公开接口适配。不要访问内部的 `OB_RAW_DATA_DEPTH_ALG_MODE_LIST`；SDK 会使用该内部数据维护模式列表，并在模式切换后自动过滤各传感器的有效 Stream Profile。
+
+### 17.1 获取支持列表与当前模式
+
+调用 `getDepthWorkModeList()` 获取设备支持的模式，`getCurrentDepthWorkMode()` 获取当前模式。返回的 `DepthWorkMode` 包含模式名称、校验和与标签；切换时使用其 `getName()` 返回的完整名称。
+
+```java
+List<DepthWorkMode> modes = device.getDepthWorkModeList();
+if (modes == null || modes.isEmpty()) {
+    // 当前设备或固件不支持深度工作模式，不显示切换入口。
+    return;
+}
+
+DepthWorkMode current = device.getCurrentDepthWorkMode();
+String currentName = current != null ? current.getName() : "";
+
+for (DepthWorkMode mode : modes) {
+    Log.i(TAG, "Depth mode: " + mode.getName()
+            + ", current=" + mode.getName().equals(currentName));
+}
+```
+
+| API | 说明 |
+|---|---|
+| `Device.getDepthWorkModeList()` | 获取设备固件支持的深度工作模式列表。列表为空时表示当前设备/固件不支持该能力，应用应隐藏相关 UI。 |
+| `Device.getCurrentDepthWorkMode()` | 获取当前生效的工作模式。 |
+| `DepthWorkMode.getName()` | 获取模式完整名称；该名称是切换接口的唯一有效入参。 |
+| `DepthWorkMode.getTag()` | 获取模式来源标签，例如设备内置模式或自定义模式。 |
+
+### 17.2 切换模式
+
+切换会使设备重建传感器树。**调用前必须停止所有 Pipeline 和 Sensor 流，并关闭旧的 Pipeline、Profile 与帧对象。** 切换成功后，旧的 `Sensor`、`StreamProfile` 和 `Pipeline` 均不应继续使用；应重新获取传感器、重新读取 Profile 列表，再创建新的 Pipeline 开流。
+
+所有步骤应放在应用的同一设备工作线程或串行队列中执行，避免与取帧、设备拔插、释放或其它设备操作并发。
+
+```java
+// targetModeName 必须来自 device.getDepthWorkModeList() 的 getName()。
+String targetModeName = selectedMode.getName();
+
+// 1. 先停止并关闭当前所有流资源。
+if (pipeline != null) {
+    try {
+        pipeline.stop();
+    } catch (Exception ignored) {
+        // 未启动时可忽略；仍须 close。
+    }
+    pipeline.close();
+    pipeline = null;
+}
+// 若应用还启动了 Sensor.start(...) 的音频或 IMU 流，也必须先逐一 stop()。
+
+// 2. 切换。名称错误、流未停止或设备不支持时会抛出 OBException。
+device.switchDepthWorkMode(targetModeName);
+
+// 3. 切换后重新读取能力与有效 Profile；不要复用旧对象。
+Sensor depthSensor = device.getSensor(SensorType.DEPTH);
+if (depthSensor != null) {
+    try (StreamProfileList profiles = depthSensor.getStreamProfileList()) {
+        // 从当前模式实际可用的 profiles 中选择一个，再创建新的 Pipeline 并开流。
+    }
+}
+```
+
+切换为当前模式时 SDK 不会重复重建设备；应用仍建议先比较当前模式名称，避免无意义调用。
+
+### 17.3 切换后的流配置与异常处理
+
+模式切换后，`Device` 会刷新其传感器列表；`device.getSensor(...)` 或 `device.querySensors()` 的结果可能与切换前不同。调用 `Sensor.getStreamProfileList()` 或 `Pipeline.getStreamProfileList(SensorType)` 时，SDK 已基于当前模式的有效 Profile 列表过滤结果，因此应用只能从切换后的新列表选择配置。
+
+| 情况 | 建议处理 |
+|---|---|
+| 模式列表为空 | 视为设备或固件不支持，隐藏入口，不要调用切换。 |
+| 目标名称不在列表中 | 禁止调用；只能使用 `DepthWorkMode.getName()` 返回的名称。 |
+| 切换时仍有流在运行 | 先停止所有 Pipeline/Sensor 流并释放相关对象，再重试。 |
+| 切换后某个传感器为 `null` | 该模式下该传感器不可用，应更新 UI 与开流配置。 |
+| 获取 Profile 为空或启动失败 | 重新读取当前模式下的 Profile 列表；不要复用切换前的 Profile。 |
+
+> 模式名称、可用传感器和流配置均由设备固件决定，可能随固件版本变化。应用应始终以运行时返回的模式与 Profile 列表为准。
 
 完整交互式实现请参考示例工程的 `EgoSdcardFileServiceActivity`；独立专题说明见 [EGO SD 卡文件服务接口说明](EgoSdcardFileServiceApiGuide.md)。
