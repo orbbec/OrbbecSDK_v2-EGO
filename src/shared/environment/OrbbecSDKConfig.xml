@@ -3467,7 +3467,7 @@
                 <Format>H264</Format>
             </SideRightColor>
         </EGOPro>
-        <EGODepth>
+        <EGO-D3B>
             <!-- Default backend for Linux UVC devices. If the LinuxUVCBackend is set to "Auto,"
             this item will determine the device's speciality. Optional values: V4L2, LibUVC -->
             <LinuxUVCDefaultBackend>LibUVC</LinuxUVCDefaultBackend>
@@ -3501,12 +3501,12 @@
             </Color>
 
             <Depth>
-                <Width>1280</Width>
-                <Height>800</Height>
+                <Width>640</Width>
+                <Height>400</Height>
                 <FPS>30</FPS>
                 <Format>Y16</Format>
             </Depth>
-        </EGODepth>
+        </EGO-D3B>
         <UMI>
             <!-- TN2611 UMI Finger three-camera (1 Color + 2 IR) device. -->
             <!-- Resolutions/formats below follow the 0x1202 (bcdDevice 0x0310) firmware: Color(MI_04) streams

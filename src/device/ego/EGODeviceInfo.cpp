@@ -149,11 +149,16 @@ std::vector<std::shared_ptr<IDeviceEnumInfo>> EGODeviceInfo::pickDevices(const S
     auto                                          iter      = groups.begin();
     while(iter != groups.end()) {
         // EGO USB exposes 2 UVC color interfaces + 1 HID IMU interface (+ UAC audio).
-        auto firstUsb = std::dynamic_pointer_cast<const USBSourcePortInfo>(iter->front());
-        bool isEgoPro = firstUsb && isEgoProDevice(firstUsb->vid, firstUsb->pid);
+        auto firstUsb   = std::dynamic_pointer_cast<const USBSourcePortInfo>(iter->front());
+        bool isEgoPro   = firstUsb && isEgoProDevice(firstUsb->vid, firstUsb->pid);
+        bool isEgoDepth = firstUsb && isEgoDepthDevice(firstUsb->vid, firstUsb->pid);
         bool hasUvc =
             std::any_of(iter->begin(), iter->end(), [](const std::shared_ptr<const SourcePortInfo> &p) { return p->portType == SOURCE_PORT_USB_UVC; });
-        if(iter->size() >= 2 || (isEgoPro && hasUvc)) {
+        // EGODepth exposes 4 UVC functions (Color group / Depth / IR group / single Color) + 1 HID IMU (+ UAC), so a
+        // group with fewer than 4 ports is an incomplete enumeration and must not be reported as an EGODepth device.
+        // EGO/EGOPro keep the looser threshold (on some platforms an EGOPro group only surfaces a single UVC).
+        bool enoughPorts = isEgoDepth ? (iter->size() >= 4) : (iter->size() >= 2);
+        if(enoughPorts || (isEgoPro && hasUvc)) {
 #if defined(_WIN32)
             // On Windows the UAC microphone is not surfaced by USB enumeration (usbaudio.sys owns it); inject a
             // synthetic UAC port so the WASAPI backend can pair the capture endpoint by USB VID/PID.

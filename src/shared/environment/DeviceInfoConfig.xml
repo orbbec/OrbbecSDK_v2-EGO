@@ -205,13 +205,13 @@
             <Name>UMI</Name>
             <Manufacturer>Orbbec</Manufacturer>
         </UMI>
-        <EGODepth>
-            <!-- TN2610 EGODepth: 3-RGB + 2-IR shared endpoints + Depth + single Color + IMU + audio. -->
+        <EGO-D3B>
+            <!-- TN2610 EGOD3B: 3-RGB + 2-IR shared endpoints + Depth + single Color + IMU + audio. -->
             <VID>0x2BC5</VID>
             <PID>0x1207</PID>
-            <Name>EGODepth</Name>
+            <Name>EGO-D3B</Name>
             <Manufacturer>Orbbec</Manufacturer>
-        </EGODepth>
+        </EGO-D3B>
         <WristCam>
             <VID>0x2BC5</VID>
             <PID>0x1203</PID>
@@ -316,7 +316,7 @@
 
     <EGODepthDeviceList>
         <!-- EGODepth series devices (3-RGB + 2-IR shared endpoints, plus Depth and single Color) -->
-        <Device>EGODepth</Device>
+        <Device>EGO-D3B</Device>
         <!-- More devices can be added here -->
     </EGODepthDeviceList>
 
