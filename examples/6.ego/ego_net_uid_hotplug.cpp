@@ -44,6 +44,7 @@ int main() try {
     const auto port = kDefaultPort;
 
     ob::Context context;
+    context.enableNetDeviceEnumeration(true);
 
     std::mutex  mutex;
     std::string expectedUid;
@@ -93,7 +94,16 @@ int main() try {
             expectedUid = createdUid;
         }
 
+        // Keep only the two EGO color RTSP streams active while testing the
+        // network device removal callback.
+        ob::Pipeline pipeline(device);
+        auto         config = std::make_shared<ob::Config>();
+        config->enableVideoStream(OB_STREAM_COLOR_LEFT, OB_WIDTH_ANY, OB_HEIGHT_ANY, OB_FPS_ANY, OB_FORMAT_H264);
+        config->enableVideoStream(OB_STREAM_COLOR_RIGHT, OB_WIDTH_ANY, OB_HEIGHT_ANY, OB_FPS_ANY, OB_FORMAT_H264);
+        pipeline.start(config);
+
         std::cout << "Created device UID: " << expectedUid << std::endl;
+        std::cout << "Started streams: COLOR_LEFT and COLOR_RIGHT." << std::endl;
         std::cout << "Disconnect the device or its network cable to verify the removal callback." << std::endl;
         std::cout << "The SDK debug log should contain \"Get device MAC successfully\" when the new manual MAC query path is exercised." << std::endl;
         std::cout << "Press q to exit." << std::endl;
@@ -105,6 +115,7 @@ int main() try {
             }
         }
 
+        pipeline.stop();
         context.unregisterDeviceChangedCallback(callbackId);
         return EXIT_SUCCESS;
     }

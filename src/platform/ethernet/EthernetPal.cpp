@@ -19,6 +19,10 @@ const uint16_t DEVICE_WATCHER_POLLING_SHORT_INTERVAL_MSEC = 1000;
 
 namespace {
 
+std::string makeVendorNetEndpointKey(const NetSourcePortInfo &info) {
+    return info.mac + "|" + info.address;
+}
+
 template <typename DeviceInfo, typename UpdateSourceInfoFunc>
 void restoreRemovedDeviceAndDropNewSameMac(const DeviceInfo &removedDevice, std::vector<DeviceInfo> &currentList, std::vector<DeviceInfo> &addedDevices,
                                            UpdateSourceInfoFunc updateSourceInfo) {
@@ -71,12 +75,18 @@ void EthernetPal::queryGvcpDevice(bool singleShot) {
         updateSourcePortInfoList(added, removed);
 
         for(auto &&info: removed) {
-            if(!callback_(OB_DEVICE_REMOVED, info.mac)) {
+            const bool confirmedOffline = callback_(OB_DEVICE_REMOVED, info.mac);
+            if(!confirmedOffline) {
+                LOG_DEBUG("GVCP removal not confirmed; keep VendorNetDataPort cache. mac:{}, address:{}", info.mac, info.ip);
                 // If the device is still online, keep the old record and discard newly scanned entries with the same MAC.
                 restoreRemovedDeviceAndDropNewSameMac(
                     info, list, added, [this](const std::vector<GVCPDeviceInfo> &addedDevices, const std::vector<GVCPDeviceInfo> &removedDevices) {
                         updateSourcePortInfoList(addedDevices, removedDevices);
                     });
+            }
+            else {
+                LOG_DEBUG("GVCP removal confirmed; clear VendorNetDataPort cache. mac:{}, address:{}", info.mac, info.ip);
+                removeVendorNetEndpoint(info.mac, info.ip);
             }
         }
         for(auto &&info: added) {
@@ -192,17 +202,55 @@ std::shared_ptr<ISourcePort> EthernetPal::getSourcePort(std::shared_ptr<const So
         }
     }
 
+    // Clear expired vendor network endpoint mappings. The endpoint map is
+    // non-owning, so it never extends the lifetime of a VendorNetDataPort.
+    for(auto it = vendorNetEndpointPortMap_.begin(); it != vendorNetEndpointPortMap_.end();) {
+        if(it->second.expired()) {
+            it = vendorNetEndpointPortMap_.erase(it);
+        }
+        else {
+            ++it;
+        }
+    }
+
     // check if the port already exists in the map
     for(const auto &pair: sourcePortMap_) {
         if(pair.first == portInfo) {
             port = pair.second.lock();
             if(port != nullptr) {
+                if(portInfo->portType == SOURCE_PORT_NET_VENDOR) {
+                    auto netPortInfo = std::dynamic_pointer_cast<const NetSourcePortInfo>(portInfo);
+                    if(netPortInfo) {
+                        LOG_DEBUG("Reuse VendorNetDataPort by source-port info. mac:{}, address:{}", netPortInfo->mac, netPortInfo->address);
+                    }
+                }
                 return port;
             }
         }
     }
 
     const auto &portType = portInfo->portType;
+    if(portType == SOURCE_PORT_NET_VENDOR) {
+        auto netPortInfo = std::dynamic_pointer_cast<const NetSourcePortInfo>(portInfo);
+        if(!netPortInfo) {
+            THROW_INVALID_PARAM_EXCEPTION("Invalid vendor network source port info!");
+        }
+
+        const auto endpointKey = makeVendorNetEndpointKey(*netPortInfo);
+        auto       endpointIt  = vendorNetEndpointPortMap_.find(endpointKey);
+        if(endpointIt != vendorNetEndpointPortMap_.end()) {
+            port = endpointIt->second.lock();
+            if(port != nullptr) {
+                // The source-port infos from queryNetDevice and GVCP can be
+                // different objects. Associate both with the same live port.
+                sourcePortMap_[portInfo] = port;
+                LOG_DEBUG("Reuse VendorNetDataPort by MAC and address. mac:{}, address:{}", netPortInfo->mac, netPortInfo->address);
+                return port;
+            }
+            vendorNetEndpointPortMap_.erase(endpointIt);
+        }
+    }
+
     switch(portType) {
     case SOURCE_PORT_NET_VENDOR:
         port = std::make_shared<VendorNetDataPort>(std::dynamic_pointer_cast<const NetSourcePortInfo>(portInfo));
@@ -223,7 +271,31 @@ std::shared_ptr<ISourcePort> EthernetPal::getSourcePort(std::shared_ptr<const So
         THROW_INVALID_PARAM_EXCEPTION("Invalid port type!");
     }
     sourcePortMap_.insert(std::make_pair(portInfo, port));
+    if(portType == SOURCE_PORT_NET_VENDOR) {
+        auto netPortInfo = std::dynamic_pointer_cast<const NetSourcePortInfo>(portInfo);
+        vendorNetEndpointPortMap_[makeVendorNetEndpointKey(*netPortInfo)] = port;
+        LOG_DEBUG("Cache VendorNetDataPort. mac:{}, address:{}", netPortInfo->mac, netPortInfo->address);
+    }
     return port;
+}
+
+void EthernetPal::removeVendorNetEndpoint(const std::string &mac, const std::string &address) {
+    std::unique_lock<std::mutex> lock(sourcePortMapMutex_);
+    const auto                    endpointKey = mac + "|" + address;
+
+    vendorNetEndpointPortMap_.erase(endpointKey);
+
+    for(auto it = sourcePortMap_.begin(); it != sourcePortMap_.end();) {
+        auto netPortInfo = std::dynamic_pointer_cast<const NetSourcePortInfo>(it->first);
+        if(netPortInfo && netPortInfo->portType == SOURCE_PORT_NET_VENDOR && netPortInfo->mac == mac && netPortInfo->address == address) {
+            it = sourcePortMap_.erase(it);
+        }
+        else {
+            ++it;
+        }
+    }
+
+    LOG_DEBUG("Remove VendorNetDataPort cache. mac:{}, address:{}", mac, address);
 }
 
 void EthernetPal::updateMDNSDeviceSourceInfo(const std::vector<MDNSDeviceInfo> &added, const std::vector<MDNSDeviceInfo> &removed) {
@@ -358,6 +430,7 @@ void EthernetPal::triggerDeviceOffline(std::string macAddress, bool requery) {
                     std::remove_if(netDevInfoList_.begin(), netDevInfoList_.end(), [macAddress](const GVCPDeviceInfo &info) { return info.mac == macAddress; }),
                     netDevInfoList_.end());
                 updateSourcePortInfoList({}, { removedInfo });
+                removeVendorNetEndpoint(removedInfo.mac, removedInfo.ip);
                 if(callback_) {
                     LOG_DEBUG("remove device {} from list", removedInfo.mac);
                     callback_(OB_DEVICE_REMOVED, removedInfo.mac);

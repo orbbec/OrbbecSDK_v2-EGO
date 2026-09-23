@@ -17,6 +17,7 @@
 #include <map>
 #include <mutex>
 #include <atomic>
+#include <string>
 #include "utils/SteadyCondVar.hpp"
 
 namespace libobsensor {
@@ -47,6 +48,7 @@ private:
     void updateSourcePortInfoList(const std::vector<GVCPDeviceInfo> &added, const std::vector<GVCPDeviceInfo> &removed);
     void updateMDNSDeviceSourceInfo(const std::vector<MDNSDeviceInfo> &added, const std::vector<MDNSDeviceInfo> &removed);
     void ensureDiscoveryIfNeeded();
+    void removeVendorNetEndpoint(const std::string &mac, const std::string &address);
 
 private:
     std::mutex         sourcePortInfoMutex_;
@@ -54,6 +56,7 @@ private:
 
     std::mutex                                                                  sourcePortMapMutex_;
     std::map<std::shared_ptr<const SourcePortInfo>, std::weak_ptr<ISourcePort>> sourcePortMap_;
+    std::map<std::string, std::weak_ptr<ISourcePort>>                            vendorNetEndpointPortMap_;
 
     // for device watcher
     deviceChangedCallback       callback_;
