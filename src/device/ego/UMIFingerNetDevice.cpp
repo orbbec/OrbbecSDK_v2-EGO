@@ -11,8 +11,6 @@
 #include "sensor/imu/ImuPayloadDecoder.hpp"
 #include "sensor/imu/AccelSensor.hpp"
 #include "sensor/imu/GyroSensor.hpp"
-#include "sensor/imu/MagSensor.hpp"
-#include "sensor/imu/MagStreamer.hpp"
 #include "sensor/imu/MagEncoderStreamer.hpp"
 #include "sensor/imu/MagEncoderSensor.hpp"
 #include "sensor/audio/AudioSensor.hpp"
@@ -376,31 +374,6 @@ void UMIFingerNetDevice::initSensorList() {
             true);
         registerSensorPortInfo(OB_SENSOR_GYRO, imuPortInfo);
 
-        // ---- Magnetometer (reportId=6) ----
-        // Independent HID stream parsed by its own MagStreamer (not ImuStreamer); int16 magX/Y/Z are
-        // converted to uT using the active full-scale range.
-        registerComponent(OB_DEV_COMPONENT_MAG_STREAMER, [this]() {
-            auto sharedHidPort  = getComponentT<SharedDataStreamPort>(OB_DEV_COMPONENT_SHARED_HID_STREAM);
-            auto dataStreamPort = sharedHidPort->createClientPort();
-            return std::make_shared<MagStreamer>(this, dataStreamPort);
-        });
-
-        registerComponent(
-            OB_DEV_COMPONENT_MAG_SENSOR,
-            [this, imuPortInfo]() {
-                auto port             = getSourcePort(imuPortInfo);
-                auto magStreamer      = getComponentT<MagStreamer>(OB_DEV_COMPONENT_MAG_STREAMER);
-                auto magStreamerShare = magStreamer.get();
-                auto sensor           = std::make_shared<MagSensor>(this, port, magStreamerShare, true);
-
-                sensor->enableTimestampAnomalyDetection(false);
-
-                initSensorStreamProfile(sensor);
-                return sensor;
-            },
-            true);
-        registerSensorPortInfo(OB_SENSOR_MAG, imuPortInfo);
-
         // ---- Magnetic angle encoder (MT6826S, HID reportId=5) ----
         // Self-contained HID report parsed independently of the accel/gyro IMU group, sharing the HID port.
         registerComponent(OB_DEV_COMPONENT_MAG_ENCODER_STREAMER, [this]() {
@@ -490,12 +463,8 @@ void UMIFingerNetDevice::initProperties() {
     propertyServer->registerProperty(OB_STRUCT_GET_GYRO_PRESETS_FULL_SCALE_LIST, "", "r", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_PROP_ACCEL_SWITCH_BOOL, "", "rw", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_PROP_GYRO_SWITCH_BOOL, "", "rw", vendorPropertyAccessor);
-    propertyServer->registerProperty(OB_PROP_MAG_ODR_INT, "rw", "rw", vendorPropertyAccessor);
-    propertyServer->registerProperty(OB_PROP_MAG_FULL_SCALE_INT, "rw", "rw", vendorPropertyAccessor);
-    propertyServer->registerProperty(OB_STRUCT_GET_MAG_PRESETS_ODR_LIST, "", "r", vendorPropertyAccessor);
-    propertyServer->registerProperty(OB_STRUCT_GET_MAG_PRESETS_FULL_SCALE_LIST, "", "r", vendorPropertyAccessor);
-    propertyServer->registerProperty(OB_PROP_MAG_SWITCH_BOOL, "", "rw", vendorPropertyAccessor);
-    // MT6826S is a separate reportId=5 stream, not the magnetometer (reportId=6) or the ICM42668P accel/gyro (reportId=1).
+    // Keep only the magnetic encoder controls. Magnetometer controls are intentionally not exposed
+    // because the magnetometer interferes with the magnetic encoder.
     propertyServer->registerProperty(OB_PROP_MAG_ENCODER_SWITCH_BOOL, "", "rw", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_PROP_MAG_ENCODER_ODR_INT, "rw", "rw", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_STRUCT_GET_MAG_ENCODER_PRESETS_ODR_LIST, "", "rw", vendorPropertyAccessor);
