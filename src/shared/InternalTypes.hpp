@@ -9,6 +9,13 @@
 #pragma pack(push, 1)
 
 /**
+ * @brief Device MAC address returned by OB_RAW_DATA_DEVICE_MAC.
+ */
+typedef struct {
+    uint8_t mac[6];
+} OBMacAddress;
+
+/**
  *@brief device version information
  */
 typedef struct {

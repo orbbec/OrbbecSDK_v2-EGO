@@ -19,12 +19,97 @@
 #include "ethernet/NetDataStreamPort.hpp"
 #endif
 
+#include <algorithm>
+#include <array>
+#include <chrono>
+#include <cstdio>
+#include <cstring>
 #include <map>
 #include <string>
-#include <chrono>
 #include <thread>
 
 namespace libobsensor {
+
+namespace {
+
+struct VendorNetDeviceIdentity {
+    uint16_t    pid = 0;
+    std::string mac;
+};
+
+bool isValidMac(const OBMacAddress &macAddress) {
+    bool allZero = true;
+    bool allFF   = true;
+
+    for(const auto byte: macAddress.mac) {
+        allZero &= (byte == 0x00);
+        allFF &= (byte == 0xFF);
+    }
+
+    return !allZero && !allFF;
+}
+
+std::string formatMac(const OBMacAddress &macAddress) {
+    char macString[18] = { 0 };
+    std::snprintf(macString, sizeof(macString), "%02X:%02X:%02X:%02X:%02X:%02X", macAddress.mac[0], macAddress.mac[1], macAddress.mac[2],
+                  macAddress.mac[3], macAddress.mac[4], macAddress.mac[5]);
+    return macString;
+}
+
+// PID and MAC are queried through the same VendorPropertyAccessor so they use
+// the same network source port and TCP connection context.
+VendorNetDeviceIdentity getVendorNetDeviceIdentity(const std::shared_ptr<const NetSourcePortInfo> &info) {
+    auto sourcePort = Platform::getInstance()->getSourcePort(info);
+    auto accessor   = std::make_shared<VendorPropertyAccessor>(nullptr, sourcePort);
+
+    OBPropertyValue pidValue{};
+    pidValue.intValue = 0;
+    accessor->getPropertyValue(OB_PROP_DEVICE_PID_INT, &pidValue);
+
+    VendorNetDeviceIdentity identity;
+    identity.pid = static_cast<uint16_t>(pidValue.intValue);
+    if(identity.pid == 0) {
+        return identity;
+    }
+
+    OBMacAddress                                      macAddress{};
+    std::array<bool, sizeof(macAddress.mac)>          received{};
+    bool                                              validSize = true;
+
+    try {
+        accessor->getRawData(OB_RAW_DATA_DEVICE_MAC, [&](OBDataTranState state, OBDataChunk *chunk) {
+            if(state != DATA_TRAN_STAT_TRANSFERRING || chunk == nullptr) {
+                return;
+            }
+
+            if(chunk->fullDataSize != sizeof(macAddress.mac) || chunk->offset > sizeof(macAddress.mac)
+               || chunk->size > sizeof(macAddress.mac) - chunk->offset) {
+                validSize = false;
+                return;
+            }
+
+            std::memcpy(macAddress.mac + chunk->offset, chunk->data, chunk->size);
+            for(uint32_t i = 0; i < chunk->size; ++i) {
+                received[chunk->offset + i] = true;
+            }
+        });
+    }
+    catch(...) {
+        LOG_WARN("Get device MAC failed with VendorPropertyAccessor! address:{}, port:{}", info->address, info->port);
+        return identity;
+    }
+
+    const bool complete = std::all_of(received.begin(), received.end(), [](bool receivedByte) { return receivedByte; });
+    if(!validSize || !complete || !isValidMac(macAddress)) {
+        LOG_WARN("Invalid device MAC data! address:{}, port:{}", info->address, info->port);
+        return identity;
+    }
+
+    identity.mac = formatMac(macAddress);
+    return identity;
+}
+
+}  // namespace
 
 NetDeviceEnumerator::NetDeviceEnumerator(DeviceChangedCallback callback, std::shared_ptr<DeviceActivityManager> deviceActivityManager)
     : platform_(Platform::getInstance()), deviceActivityManager_(deviceActivityManager) {
@@ -387,10 +472,35 @@ std::shared_ptr<const IDeviceEnumInfo> NetDeviceEnumerator::queryNetDevice(std::
     constexpr int kPidQueryAttempts = 3;
     info->pid                       = 0;
     for(int attempt = 1; attempt <= kPidQueryAttempts; ++attempt) {
-        // Use 0 as the failure sentinel so a real EGO PID remains distinguishable from a fallback PID.
-        info->pid = NetDeviceEnumerator::getDevicePid(info, 0);
+        bool vendorPidRequestSucceeded = false;
+        try {
+            // PID and MAC are queried with the same VendorPropertyAccessor.
+            auto identity = getVendorNetDeviceIdentity(info);
+            vendorPidRequestSucceeded = true;
+            info->pid                 = identity.pid;
+
+            // Keep address:port as the fallback UID when the device does not
+            // support OB_RAW_DATA_DEVICE_MAC or the MAC query fails.
+            if(!identity.mac.empty()) {
+                info->mac = identity.mac;
+                LOG_DEBUG("Get device MAC successfully: {}, address:{}, port:{}", info->mac, address, port);
+            }
+        }
+        catch(...) {
+            LOG_WARN("Get device pid failed with VendorPropertyAccessor! address:{}, port:{}", address, port);
+        }
+
         if(info->pid != 0) {
             break;
+        }
+
+        // Preserve the existing fallback order: only try LiDAR when the
+        // VendorPropertyAccessor PID request itself failed.
+        if(!vendorPidRequestSucceeded) {
+            info->pid = NetDeviceEnumerator::getDevicePid(info, 0, false, true);
+            if(info->pid != 0) {
+                break;
+            }
         }
 
         LOG_WARN("Failed to get real PID, attempt {}/{}. address:{}, port:{}", attempt, kPidQueryAttempts, address, port);
@@ -400,8 +510,8 @@ std::shared_ptr<const IDeviceEnumInfo> NetDeviceEnumerator::queryNetDevice(std::
     }
 
     if(info->pid == 0) {
-        LOG_WARN("Failed to get real PID after {} attempts; use default EGO PID. address:{}, port:{}", kPidQueryAttempts, address, port);
-        info->pid = OB_DEVICE_EGO_PID;
+        THROW_IO_EXCEPTION("Failed to get device PID after " + std::to_string(kPidQueryAttempts) + " attempts. address:" + address + ", port:"
+                           + std::to_string(port));
     }
     info->vid = ORBBEC_DEVICE_VID;
 
