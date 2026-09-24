@@ -355,6 +355,9 @@ typedef struct {
             uint16_t fullScaleRange; /**< enum value of @ref ob_mag_full_scale_range */
             uint16_t sampleRate;     /**< enum value of @ref ob_mag_sample_rate */
         } mag;
+        struct {
+            uint16_t sampleRate; /**< enum value of @ref ob_mag_encoder_sample_rate */
+        } magEncoder;
     } profile;
 } OBFwRecordStreamProfile, ob_fw_record_stream_profile;
 
