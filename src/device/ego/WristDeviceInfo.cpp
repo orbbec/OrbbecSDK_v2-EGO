@@ -87,10 +87,14 @@ std::vector<std::shared_ptr<IDeviceEnumInfo>> WristDeviceInfo::pickDevices(const
     auto                                          groups    = utils::groupVector<std::shared_ptr<const SourcePortInfo>>(remainder, GroupUSBSourcePortByUrl);
     auto                                          iter      = groups.begin();
     while(iter != groups.end()) {
-        bool hasColor = std::any_of(iter->begin(), iter->end(), [](const std::shared_ptr<const SourcePortInfo> &p) {
+        auto uvcCount = static_cast<size_t>(std::count_if(iter->begin(), iter->end(), [](const std::shared_ptr<const SourcePortInfo> &p) {
             return p->portType == SOURCE_PORT_USB_UVC;
+        }));
+        bool hasHid = std::any_of(iter->begin(), iter->end(), [](const std::shared_ptr<const SourcePortInfo> &p) {
+            return p->portType == SOURCE_PORT_USB_HID;
         });
-        if(hasColor) {
+        // Wrist USB layout: 1 UVC + 1 HID IMU. Do not create the device until both interfaces are present.
+        if(uvcCount >= 1 && hasHid) {
             auto info = std::make_shared<WristDeviceInfo>(*iter);
             wristDeviceInfos.push_back(info);
         }

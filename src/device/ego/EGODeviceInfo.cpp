@@ -16,6 +16,7 @@
 #include "exception/ObException.hpp"
 
 #include <algorithm>
+#include <map>
 #include "SourcePortInfo.hpp"
 #if defined(BUILD_USB_PAL)
 #include "usb/UsbPortGroup.hpp"
@@ -52,6 +53,20 @@ static const uint16_t UMI_IR_RIGHT_RTSP_PORT = 8891;
 static const uint16_t UMI_IMU_TCP_PORT       = 8900;  // private TCP IMU data stream (accel/gyro/magnetometer)
 static const uint32_t UMI_IMU_TCP_PACKET_SIZE =
     248;  // fixed framing: 8-byte HID header + up to ten 24-byte groups; firmware pads every reportId packet to this size
+
+enum class EGOUsbDeviceSeries {
+    EGO,
+    EGOPro,
+    EGODepth,
+    UMIFinger,
+};
+
+static const std::map<EGOUsbDeviceSeries, size_t> kRequiredUvcCountBySeries = {
+    { EGOUsbDeviceSeries::EGO, 2 },
+    { EGOUsbDeviceSeries::EGOPro, 1 },
+    { EGOUsbDeviceSeries::EGODepth, 4 },
+    { EGOUsbDeviceSeries::UMIFinger, 3 },
+};
 
 // EGO, EGOPro and EGODepth are split into separate series lists (EGODevPids / EGOProDevPids / EGODepthDevPids)
 // so that device-class selection is driven by list membership instead of a hardcoded PID. Enumeration still
@@ -148,17 +163,34 @@ std::vector<std::shared_ptr<IDeviceEnumInfo>> EGODeviceInfo::pickDevices(const S
     auto                                          groups    = utils::groupVector<std::shared_ptr<const SourcePortInfo>>(remainder, GroupUSBSourcePortByUrl);
     auto                                          iter      = groups.begin();
     while(iter != groups.end()) {
-        // EGO USB exposes 2 UVC color interfaces + 1 HID IMU interface (+ UAC audio).
+        // Require the video interfaces and HID IMU interface before creating the device. UAC is
+        // intentionally excluded from this readiness check because Windows may add it later.
         auto firstUsb   = std::dynamic_pointer_cast<const USBSourcePortInfo>(iter->front());
         bool isEgoPro   = firstUsb && isEgoProDevice(firstUsb->vid, firstUsb->pid);
         bool isEgoDepth = firstUsb && isEgoDepthDevice(firstUsb->vid, firstUsb->pid);
-        bool hasUvc =
-            std::any_of(iter->begin(), iter->end(), [](const std::shared_ptr<const SourcePortInfo> &p) { return p->portType == SOURCE_PORT_USB_UVC; });
-        // EGODepth exposes 4 UVC functions (Color group / Depth / IR group / single Color) + 1 HID IMU (+ UAC), so a
-        // group with fewer than 4 ports is an incomplete enumeration and must not be reported as an EGODepth device.
-        // EGO/EGOPro keep the looser threshold (on some platforms an EGOPro group only surfaces a single UVC).
-        bool enoughPorts = isEgoDepth ? (iter->size() >= 4) : (iter->size() >= 2);
-        if(enoughPorts || (isEgoPro && hasUvc)) {
+        auto uvcCount = static_cast<size_t>(std::count_if(iter->begin(), iter->end(), [](const std::shared_ptr<const SourcePortInfo> &p) {
+            return p->portType == SOURCE_PORT_USB_UVC;
+        }));
+        bool hasHid = std::any_of(iter->begin(), iter->end(), [](const std::shared_ptr<const SourcePortInfo> &p) {
+            return p->portType == SOURCE_PORT_USB_HID;
+        });
+
+        EGOUsbDeviceSeries series = EGOUsbDeviceSeries::EGO;
+        if(isEgoDepth) {
+            series = EGOUsbDeviceSeries::EGODepth;
+        }
+        else if(isEgoPro) {
+            series = EGOUsbDeviceSeries::EGOPro;
+        }
+        else if(firstUsb && firstUsb->pid == OB_DEVICE_UMI_PID) {
+            series = EGOUsbDeviceSeries::UMIFinger;
+        }
+
+        // Expected USB layout is the configured UVC count plus one HID interface. UAC is not part
+        // of this readiness check because Windows may add it later.
+        const size_t requiredUvcCount = kRequiredUvcCountBySeries.at(series);
+        bool           enoughPorts      = hasHid && uvcCount >= requiredUvcCount;
+        if(enoughPorts) {
 #if defined(_WIN32)
             // On Windows the UAC microphone is not surfaced by USB enumeration (usbaudio.sys owns it); inject a
             // synthetic UAC port so the WASAPI backend can pair the capture endpoint by USB VID/PID.
