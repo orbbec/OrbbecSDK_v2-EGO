@@ -23,6 +23,7 @@
 #include "timestamp/DeviceClockSynchronizer.hpp"
 #include "property/VendorPropertyAccessor.hpp"
 #include "property/PropertyServer.hpp"
+#include "libobsensor/h/Property.h"
 #include "property/CommonPropertyAccessors.hpp"
 #include "property/FilterPropertyAccessors.hpp"
 #include "component/fwlog/FirmwareLogManager.hpp"
@@ -88,6 +89,7 @@ void UMIFingerNetDevice::init() {
     auto propertyServer = getPropertyServer();
     auto vendorAccessor = getComponentT<VendorPropertyAccessor>(OB_DEV_COMPONENT_MAIN_PROPERTY_ACCESSOR);
     propertyServer->registerProperty(OB_STRUCT_EGO_STATE_REPORT, "r", "r", vendorAccessor.get());
+    propertyServer->registerProperty(OB_STRUCT_DEVICE_MODEL_TYPE, "r", "r", vendorAccessor.get());
 
     // firmware updater
     registerComponent(OB_DEV_COMPONENT_FIRMWARE_UPDATER, [this]() {

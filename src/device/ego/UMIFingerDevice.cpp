@@ -29,6 +29,7 @@
 #include "property/PropertyServer.hpp"
 #include "property/CommonPropertyAccessors.hpp"
 #include "property/FilterPropertyAccessors.hpp"
+#include "libobsensor/h/Property.h"
 #include "param/AlgParamManager.hpp"
 #include "component/fwlog/FirmwareLogManager.hpp"
 #include "component/fwrecord/FwRecordProfileManager.hpp"
@@ -93,6 +94,7 @@ void UMIFingerDevice::init() {
     auto propertyServer = getPropertyServer();
     auto vendorAccessor = getComponentT<VendorPropertyAccessor>(OB_DEV_COMPONENT_MAIN_PROPERTY_ACCESSOR);
     propertyServer->registerProperty(OB_STRUCT_EGO_STATE_REPORT, "r", "r", vendorAccessor.get());
+    propertyServer->registerProperty(OB_STRUCT_DEVICE_MODEL_TYPE, "r", "r", vendorAccessor.get());
 }
 
 void UMIFingerDevice::fetchDeviceInfo() {

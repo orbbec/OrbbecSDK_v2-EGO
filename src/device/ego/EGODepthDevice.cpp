@@ -136,6 +136,10 @@ void EGODepthDevice::init() {
     BEGIN_TRY_EXECUTE({ hostTimeInfoManager->setHostTimeInfoToDevice(); })
     CATCH_EXCEPTION_AND_EXECUTE({ LOG_WARN("Failed to initialize host time information for EGODepth device"); })
 
+    auto propertyServer         = getPropertyServer();
+    auto vendorPropertyAccessor = getComponentT<VendorPropertyAccessor>(OB_DEV_COMPONENT_MAIN_PROPERTY_ACCESSOR);
+    propertyServer->registerProperty(OB_STRUCT_DEVICE_MODEL_TYPE, "r", "r", vendorPropertyAccessor.get());
+
     // Apply the current depth work mode to the sensor tree. Structural changes only: init() runs from the
     // constructor, so nothing here may instantiate a sensor/component (see postInitialize()).
     fixSensorList();

@@ -166,6 +166,10 @@ void EGONetDevice::init() {
         }
     })
     CATCH_EXCEPTION_AND_EXECUTE({ LOG_WARN("Failed to initialize host time information for EGO network device"); })
+
+    auto propertyServer         = getPropertyServer();
+    auto vendorPropertyAccessor = getComponentT<VendorPropertyAccessor>(OB_DEV_COMPONENT_MAIN_PROPERTY_ACCESSOR);
+    propertyServer->registerProperty(OB_STRUCT_DEVICE_MODEL_TYPE, "r", "r", vendorPropertyAccessor.get());
 }
 
 void EGONetDevice::fetchDeviceInfo() {
