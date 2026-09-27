@@ -586,6 +586,9 @@ void UMIFingerDevice::initProperties() {
         propertyServer->registerProperty(OB_PROP_MAG_ENCODER_SWITCH_BOOL, "", "rw", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_PROP_MAG_ENCODER_ODR_INT, "rw", "rw", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_STRUCT_GET_MAG_ENCODER_PRESETS_ODR_LIST, "", "rw", vendorPropertyAccessor);
+        propertyServer->registerProperty(OB_PROP_IR_DYNAMIC_BITRATE_ENABLE_BOOL, "rw", "rw", vendorPropertyAccessor);
+        propertyServer->registerProperty(OB_PROP_IR_DYNAMIC_BITRATE_MAX_INT, "rw", "rw", vendorPropertyAccessor);
+        propertyServer->registerProperty(OB_PROP_IR_BITRATE_INT, "rw", "rw", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_PROP_FW_RECORDING_STATE_BOOL, "", "r", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_PROP_FW_RECORDING_FILE_SPLIT_DURATION_MIN_INT, "rw", "rw", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_PROP_RECORDING_DESTINATION_INT, "rw", "rw", vendorPropertyAccessor);

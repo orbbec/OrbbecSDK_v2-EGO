@@ -480,6 +480,9 @@ void UMIFingerNetDevice::initProperties() {
     propertyServer->registerProperty(OB_PROP_MAG_ENCODER_SWITCH_BOOL, "", "rw", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_PROP_MAG_ENCODER_ODR_INT, "rw", "rw", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_STRUCT_GET_MAG_ENCODER_PRESETS_ODR_LIST, "", "rw", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_PROP_IR_DYNAMIC_BITRATE_ENABLE_BOOL, "rw", "rw", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_PROP_IR_DYNAMIC_BITRATE_MAX_INT, "rw", "rw", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_PROP_IR_BITRATE_INT, "rw", "rw", vendorPropertyAccessor);
 
     propertyServer->registerProperty(OB_RAW_DATA_ALIGN_CALIB_YAML, "r", "r", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_RAW_DATA_IMU_CALIB_YAML, "r", "r", vendorPropertyAccessor);

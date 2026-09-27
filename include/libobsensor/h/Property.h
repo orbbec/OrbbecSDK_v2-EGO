@@ -698,6 +698,21 @@ typedef enum {
 
 
     /**
+     * @brief IR camera H.264/H.265 dynamic bitrate enable switch
+     */
+    OB_PROP_IR_DYNAMIC_BITRATE_ENABLE_BOOL = 308,
+
+    /**
+     * @brief Maximum IR bitrate when dynamic bitrate is enabled
+     */
+    OB_PROP_IR_DYNAMIC_BITRATE_MAX_INT = 309,
+
+    /**
+     * @brief IR bitrate when static bitrate is enabled
+     */
+    OB_PROP_IR_BITRATE_INT = 310,
+
+    /**
      * @brief Execute an action for the selected recording destination
      * @param value OBRecordingAction
      *   - 0: Stop action
