@@ -20,6 +20,27 @@
 
 namespace libobsensor {
 
+namespace {
+bool isEquivalentVideoProfile(const std::shared_ptr<const StreamProfile> &lhs, const std::shared_ptr<const StreamProfile> &rhs) {
+    if(!lhs || !rhs || !lhs->is<VideoStreamProfile>() || !rhs->is<VideoStreamProfile>()) {
+        return false;
+    }
+    auto left  = lhs->as<VideoStreamProfile>();
+    auto right = rhs->as<VideoStreamProfile>();
+    // Backend UVC profiles use the generic OB_STREAM_VIDEO type; SensorBase changes the
+    // cloned profile to the concrete sensor stream type. Compare only the public video
+    // tuple so duplicates are removed across that type normalization.
+    return left->getFormat() == right->getFormat() && left->getWidth() == right->getWidth()
+           && left->getHeight() == right->getHeight() && left->getFps() == right->getFps();
+}
+
+bool containsEquivalentVideoProfile(const StreamProfileList &profiles, const std::shared_ptr<const StreamProfile> &candidate) {
+    return std::any_of(profiles.begin(), profiles.end(), [&](const std::shared_ptr<const StreamProfile> &profile) {
+        return isEquivalentVideoProfile(profile, candidate);
+    });
+}
+}  // namespace
+
 #define GetCurrentSN() owner_->getSn()
 
 VideoSensor::VideoSensor(IDevice *owner, OBSensorType sensorType, const std::shared_ptr<ISourcePort> &backend)
@@ -405,6 +426,9 @@ void VideoSensor::setStreamProfileList(const StreamProfileList &profileList) {
     auto              streamType    = utils::mapSensorTypeToStreamType(sensorType_);
     StreamProfileList backendSpList = profileList;
     for(auto &backendSp: backendSpList) {
+        if(containsEquivalentVideoProfile(backendStreamProfileList_, backendSp)) {
+            continue;
+        }
         auto sp = backendSp->clone();
         sp->bindOwner(lazySelf_);
         sp->setType(streamType);
