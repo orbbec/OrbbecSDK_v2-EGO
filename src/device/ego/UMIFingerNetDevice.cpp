@@ -23,7 +23,6 @@
 #include "timestamp/DeviceClockSynchronizer.hpp"
 #include "property/VendorPropertyAccessor.hpp"
 #include "property/PropertyServer.hpp"
-#include "libobsensor/h/Property.h"
 #include "property/CommonPropertyAccessors.hpp"
 #include "property/FilterPropertyAccessors.hpp"
 #include "component/fwlog/FirmwareLogManager.hpp"

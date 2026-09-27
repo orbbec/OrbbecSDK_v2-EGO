@@ -29,7 +29,6 @@
 #include "property/PropertyServer.hpp"
 #include "property/CommonPropertyAccessors.hpp"
 #include "property/FilterPropertyAccessors.hpp"
-#include "libobsensor/h/Property.h"
 #include "param/AlgParamManager.hpp"
 #include "component/fwlog/FirmwareLogManager.hpp"
 #include "component/fwrecord/FwRecordProfileManager.hpp"
