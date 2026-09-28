@@ -1,4 +1,5 @@
 #include "ObRTPUDPClient.hpp"
+#include "ethernet/socket/SocketPoller.hpp"
 #include "logger/Logger.hpp"
 #include "utils/Utils.hpp"
 #include "exception/ObException.hpp"
@@ -189,17 +190,9 @@ void ObRTPUDPClient::flush() {
     uint64_t     elapsed = 0;
 
     do {
-        struct timeval timeout;
-        timeout.tv_sec  = 0;
-        timeout.tv_usec = 0;  // return immediately
-
-        auto   sock = recvSocket_;
-        auto   nfds = static_cast<int>(sock) + 1;
-        fd_set readfs;
-
-        FD_ZERO(&readfs);
-        FD_SET(sock, &readfs);
-        auto res = select(nfds, &readfs, 0, 0, &timeout);
+        auto sock = recvSocket_;
+        std::vector<SocketPollFd> pollFds = { { sock, SOCKET_POLL_EVENT_READ } };
+        auto res = waitForSocketEvents(pollFds, 0);
         if(res <= 0) {
             // no any data
             break;

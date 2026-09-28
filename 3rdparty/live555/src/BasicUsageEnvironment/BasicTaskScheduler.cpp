@@ -17,9 +17,24 @@ along with this library; if not, write to the Free Software Foundation, Inc.,
 // Basic Usage Environment: for a simple, non-scripted, console application
 // Implementation
 
+#if(defined(__WIN32__) || defined(_WIN32)) && !defined(_WIN32_WINNT)
+// WSAPoll is available starting with Windows Vista.
+#define _WIN32_WINNT 0x0600
+#endif
+
 #include "BasicUsageEnvironment.hh"
 #include "HandlerSet.hh"
 #include <stdio.h>
+#include <limits.h>
+#include <chrono>
+#include <thread>
+#include <unordered_map>
+#include <vector>
+#if defined(__WIN32__) || defined(_WIN32)
+#include <winsock2.h>
+#else
+#include <poll.h>
+#endif
 #if defined(_QNX4)
 #include <sys/select.h>
 #include <unix.h>
@@ -32,27 +47,12 @@ BasicTaskScheduler *BasicTaskScheduler::createNew(unsigned maxSchedulerGranulari
 }
 
 BasicTaskScheduler::BasicTaskScheduler(unsigned maxSchedulerGranularity)
-    : fMaxSchedulerGranularity(maxSchedulerGranularity),
-      fMaxNumSockets(0)
-#if defined(__WIN32__) || defined(_WIN32)
-      ,
-      fDummySocketNum(-1)
-#endif
-{
-    FD_ZERO(&fReadSet);
-    FD_ZERO(&fWriteSet);
-    FD_ZERO(&fExceptionSet);
-
+    : fMaxSchedulerGranularity(maxSchedulerGranularity) {
     if(maxSchedulerGranularity > 0)
         schedulerTickTask();  // ensures that we handle events frequently
 }
 
-BasicTaskScheduler::~BasicTaskScheduler() {
-#if defined(__WIN32__) || defined(_WIN32)
-    if(fDummySocketNum >= 0)
-        closeSocket(fDummySocketNum);
-#endif
-}
+BasicTaskScheduler::~BasicTaskScheduler() {}
 
 void BasicTaskScheduler::schedulerTickTask(void *clientData) {
     ((BasicTaskScheduler *)clientData)->schedulerTickTask();
@@ -67,15 +67,11 @@ void BasicTaskScheduler::schedulerTickTask() {
 #endif
 
 void BasicTaskScheduler::SingleStep(unsigned maxDelayTime) {
-    fd_set readSet      = fReadSet;       // make a copy for this select() call
-    fd_set writeSet     = fWriteSet;      // ditto
-    fd_set exceptionSet = fExceptionSet;  // ditto
-
     DelayInterval const &timeToDelay = fDelayQueue.timeToNextAlarm();
     struct timeval       tv_timeToDelay;
     tv_timeToDelay.tv_sec  = timeToDelay.seconds();
     tv_timeToDelay.tv_usec = timeToDelay.useconds();
-    // Very large "tv_sec" values cause select() to fail.
+    // Keep the wait bounded to a duration supported by the polling API.
     // Don't make it any larger than 1 million seconds (11.5 days)
     const long MAX_TV_SEC = MILLION;
     if(tv_timeToDelay.tv_sec > MAX_TV_SEC) {
@@ -89,48 +85,112 @@ void BasicTaskScheduler::SingleStep(unsigned maxDelayTime) {
         tv_timeToDelay.tv_usec = maxDelayTime % MILLION;
     }
 
-    int selectResult = select(fMaxNumSockets, &readSet, &writeSet, &exceptionSet, &tv_timeToDelay);
-    if(selectResult < 0) {
+    const unsigned long long timeoutMs64 = static_cast<unsigned long long>(tv_timeToDelay.tv_sec) * 1000ULL
+                                           + static_cast<unsigned long long>(tv_timeToDelay.tv_usec + 999) / 1000ULL;
+    const int timeoutMs = timeoutMs64 > static_cast<unsigned long long>(INT_MAX) ? INT_MAX : static_cast<int>(timeoutMs64);
+
 #if defined(__WIN32__) || defined(_WIN32)
-        int err = WSAGetLastError();
-        // For some unknown reason, select() in Windoze sometimes fails with WSAEINVAL if
-        // it was called with no entries set in "readSet".  If this happens, ignore it:
-        if(err == WSAEINVAL && readSet.fd_count == 0) {
-            err = EINTR;
-            // To stop this from happening again, create a dummy socket:
-            if(fDummySocketNum >= 0)
-                closeSocket(fDummySocketNum);
-            fDummySocketNum = socket(AF_INET, SOCK_DGRAM, 0);
-            FD_SET((unsigned)fDummySocketNum, &fReadSet);
-        }
-        if(err != EINTR) {
+    std::vector<WSAPOLLFD> pollFds;
 #else
-        if(errno != EINTR && errno != EAGAIN) {
+    std::vector<pollfd> pollFds;
 #endif
+    HandlerIterator pollIter(*fHandlers);
+    HandlerDescriptor *pollHandler;
+    while((pollHandler = pollIter.next()) != NULL) {
+#if defined(__WIN32__) || defined(_WIN32)
+        WSAPOLLFD pollFd = {};
+#else
+        pollfd pollFd = {};
+#endif
+        pollFd.fd = pollHandler->socketNum;
+        if(pollHandler->conditionSet & SOCKET_READABLE) {
+#if defined(__WIN32__) || defined(_WIN32)
+            pollFd.events |= POLLRDNORM;
+#else
+            pollFd.events |= POLLIN;
+#endif
+        }
+        if(pollHandler->conditionSet & SOCKET_WRITABLE)
+            pollFd.events |= POLLOUT;
+        if(pollHandler->conditionSet & SOCKET_EXCEPTION) {
+#if defined(__WIN32__) || defined(_WIN32)
+            // The Microsoft Winsock provider does not support POLLPRI. Use its
+            // supported out-of-band-data event to preserve select semantics.
+            pollFd.events |= POLLRDBAND;
+#else
+            pollFd.events |= POLLPRI;
+#endif
+        }
+        pollFds.push_back(pollFd);
+    }
+
+#if defined(__WIN32__) || defined(_WIN32)
+    int pollResult;
+    int pollError = 0;
+    if(pollFds.empty()) {
+        if(timeoutMs > 0)
+            std::this_thread::sleep_for(std::chrono::milliseconds(timeoutMs));
+        pollResult = 0;
+    }
+    else {
+        pollResult = WSAPoll(pollFds.data(), static_cast<ULONG>(pollFds.size()), timeoutMs);
+        pollError = pollResult < 0 ? WSAGetLastError() : 0;
+    }
+#else
+    int pollResult = poll(pollFds.data(), pollFds.size(), timeoutMs);
+    int pollError = pollResult < 0 ? errno : 0;
+#endif
+    if(pollResult < 0) {
+        if(
+#if defined(__WIN32__) || defined(_WIN32)
+           pollError != WSAEINTR
+#else
+           pollError != EINTR
+           && pollError != EAGAIN
+#endif
+        ) {
             // Unexpected error - treat this as fatal:
 #if !defined(_WIN32_WCE)
-            perror("BasicTaskScheduler::SingleStep(): select() fails");
-            // Because this failure is often "Bad file descriptor" - which is caused by an invalid socket number (i.e., a socket number
-            // that had already been closed) being used in "select()" - we print out the sockets that were being used in "select()",
-            // to assist in debugging:
-            fprintf(stderr, "socket numbers used in the select() call:");
-            for(int i = 0; i < 10000; ++i) {
-                if(FD_ISSET(i, &fReadSet) || FD_ISSET(i, &fWriteSet) || FD_ISSET(i, &fExceptionSet)) {
-                    fprintf(stderr, " %d(", i);
-                    if(FD_ISSET(i, &fReadSet))
-                        fprintf(stderr, "r");
-                    if(FD_ISSET(i, &fWriteSet))
-                        fprintf(stderr, "w");
-                    if(FD_ISSET(i, &fExceptionSet))
-                        fprintf(stderr, "e");
-                    fprintf(stderr, ")");
-                }
-            }
-            fprintf(stderr, "\n");
+            perror("BasicTaskScheduler::SingleStep(): poll() fails");
 #endif
             internalError();
         }
     }
+
+    std::unordered_map<int, short> readyEvents;
+    if(pollResult > 0) {
+        for(const auto &pollFd: pollFds) {
+            if(pollFd.revents != 0)
+                readyEvents[pollFd.fd] = pollFd.revents;
+        }
+    }
+
+    auto getResultConditionSet = [&readyEvents](HandlerDescriptor *handler) {
+        const auto it = readyEvents.find(handler->socketNum);
+        if(it == readyEvents.end())
+            return 0;
+        const short revents = it->second;
+        int resultConditionSet = 0;
+#if defined(__WIN32__) || defined(_WIN32)
+        if(revents & POLLRDNORM)
+#else
+        if(revents & POLLIN)
+#endif
+            resultConditionSet |= SOCKET_READABLE;
+        if(revents & POLLOUT)
+            resultConditionSet |= SOCKET_WRITABLE;
+#if defined(__WIN32__) || defined(_WIN32)
+        if(revents & POLLRDBAND)
+#else
+        if(revents & POLLPRI)
+#endif
+            resultConditionSet |= SOCKET_EXCEPTION;
+        // A closed or errored socket must still reach the registered handler so
+        // handler using its requested condition so existing error/EOF handling runs.
+        if(revents & (POLLERR | POLLHUP | POLLNVAL))
+            resultConditionSet |= handler->conditionSet;
+        return resultConditionSet;
+    };
 
     // Call the handler function for one readable socket:
     HandlerIterator    iter(*fHandlers);
@@ -149,13 +209,7 @@ void BasicTaskScheduler::SingleStep(unsigned maxDelayTime) {
     }
     while((handler = iter.next()) != NULL) {
         int sock               = handler->socketNum;  // alias
-        int resultConditionSet = 0;
-        if(FD_ISSET(sock, &readSet) && FD_ISSET(sock, &fReadSet) /*sanity check*/)
-            resultConditionSet |= SOCKET_READABLE;
-        if(FD_ISSET(sock, &writeSet) && FD_ISSET(sock, &fWriteSet) /*sanity check*/)
-            resultConditionSet |= SOCKET_WRITABLE;
-        if(FD_ISSET(sock, &exceptionSet) && FD_ISSET(sock, &fExceptionSet) /*sanity check*/)
-            resultConditionSet |= SOCKET_EXCEPTION;
+        int resultConditionSet = getResultConditionSet(handler);
         if((resultConditionSet & handler->conditionSet) != 0 && handler->handlerProc != NULL) {
             fLastHandledSocketNum = sock;
             // Note: we set "fLastHandledSocketNum" before calling the handler,
@@ -170,13 +224,7 @@ void BasicTaskScheduler::SingleStep(unsigned maxDelayTime) {
         iter.reset();
         while((handler = iter.next()) != NULL) {
             int sock               = handler->socketNum;  // alias
-            int resultConditionSet = 0;
-            if(FD_ISSET(sock, &readSet) && FD_ISSET(sock, &fReadSet) /*sanity check*/)
-                resultConditionSet |= SOCKET_READABLE;
-            if(FD_ISSET(sock, &writeSet) && FD_ISSET(sock, &fWriteSet) /*sanity check*/)
-                resultConditionSet |= SOCKET_WRITABLE;
-            if(FD_ISSET(sock, &exceptionSet) && FD_ISSET(sock, &fExceptionSet) /*sanity check*/)
-                resultConditionSet |= SOCKET_EXCEPTION;
+            int resultConditionSet = getResultConditionSet(handler);
             if((resultConditionSet & handler->conditionSet) != 0 && handler->handlerProc != NULL) {
                 fLastHandledSocketNum = sock;
                 // Note: we set "fLastHandledSocketNum" before calling the handler,
@@ -231,58 +279,16 @@ void BasicTaskScheduler::SingleStep(unsigned maxDelayTime) {
 void BasicTaskScheduler ::setBackgroundHandling(int socketNum, int conditionSet, BackgroundHandlerProc *handlerProc, void *clientData) {
     if(socketNum < 0)
         return;
-#if !defined(__WIN32__) && !defined(_WIN32) && defined(FD_SETSIZE)
-    if(socketNum >= (int)(FD_SETSIZE))
-        return;
-#endif
-    FD_CLR((unsigned)socketNum, &fReadSet);
-    FD_CLR((unsigned)socketNum, &fWriteSet);
-    FD_CLR((unsigned)socketNum, &fExceptionSet);
     if(conditionSet == 0) {
         fHandlers->clearHandler(socketNum);
-        if(socketNum + 1 == fMaxNumSockets) {
-            --fMaxNumSockets;
-        }
     }
     else {
         fHandlers->assignHandler(socketNum, conditionSet, handlerProc, clientData);
-        if(socketNum + 1 > fMaxNumSockets) {
-            fMaxNumSockets = socketNum + 1;
-        }
-        if(conditionSet & SOCKET_READABLE)
-            FD_SET((unsigned)socketNum, &fReadSet);
-        if(conditionSet & SOCKET_WRITABLE)
-            FD_SET((unsigned)socketNum, &fWriteSet);
-        if(conditionSet & SOCKET_EXCEPTION)
-            FD_SET((unsigned)socketNum, &fExceptionSet);
     }
 }
 
 void BasicTaskScheduler::moveSocketHandling(int oldSocketNum, int newSocketNum) {
     if(oldSocketNum < 0 || newSocketNum < 0)
         return;  // sanity check
-#if !defined(__WIN32__) && !defined(_WIN32) && defined(FD_SETSIZE)
-    if(oldSocketNum >= (int)(FD_SETSIZE) || newSocketNum >= (int)(FD_SETSIZE))
-        return;  // sanity check
-#endif
-    if(FD_ISSET(oldSocketNum, &fReadSet)) {
-        FD_CLR((unsigned)oldSocketNum, &fReadSet);
-        FD_SET((unsigned)newSocketNum, &fReadSet);
-    }
-    if(FD_ISSET(oldSocketNum, &fWriteSet)) {
-        FD_CLR((unsigned)oldSocketNum, &fWriteSet);
-        FD_SET((unsigned)newSocketNum, &fWriteSet);
-    }
-    if(FD_ISSET(oldSocketNum, &fExceptionSet)) {
-        FD_CLR((unsigned)oldSocketNum, &fExceptionSet);
-        FD_SET((unsigned)newSocketNum, &fExceptionSet);
-    }
     fHandlers->moveHandler(oldSocketNum, newSocketNum);
-
-    if(oldSocketNum + 1 == fMaxNumSockets) {
-        --fMaxNumSockets;
-    }
-    if(newSocketNum + 1 > fMaxNumSockets) {
-        fMaxNumSockets = newSocketNum + 1;
-    }
 }

@@ -22,6 +22,7 @@
 
 #include "MDNSDiscovery.hpp"
 #include "MDNSUtil.hpp"
+#include "ethernet/socket/SocketPoller.hpp"
 #include "exception/ObException.hpp"
 
 #include "logger/LoggerInterval.hpp"
@@ -264,8 +265,6 @@ void MDNSDiscovery::closeClientSockets(std::vector<MDNSSocketInfo> &sockInfos) {
 }
 
 bool MDNSDiscovery::receiveMDNSResponses(const std::vector<MDNSSocketInfo> &sockInfos, uint8_t *buffer, size_t bufferSize, int timeoutSec, int timeoutUsec) {
-    int    nfds = 0;
-    fd_set readfs;
     bool   receivedData = false;
     auto   startTime    = std::chrono::steady_clock::now();
     auto   timeoutMs    = timeoutSec * 1000 + timeoutUsec / 1000;
@@ -277,21 +276,13 @@ bool MDNSDiscovery::receiveMDNSResponses(const std::vector<MDNSSocketInfo> &sock
     };
 
     while(true) {
-        FD_ZERO(&readfs);
-        nfds = 0;
-
+        std::vector<SocketPollFd> pollFds;
+        pollFds.reserve(sockInfos.size());
         for(const auto &info: sockInfos) {
-            FD_SET(info.sock, &readfs);
-            if(static_cast<int>(info.sock) + 1 > nfds) {
-                nfds = static_cast<int>(info.sock) + 1;
-            }
+            pollFds.push_back({ info.sock, SOCKET_POLL_EVENT_READ });
         }
 
-        struct timeval shortTimeout;
-        shortTimeout.tv_sec  = 0;
-        shortTimeout.tv_usec = 25000;
-
-        int res = select(nfds, &readfs, nullptr, nullptr, &shortTimeout);
+        int res = waitForSocketEvents(pollFds, 25);
         if(res <= 0) {
             if(isTimeOut()) {
                 break;
@@ -299,8 +290,9 @@ bool MDNSDiscovery::receiveMDNSResponses(const std::vector<MDNSSocketInfo> &sock
             continue;
         }
 
-        for(const auto &info: sockInfos) {
-            if(FD_ISSET(info.sock, &readfs)) {
+        for(size_t i = 0; i < sockInfos.size(); ++i) {
+            const auto &info = sockInfos[i];
+            if(pollFds[i].revents & (SOCKET_POLL_EVENT_READ | SOCKET_POLL_EVENT_HANGUP | SOCKET_POLL_EVENT_ERROR | SOCKET_POLL_EVENT_INVALID)) {
                 int maxRecvCount = 100;  // avoid infinite loop
                 while(maxRecvCount-- > 0) {
                     memset(buffer, 0, bufferSize);

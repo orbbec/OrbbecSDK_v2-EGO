@@ -27,8 +27,10 @@
 #include <iomanip>
 #include <future>
 #include <vector>
+#include <climits>
 
 #include "GVCPTransmit.hpp"
+#include "ethernet/socket/SocketPoller.hpp"
 #include "exception/ObException.hpp"
 
 #include "logger/LoggerInterval.hpp"
@@ -125,17 +127,9 @@ void GVCPTransmit::clearSocketReceiveBuffer() {
     uint64_t     elapsed = 0;
 
     do {
-        struct timeval timeout;
-        timeout.tv_sec  = 0;
-        timeout.tv_usec = 0;  // return immediately
-
-        auto   sock = sock_;
-        auto   nfds = static_cast<int>(sock) + 1;
-        fd_set readfs;
-
-        FD_ZERO(&readfs);
-        FD_SET(sock, &readfs);
-        auto res = select(nfds, &readfs, 0, 0, &timeout);
+        auto sock = sock_;
+        std::vector<SocketPollFd> pollFds = { { sock, SOCKET_POLL_EVENT_READ } };
+        auto res = waitForSocketEvents(pollFds, 0);
         if(res <= 0) {
             // no any data
             break;
@@ -183,15 +177,9 @@ std::vector<char> GVCPTransmit::transmit(const void *data, int dataLength) {
             return {};
         }
         // receive ack
-        struct timeval timeout;
-        timeout.tv_sec  = timeoutMs_ / 1000;
-        timeout.tv_usec = (timeoutMs_ % 1000) * 1000;
-
-        fd_set readfs;
-        FD_ZERO(&readfs);
-        FD_SET(sock_, &readfs);
-        auto nfds = static_cast<int>(sock_) + 1;
-        res       = select(nfds, &readfs, 0, 0, &timeout);
+        std::vector<SocketPollFd> pollFds = { { sock_, SOCKET_POLL_EVENT_READ } };
+        const int timeoutMs = timeoutMs_ > static_cast<uint32_t>(INT_MAX) ? INT_MAX : static_cast<int>(timeoutMs_);
+        res = waitForSocketEvents(pollFds, timeoutMs);
         if(res == SOCKET_ERROR) {
             auto err = GET_LAST_ERROR();
             if(IS_EINTR(err)) {
@@ -211,7 +199,7 @@ std::vector<char> GVCPTransmit::transmit(const void *data, int dataLength) {
             continue;
         }
 
-        if(FD_ISSET(sock_, &readfs)) {
+        if(pollFds.front().revents & (SOCKET_POLL_EVENT_READ | SOCKET_POLL_EVENT_HANGUP | SOCKET_POLL_EVENT_ERROR | SOCKET_POLL_EVENT_INVALID)) {
             std::vector<char> buffer(GVCP_MAX_PACK_SIZE);
             SOCKADDR_IN       senderAddr{};
             socklen_t         senderLen = sizeof(senderAddr);

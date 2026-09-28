@@ -29,6 +29,7 @@
 #include <vector>
 
 #include "GVCPClient.hpp"
+#include "ethernet/socket/SocketPoller.hpp"
 #include "exception/ObException.hpp"
 
 #include "logger/LoggerInterval.hpp"
@@ -824,25 +825,14 @@ void GVCPClient::sendGVCPDiscovery(GVCPSocketInfo socketInfo) {
     int res;
     int failedCount = 100;
     do {
-        struct timeval timeout;
-        timeout.tv_sec  = 1;
-        timeout.tv_usec = 0;
-
-        int    nfds = 0;
-        fd_set readfs;
-        FD_ZERO(&readfs);
-        nfds = static_cast<int>(socketInfo.sock) + 1;
-        FD_SET(socketInfo.sock, &readfs);
+        std::vector<SocketPollFd> pollFds = { { socketInfo.sock, SOCKET_POLL_EVENT_READ } };
         if(socketInfo.sockRecv > 0) {
-            FD_SET(socketInfo.sockRecv, &readfs);
-            if(socketInfo.sockRecv > socketInfo.sock) {
-                nfds = static_cast<int>(socketInfo.sockRecv) + 1;
-            }
+            pollFds.push_back({ socketInfo.sockRecv, SOCKET_POLL_EVENT_READ });
         }
 
-        res = select(nfds, &readfs, 0, 0, &timeout);
+        res = waitForSocketEvents(pollFds, 1000);
         if(res > 0) {
-            if(FD_ISSET(socketInfo.sock, &readfs)) {
+            if(pollFds[0].revents & (SOCKET_POLL_EVENT_READ | SOCKET_POLL_EVENT_HANGUP | SOCKET_POLL_EVENT_ERROR | SOCKET_POLL_EVENT_INVALID)) {
                 err = recvAndParseGVCPResponse(socketInfo.sock, socketInfo, gvcpPort);
                 if(err == SOCKET_ERROR) {
                     if(failedCount-- < 0) {
@@ -851,7 +841,8 @@ void GVCPClient::sendGVCPDiscovery(GVCPSocketInfo socketInfo) {
                     }
                 }
             }
-            if(socketInfo.sockRecv > 0 && FD_ISSET(socketInfo.sockRecv, &readfs)) {
+            if(socketInfo.sockRecv > 0
+               && pollFds[1].revents & (SOCKET_POLL_EVENT_READ | SOCKET_POLL_EVENT_HANGUP | SOCKET_POLL_EVENT_ERROR | SOCKET_POLL_EVENT_INVALID)) {
                 err = recvAndParseGVCPResponse(socketInfo.sockRecv, socketInfo, gvcpPort);
                 if(err == SOCKET_ERROR) {
                     if(failedCount-- < 0) {
@@ -860,7 +851,6 @@ void GVCPClient::sendGVCPDiscovery(GVCPSocketInfo socketInfo) {
                     }
                 }
             }
-            FD_SET(socketInfo.sock, &readfs);
         }
     } while(res > 0);
     // LOG_INFO("finish gvcp discovery {}", sock);
@@ -916,25 +906,14 @@ bool GVCPClient::sendGVCPForceIP(GVCPSocketInfo socketInfo, std::string mac, con
     int           failedCount = 100;
 
     do {
-        struct timeval timeout{};
-        timeout.tv_sec  = 1;
-        timeout.tv_usec = 0;
-
-        int    nfds = static_cast<int>(socketInfo.sock) + 1;
-        fd_set readfs;
-        FD_ZERO(&readfs);
-        FD_SET(socketInfo.sock, &readfs);
-
+        std::vector<SocketPollFd> pollFds = { { socketInfo.sock, SOCKET_POLL_EVENT_READ } };
         if(socketInfo.sockRecv > 0) {
-            FD_SET(socketInfo.sockRecv, &readfs);
-            if(socketInfo.sockRecv > socketInfo.sock) {
-                nfds = static_cast<int>(socketInfo.sockRecv) + 1;
-            }
+            pollFds.push_back({ socketInfo.sockRecv, SOCKET_POLL_EVENT_READ });
         }
 
-        res = select(nfds, &readfs, nullptr, nullptr, &timeout);
+        res = waitForSocketEvents(pollFds, 1000);
         if(res > 0) {
-            if(FD_ISSET(socketInfo.sock, &readfs)) {
+            if(pollFds[0].revents & (SOCKET_POLL_EVENT_READ | SOCKET_POLL_EVENT_HANGUP | SOCKET_POLL_EVENT_ERROR | SOCKET_POLL_EVENT_INVALID)) {
                 uint8_t     buffer[1024]{};
                 SOCKADDR_IN senderAddr{};
                 socklen_t   senderLen = sizeof(senderAddr);
@@ -953,7 +932,8 @@ bool GVCPClient::sendGVCPForceIP(GVCPSocketInfo socketInfo, std::string mac, con
                     break;
                 }
             }
-            if(socketInfo.sockRecv > 0 && FD_ISSET(socketInfo.sockRecv, &readfs)) {
+            if(socketInfo.sockRecv > 0
+               && pollFds[1].revents & (SOCKET_POLL_EVENT_READ | SOCKET_POLL_EVENT_HANGUP | SOCKET_POLL_EVENT_ERROR | SOCKET_POLL_EVENT_INVALID)) {
                 uint8_t     buffer[1024]{};
                 SOCKADDR_IN senderAddr{};
                 socklen_t   senderLen = sizeof(senderAddr);

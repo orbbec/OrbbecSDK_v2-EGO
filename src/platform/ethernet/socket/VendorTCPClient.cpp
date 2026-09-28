@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 #include "VendorTCPClient.hpp"
+#include "SocketPoller.hpp"
 #include "logger/Logger.hpp"
 #include "utils/Utils.hpp"
 #include "exception/ObException.hpp"
@@ -16,6 +17,8 @@
 #endif
 
 #include <thread>
+#include <vector>
+#include <climits>
 
 #ifndef SHUT_WR
 #ifdef _WIN32
@@ -126,33 +129,23 @@ VendorTCPClient::~VendorTCPClient() noexcept {
 }
 
 bool VendorTCPClient::checkConnectReady(SOCKET socket, uint32_t timeoutMs) {
-    // Lambda: call select once, check writability and connection error via getsockopt.
-    // fd_set must be re-initialized before every select call because select modifies them.
+    // Wait for connect completion, then verify it with SO_ERROR. POLLOUT alone is
+    // not sufficient because it is also reported for failed non-blocking connects.
     auto checkReady = [&](SOCKET sock) -> bool {
-        fd_set write, err;
-        FD_ZERO(&write);
-        FD_ZERO(&err);
-        FD_SET(sock, &write);
-        FD_SET(sock, &err);
-
-        TIMEVAL connTimeout;
+        int waitTimeoutMs;
 #if(defined(OS_IOS) || defined(OS_MACOS) || defined(__ANDROID__))
-        connTimeout.tv_sec  = 0;
-        connTimeout.tv_usec = 100000;  // 100ms
+        waitTimeoutMs = 100;
 #else
-        connTimeout.tv_sec  = timeoutMs / 1000;
-        connTimeout.tv_usec = timeoutMs % 1000 * 1000;
+        waitTimeoutMs = timeoutMs > static_cast<uint32_t>(INT_MAX) ? INT_MAX : static_cast<int>(timeoutMs);
 #endif
 
-#if(defined(WIN32) || defined(_WIN32) || defined(WINCE))
-        auto rst = select(0, NULL, &write, &err, &connTimeout);  // nfds ignored on Windows
-#else
-        auto rst            = select(sock + 1, NULL, &write, &err, &connTimeout);
-#endif
+        std::vector<SocketPollFd> fds = { { sock, static_cast<short>(SOCKET_POLL_EVENT_WRITE | SOCKET_POLL_EVENT_EXCEPTION) } };
+        auto rst = waitForSocketEvents(fds, waitTimeoutMs);
         if(rst <= 0) {
             return false;  // timeout or error
         }
-        if(!FD_ISSET(sock, &write)) {
+        if((fds.front().revents & (SOCKET_POLL_EVENT_WRITE | SOCKET_POLL_EVENT_EXCEPTION | SOCKET_POLL_EVENT_ERROR | SOCKET_POLL_EVENT_HANGUP
+                                   | SOCKET_POLL_EVENT_INVALID)) == 0) {
             return false;  // connection failed
         }
         // Verify the connection actually succeeded (works on all platforms)
