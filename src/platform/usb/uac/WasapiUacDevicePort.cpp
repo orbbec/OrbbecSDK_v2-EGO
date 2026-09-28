@@ -20,12 +20,35 @@
 #include <functiondiscoverykeys_devpkey.h>
 
 #include <algorithm>
+#include <chrono>
+#include <cstring>
 #include <cwctype>
 #include <string>
 
 namespace libobsensor {
 
 namespace {
+constexpr int kFirstAudioFrameTimeoutMs = 1500;
+constexpr int kMaxAudioStartAttempts    = 3;
+
+class ScopedCaptureCom {
+public:
+    ScopedCaptureCom() : result_(CoInitializeEx(nullptr, COINIT_MULTITHREADED)) {}
+    ~ScopedCaptureCom() { if(SUCCEEDED(result_)) CoUninitialize(); }
+    bool usable() const { return SUCCEEDED(result_) || result_ == RPC_E_CHANGED_MODE; }
+private:
+    HRESULT result_;
+};
+
+// Return a borrowed packet even if allocating or copying the SDK frame throws.
+struct CapturePacketGuard {
+    CapturePacketGuard(IAudioCaptureClient *capture, UINT32 count) : client(capture), frames(count) {}
+    IAudioCaptureClient *client;
+    UINT32 frames;
+    bool pending = true;
+    ~CapturePacketGuard() { if(pending) client->ReleaseBuffer(frames); }
+};
+
 // Build the "VID_xxxx&PID_yyyy" token (uppercase hex) used inside the USB device id.
 std::wstring makeVidPidToken(uint16_t vid, uint16_t pid) {
     wchar_t buf[32];
@@ -105,16 +128,37 @@ std::wstring getEndpointHardwareDeviceId(IMMDevice *endpoint) {
 }  // namespace
 
 WasapiUacDevicePort::WasapiUacDevicePort(std::shared_ptr<const USBSourcePortInfo> portInfo) : portInfo_(portInfo) {
-    HRESULT hr        = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-    bool    comInited = SUCCEEDED(hr);
+    ScopedCaptureCom com;
+
+    if(!com.usable() || !bindCaptureEndpoint()) {
+        THROW_ITEM_NOT_FOUND_EXCEPTION("WASAPI: no matching UAC capture endpoint found for the EGO device");
+    }
+    // Probe only. Streaming interfaces are acquired and released on the capture thread.
+    mmDevice_->Release();
+    mmDevice_ = nullptr;
+
+    // Force a fixed 16-bit integer PCM format. EgoPro uses stereo; other EGO devices use mono.
+    // The WASAPI shared-mode mix format is typically 32-bit float @48 kHz; consuming that as OB_FORMAT_PCM
+    // (16-bit) produced noise. We request the target format explicitly at stream start via
+    // AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM, so the audio engine resamples/reformats for us. Keep the members
+    // at the fixed target instead of following the endpoint mix format.
+    if(isEgoProDevice(portInfo_->vid, portInfo_->pid)) {
+        channelCount_ = 2;
+    }
+    LOG_DEBUG("WasapiUacDevicePort created: sampleRate={}, channels={}, bits={} (forced 16-bit PCM)", sampleRate_, channelCount_, bitsPerSample_);
+}
+
+bool WasapiUacDevicePort::bindCaptureEndpoint() {
+    if(mmDevice_) {
+        mmDevice_->Release();
+        mmDevice_ = nullptr;
+    }
 
     IMMDeviceEnumerator *enumerator = nullptr;
-    hr = CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL, __uuidof(IMMDeviceEnumerator), reinterpret_cast<void **>(&enumerator));
+    HRESULT hr = CoCreateInstance(__uuidof(MMDeviceEnumerator), nullptr, CLSCTX_ALL, __uuidof(IMMDeviceEnumerator), reinterpret_cast<void **>(&enumerator));
     if(FAILED(hr) || !enumerator) {
-        if(comInited) {
-            CoUninitialize();
-        }
-        THROW_IO_EXCEPTION("WASAPI: failed to create device enumerator");
+        LOG_WARN("WASAPI: failed to create device enumerator, HRESULT=0x{:08X}", static_cast<uint32_t>(hr));
+        return false;
     }
 
     IMMDeviceCollection *collection = nullptr;
@@ -189,22 +233,7 @@ WasapiUacDevicePort::WasapiUacDevicePort(std::shared_ptr<const USBSourcePortInfo
     }
     enumerator->Release();
 
-    if(!mmDevice_) {
-        if(comInited) {
-            CoUninitialize();
-        }
-        THROW_ITEM_NOT_FOUND_EXCEPTION("WASAPI: no matching UAC capture endpoint found for the EGO device");
-    }
-
-    // Force a fixed 16-bit integer PCM format. EgoPro uses stereo; other EGO devices use mono.
-    // The WASAPI shared-mode mix format is typically 32-bit float @48 kHz; consuming that as OB_FORMAT_PCM
-    // (16-bit) produced noise. We request the target format explicitly at stream start via
-    // AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM, so the audio engine resamples/reformats for us. Keep the members
-    // at the fixed target instead of following the endpoint mix format.
-    if(isEgoProDevice(portInfo_->vid, portInfo_->pid)) {
-        channelCount_ = 2;
-    }
-    LOG_DEBUG("WasapiUacDevicePort created: sampleRate={}, channels={}, bits={} (forced 16-bit PCM)", sampleRate_, channelCount_, bitsPerSample_);
+    return mmDevice_ != nullptr;
 }
 
 WasapiUacDevicePort::~WasapiUacDevicePort() noexcept {
@@ -213,7 +242,6 @@ WasapiUacDevicePort::~WasapiUacDevicePort() noexcept {
         mmDevice_->Release();
         mmDevice_ = nullptr;
     }
-    CoUninitialize();
     LOG_DEBUG("WasapiUacDevicePort destroyed");
 }
 
@@ -225,19 +253,14 @@ StreamProfileList WasapiUacDevicePort::getStreamProfileList() {
     return list;
 }
 
-void WasapiUacDevicePort::startStream(std::shared_ptr<const StreamProfile> profile, MutableFrameCallback callback) {
-    std::lock_guard<std::mutex> lk(streamMutex_);
-    if(streaming_) {
-        THROW_WRONG_API_CALL_SEQUENCE_EXCEPTION("WasapiUacDevicePort::startStream() called while streaming");
+bool WasapiUacDevicePort::startCaptureClient() {
+    if(!mmDevice_) {
+        return false;
     }
-    activatedProfile_ = profile->as<AudioStreamProfile>();
-    frameCallback_    = callback;
-    fitter_.reset(sampleRate_);
-    totalFrames_ = 0;
-
     HRESULT hr = mmDevice_->Activate(__uuidof(IAudioClient), CLSCTX_ALL, nullptr, reinterpret_cast<void **>(&audioClient_));
     if(FAILED(hr) || !audioClient_) {
-        THROW_IO_EXCEPTION("WASAPI: failed to activate IAudioClient");
+        LOG_WARN("WASAPI: failed to activate IAudioClient, HRESULT=0x{:08X}", static_cast<uint32_t>(hr));
+        return false;
     }
 
     // Explicitly request 16-bit integer PCM at the fixed target rate/channels. In shared mode the audio
@@ -256,41 +279,128 @@ void WasapiUacDevicePort::startStream(std::shared_ptr<const StreamProfile> profi
     DWORD          streamFlags    = AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM | AUDCLNT_STREAMFLAGS_SRC_DEFAULT_QUALITY;
     hr                            = audioClient_->Initialize(AUDCLNT_SHAREMODE_SHARED, streamFlags, bufferDuration, 0, &wfxTarget, nullptr);
     if(FAILED(hr)) {
+        LOG_WARN("WASAPI: failed to initialize IAudioClient, HRESULT=0x{:08X}", static_cast<uint32_t>(hr));
         audioClient_->Release();
         audioClient_ = nullptr;
-        THROW_IO_EXCEPTION("WASAPI: failed to initialize IAudioClient");
+        return false;
     }
 
     hr = audioClient_->GetService(__uuidof(IAudioCaptureClient), reinterpret_cast<void **>(&captureClient_));
     if(FAILED(hr) || !captureClient_) {
+        LOG_WARN("WASAPI: failed to get IAudioCaptureClient, HRESULT=0x{:08X}", static_cast<uint32_t>(hr));
         audioClient_->Release();
         audioClient_ = nullptr;
-        THROW_IO_EXCEPTION("WASAPI: failed to get IAudioCaptureClient");
+        return false;
     }
 
     hr = audioClient_->Start();
     if(FAILED(hr)) {
+        LOG_WARN("WASAPI: failed to start audio client, HRESULT=0x{:08X}", static_cast<uint32_t>(hr));
         captureClient_->Release();
         captureClient_ = nullptr;
         audioClient_->Release();
         audioClient_ = nullptr;
-        THROW_IO_EXCEPTION("WASAPI: failed to start audio client");
+        return false;
+    }
+    return true;
+}
+
+void WasapiUacDevicePort::startStream(std::shared_ptr<const StreamProfile> profile, MutableFrameCallback callback) {
+    std::unique_lock<std::mutex> lk(streamMutex_);
+    if(streaming_) {
+        THROW_WRONG_API_CALL_SEQUENCE_EXCEPTION("WasapiUacDevicePort::startStream() called while streaming");
+    }
+    // A capture-thread failure changes streaming_ to false. Reap that finished thread and release its
+    // client objects before creating another std::thread; assigning to a joinable thread terminates.
+    stopCaptureClient();
+    activatedProfile_ = profile->as<AudioStreamProfile>();
+    frameCallback_    = callback;
+    fitter_.reset(sampleRate_);
+    totalFrames_ = 0;
+
+    for(int attempt = 1; attempt <= kMaxAudioStartAttempts; ++attempt) {
+        LOG_INFO("WASAPI: starting audio capture attempt {}/{}", attempt, kMaxAudioStartAttempts);
+        firstFrameReceived_ = false;
+        captureFailed_      = false;
+        try {
+            streaming_     = true;
+            captureThread_ = std::thread(&WasapiUacDevicePort::captureLoop, this);
+            // Keep streamMutex_ for the entire start transaction. Stop and other starts
+            // cannot modify the resources while the separate state mutex is released.
+            std::unique_lock<std::mutex> stateLock(captureStateMutex_);
+            const bool ready = firstFrameCv_.wait_for(stateLock, std::chrono::milliseconds(kFirstAudioFrameTimeoutMs), [this]() {
+                return firstFrameReceived_ || captureFailed_;
+            });
+            if(ready && firstFrameReceived_ && !captureFailed_ && streaming_) {
+                LOG_DEBUG("WasapiUacDevicePort streaming started (first frame received, attempt {}/{})", attempt, kMaxAudioStartAttempts);
+                return;
+            }
+            LOG_WARN("WASAPI: no first audio frame within {} ms on attempt {}/{}{}", kFirstAudioFrameTimeoutMs, attempt, kMaxAudioStartAttempts,
+                     captureFailed_ ? " (capture client failed)" : "");
+        }
+        catch(...) {
+            stopCaptureClient();
+            frameCallback_ = nullptr;
+            activatedProfile_.reset();
+            throw;
+        }
+        stopCaptureClient();
+        if(attempt < kMaxAudioStartAttempts) {
+            LOG_WARN("WASAPI: retrying audio capture, next attempt {}/{}", attempt + 1, kMaxAudioStartAttempts);
+        }
     }
 
-    streaming_     = true;
-    captureThread_ = std::thread(&WasapiUacDevicePort::captureLoop, this);
-    LOG_DEBUG("WasapiUacDevicePort streaming started");
+    frameCallback_    = nullptr;
+    activatedProfile_ = nullptr;
+    THROW_IO_EXCEPTION("WASAPI: failed to receive the first audio frame after bounded retries");
 }
 
 void WasapiUacDevicePort::captureLoop() {
-    CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+    ScopedCaptureCom com;
+    try {
+        if(!com.usable() || !bindCaptureEndpoint() || !startCaptureClient()) {
+            reportCaptureStatus(true);
+        }
+        else {
+            capturePackets();
+        }
+    }
+    catch(const std::exception &e) {
+        LOG_ERROR("WASAPI: capture thread exception: {}", e.what());
+        reportCaptureStatus(true);
+    }
+    catch(...) {
+        LOG_ERROR("WASAPI: unknown capture thread exception");
+        reportCaptureStatus(true);
+    }
+    releaseCaptureClient();
+}
+
+void WasapiUacDevicePort::reportCaptureStatus(bool failed) {
+    {
+        std::lock_guard<std::mutex> lock(captureStateMutex_);
+        if(failed) {
+            captureFailed_ = true;
+            streaming_ = false;
+        }
+        else {
+            firstFrameReceived_ = true;
+        }
+    }
+    firstFrameCv_.notify_all();
+}
+
+void WasapiUacDevicePort::capturePackets() {
 
     const uint32_t bytesPerSample = (bitsPerSample_ + 7) / 8;
     const uint32_t bytesPerFrame  = channelCount_ * bytesPerSample;
 
     while(streaming_) {
         UINT32 packetLength = 0;
-        if(FAILED(captureClient_->GetNextPacketSize(&packetLength))) {
+        HRESULT hr = captureClient_->GetNextPacketSize(&packetLength);
+        if(FAILED(hr)) {
+            LOG_WARN("WASAPI: GetNextPacketSize failed, HRESULT=0x{:08X}", static_cast<uint32_t>(hr));
+            reportCaptureStatus(true);
             break;
         }
 
@@ -300,16 +410,23 @@ void WasapiUacDevicePort::captureLoop() {
             DWORD   flags     = 0;
             UINT64  devPos    = 0;
             UINT64  qpcPos    = 0;
-            HRESULT hr        = captureClient_->GetBuffer(&data, &numFrames, &flags, &devPos, &qpcPos);
+            hr                = captureClient_->GetBuffer(&data, &numFrames, &flags, &devPos, &qpcPos);
             if(FAILED(hr)) {
+                LOG_WARN("WASAPI: GetBuffer failed, HRESULT=0x{:08X}", static_cast<uint32_t>(hr));
+                reportCaptureStatus(true);
                 break;
             }
 
+            CapturePacketGuard packetGuard{ captureClient_, numFrames };
+            std::shared_ptr<Frame> frame;
             size_t byteCount = static_cast<size_t>(numFrames) * bytesPerFrame;
             if(byteCount > 0 && frameCallback_ && activatedProfile_) {
-                auto frame = FrameFactory::createFrame(OB_FRAME_AUDIO, OB_FORMAT_PCM, byteCount);
+                frame = FrameFactory::createFrame(OB_FRAME_AUDIO, OB_FORMAT_PCM, byteCount);
                 if((flags & AUDCLNT_BUFFERFLAGS_SILENT) == 0 && data != nullptr) {
                     frame->updateData(reinterpret_cast<const uint8_t *>(data), byteCount);
+                }
+                else {
+                    std::memset(frame->getDataMutable(), 0, byteCount);
                 }
 
                 uint64_t nowUs         = utils::getNowTimesUs();
@@ -321,12 +438,25 @@ void WasapiUacDevicePort::captureLoop() {
                 frame->setDeviceTimestampFromHost(true);
                 totalFrames_ += numFrames;
 
-                frameCallback_(frame);
             }
 
-            captureClient_->ReleaseBuffer(numFrames);
-            if(FAILED(captureClient_->GetNextPacketSize(&packetLength))) {
+            hr = captureClient_->ReleaseBuffer(numFrames);
+            packetGuard.pending = false;
+            if(FAILED(hr)) {
+                LOG_WARN("WASAPI: ReleaseBuffer failed, HRESULT=0x{:08X}", static_cast<uint32_t>(hr));
+                reportCaptureStatus(true);
                 break;
+            }
+            hr = captureClient_->GetNextPacketSize(&packetLength);
+            if(FAILED(hr)) {
+                LOG_WARN("WASAPI: GetNextPacketSize failed, HRESULT=0x{:08X}", static_cast<uint32_t>(hr));
+                reportCaptureStatus(true);
+                break;
+            }
+            if(frame && streaming_) {
+                // Publish readiness only after the packet has been released successfully.
+                reportCaptureStatus(false);
+                frameCallback_(frame);
             }
         }
 
@@ -334,7 +464,6 @@ void WasapiUacDevicePort::captureLoop() {
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
 
-    CoUninitialize();
 }
 
 void WasapiUacDevicePort::stopStream(std::shared_ptr<const StreamProfile> profile) {
@@ -344,15 +473,22 @@ void WasapiUacDevicePort::stopStream(std::shared_ptr<const StreamProfile> profil
 
 void WasapiUacDevicePort::stopAllStream() {
     std::lock_guard<std::mutex> lk(streamMutex_);
-    if(!streaming_) {
-        return;
-    }
+    stopCaptureClient();
+
+    frameCallback_    = nullptr;
+    activatedProfile_ = nullptr;
+    LOG_DEBUG("WasapiUacDevicePort streaming stopped");
+}
+
+void WasapiUacDevicePort::stopCaptureClient() {
     streaming_ = false;
 
     if(captureThread_.joinable()) {
         captureThread_.join();
     }
+}
 
+void WasapiUacDevicePort::releaseCaptureClient() {
     if(audioClient_) {
         audioClient_->Stop();
     }
@@ -364,10 +500,10 @@ void WasapiUacDevicePort::stopAllStream() {
         audioClient_->Release();
         audioClient_ = nullptr;
     }
-
-    frameCallback_    = nullptr;
-    activatedProfile_ = nullptr;
-    LOG_DEBUG("WasapiUacDevicePort streaming stopped");
+    if(mmDevice_) {
+        mmDevice_->Release();
+        mmDevice_ = nullptr;
+    }
 }
 
 std::shared_ptr<const SourcePortInfo> WasapiUacDevicePort::getSourcePortInfo() const {

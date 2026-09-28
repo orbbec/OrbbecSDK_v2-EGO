@@ -9,6 +9,7 @@
 #include "stream/StreamProfile.hpp"
 
 #include <atomic>
+#include <condition_variable>
 #include <memory>
 #include <mutex>
 #include <thread>
@@ -35,7 +36,13 @@ public:
     std::shared_ptr<const SourcePortInfo> getSourcePortInfo() const override;
 
 private:
+    bool bindCaptureEndpoint();
+    bool startCaptureClient();
+    void stopCaptureClient();
     void captureLoop();
+    void capturePackets();
+    void reportCaptureStatus(bool failed);
+    void releaseCaptureClient();
 
 private:
     std::shared_ptr<const USBSourcePortInfo> portInfo_;
@@ -51,6 +58,10 @@ private:
     std::atomic<bool> streaming_{ false };
     std::thread       captureThread_;
     std::mutex        streamMutex_;
+    std::mutex        captureStateMutex_;
+    std::condition_variable firstFrameCv_;
+    std::atomic<bool>       firstFrameReceived_{ false };
+    std::atomic<bool>       captureFailed_{ false };
 
     // Opaque WASAPI handles (defined in the .cpp to keep COM headers out of this header).
     IMMDevice           *mmDevice_      = nullptr;
