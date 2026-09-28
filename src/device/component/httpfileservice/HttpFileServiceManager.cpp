@@ -411,7 +411,10 @@ HttpFileServiceManager::fetchChunk(const std::string &devicePath, uint32_t index
     curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, chunkHeaderCallback); curl_easy_setopt(curl, CURLOPT_HEADERDATA, &header);
     curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT_MS, kDownloadConnectTimeoutMs); curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, kLowSpeedLimitBps); curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, kLowSpeedTimeSec); attachCancelAndProgress(curl, &ctx);
     const CURLcode res = curl_easy_perform(curl); long code = 0; curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &code); curl_easy_cleanup(curl);
-    if(res != CURLE_OK) throwCurlError(res, url); checkHttpCode(code, body, url);
+    if(res != CURLE_OK) {
+        throwCurlError(res, url);
+    }
+    checkHttpCode(code, body, url);
     DownloadedChunk result; result.index = header.index; result.size = header.size; result.chunkCount = header.count; result.fileSize = header.fileSize; result.md5Base64 = header.md5; result.data = std::move(body);
     return result;
 }
