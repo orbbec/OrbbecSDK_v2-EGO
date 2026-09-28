@@ -47,7 +47,8 @@ private:
 private:
     std::shared_ptr<const USBSourcePortInfo> portInfo_;
 
-    // Captured device format. EgoPro uses two channels; other EGO devices use one.
+    // Output format. The channel count is read from the bound WASAPI capture endpoint;
+    // sample rate and bit depth remain the SDK's fixed output format.
     uint32_t sampleRate_    = 48000;
     uint32_t channelCount_  = 1;
     uint32_t bitsPerSample_ = 16;
