@@ -7,6 +7,7 @@
 #include "IDevice.hpp"
 
 #include <atomic>
+#include <cstdint>
 #include <condition_variable>
 #include <functional>
 #include <memory>
@@ -65,38 +66,39 @@ private:
     std::string httpPost(const std::string &url, long transferTimeoutMs,
                          const std::atomic<bool> &cancelFlag) const;
 
-    // Streaming GET → local file with stall detection and optional progress.
-    // outMd5 receives the X-Content-MD5 response header value (base64) if present.
-    void httpGetToFile(const std::string &url, const std::string &localPath, int64_t resumeOffset,
-                       std::function<void(int64_t, int64_t)> progressCb,
-                       const std::atomic<bool> &cancelFlag,
-                       std::string &outMd5) const;
-
     // ── Download / upload helpers ─────────────────────────────────────────
 
-    // Download a single file using the provided per-operation cancel flag.
-    // Files larger than kParallelThresholdBytes use downloadFileParallel automatically.
+    struct ChunkManifest {
+        uint64_t              fileSize  = 0;
+        uint64_t              chunkSize = 0;
+        std::vector<uint64_t> chunkSizes;
+    };
+
+    struct DownloadedChunk {
+        uint32_t    index     = 0;
+        uint64_t    size      = 0;
+        uint32_t    chunkCount = 0;
+        uint64_t    fileSize  = 0;
+        std::string md5Base64;
+        std::string data;
+    };
+
+    ChunkManifest fetchChunkManifest(const std::string &devicePath,
+                                     const std::atomic<bool> &cancelFlag) const;
+    DownloadedChunk fetchChunk(const std::string &devicePath, uint32_t index,
+                               const std::atomic<bool> &cancelFlag) const;
+
+    // The progress sidecar records the verified chunk indexes. It is retained
+    // after interruption so the next call downloads only missing chunks.
+    std::vector<bool> loadChunkProgress(const std::string &progressPath,
+                                        const ChunkManifest &manifest) const;
+    void saveChunkProgress(const std::string &progressPath, const ChunkManifest &manifest,
+                           const std::vector<bool> &verified) const;
+
+    // Download a single file through the firmware chunk API.
     void downloadSingleFileToLocal(const std::string &devicePath, const std::string &localPath,
                                    SdcardDownloadProgressCallback cb,
                                    const std::atomic<bool> &cancelFlag) const;
-
-    // Download one Range chunk [rangeStart, rangeEnd], write at fileOffset in localPath.
-    // Increments *totalReceived as data arrives (used for overall progress reporting).
-    void httpGetChunkToFile(const std::string &url, const std::string &localPath,
-                            int64_t rangeStart, int64_t rangeEnd, int64_t fileOffset,
-                            std::atomic<int64_t> &totalReceived, int64_t totalSize,
-                            const std::string &name, SdcardDownloadProgressCallback cb,
-                            const std::atomic<bool> &cancelFlag) const;
-
-    // Download fileSize bytes using kParallelChunks parallel Range requests.
-    void downloadFileParallel(const std::string &url, const std::string &localPath,
-                              int64_t fileSize, const std::string &name,
-                              SdcardDownloadProgressCallback cb,
-                              const std::atomic<bool> &cancelFlag) const;
-
-    // Files above this threshold use parallel multi-connection download.
-    static constexpr int64_t kParallelThresholdBytes = 50LL * 1024 * 1024;  // 50 MB
-    static constexpr int      kParallelChunks        = 8;
 
     // ── Upload helpers (async task protocol) ─────────────────────────────
 

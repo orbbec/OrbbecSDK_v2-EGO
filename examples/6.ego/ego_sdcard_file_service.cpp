@@ -51,6 +51,7 @@
 #include <sstream>
 #include <string>
 #include <thread>
+#include <unordered_map>
 #include <vector>
 
 // ── Tencent COS V5 pre-signing ────────────────────────────────────────────
@@ -219,54 +220,64 @@ static std::string humanSize(uint64_t bytes) {
 
 // Mutex to serialise console output from concurrent callbacks.
 static std::mutex g_printMutex;
+// Last printed progress for each file. This avoids duplicate status messages
+// while keeping concurrent file transfers readable in a line-oriented console.
+static std::unordered_map<std::string, int> g_lastProgress;
 
 // Progress callback (static function, compatible with C callback signature)
 static void onProgress(ob_sdcard_download_state state, const char *fileName, int percent, const char *md5_base64, void *) {
     std::lock_guard<std::mutex> lock(g_printMutex);
+    const std::string file = fileName ? fileName : "<unknown>";
     switch(state) {
     case OB_SDCARD_DOWNLOAD_TRANSFERRING:
-        if(percent < 0) {
-            // Size unknown (resume or directory stream) — print once with \r so it overwrites itself
-            std::cout << "\r  [" << fileName << "] transferring...    " << std::flush;
-        }
-        else if(percent == 0) {
-            // Start of a new file — use \r so repeated 0% callbacks overwrite each other
-            std::cout << "\r  [" << fileName << "] 0%                 " << std::flush;
-        }
-        else if(percent < 100 && percent % 5 == 0) {
-            // Only print at 5% milestones to avoid flooding the console
-            std::cout << "\r  [" << fileName << "] " << percent << "%          " << std::flush;
+        {
+        const auto previous = g_lastProgress.find(file);
+        if(previous != g_lastProgress.end() && previous->second == percent) break;
+        g_lastProgress[file] = percent;
+        if(percent < 0)
+            std::cout << "  [" << file << "] transferring..." << std::endl;
+        else if(percent < 100)
+            std::cout << "  [" << file << "] " << percent << "%" << std::endl;
         }
         break;
     case OB_SDCARD_DOWNLOAD_DONE:
-        std::cout << "\r  [" << fileName << "] done.";
+        g_lastProgress.erase(file);
+        std::cout << "  [" << file << "] done.";
         if(md5_base64 && *md5_base64)
             std::cout << "  MD5=" << md5_base64;
-        std::cout << "                  " << std::endl;
+        std::cout << std::endl;
         break;
     case OB_SDCARD_DOWNLOAD_FAILED:
-        std::cout << "\r  [" << fileName << "] FAILED.                    " << std::endl;
+        g_lastProgress.erase(file);
+        std::cout << "  [" << file << "] FAILED." << std::endl;
         break;
     case OB_SDCARD_DOWNLOAD_CANCELLED:
-        std::cout << "\r  [" << fileName << "] cancelled.                 " << std::endl;
+        g_lastProgress.erase(file);
+        std::cout << "  [" << file << "] cancelled." << std::endl;
         break;
     case OB_SDCARD_DOWNLOAD_FAILED_NOT_FOUND:
-        std::cout << "\r  [" << fileName << "] FAILED: not found.         " << std::endl;
+        g_lastProgress.erase(file);
+        std::cout << "  [" << file << "] FAILED: not found." << std::endl;
         break;
     case OB_SDCARD_DOWNLOAD_FAILED_TIMEOUT:
-        std::cout << "\r  [" << fileName << "] FAILED: timeout.           " << std::endl;
+        g_lastProgress.erase(file);
+        std::cout << "  [" << file << "] FAILED: timeout." << std::endl;
         break;
     case OB_SDCARD_DOWNLOAD_FAILED_NETWORK:
-        std::cout << "\r  [" << fileName << "] FAILED: network error.     " << std::endl;
+        g_lastProgress.erase(file);
+        std::cout << "  [" << file << "] FAILED: network error." << std::endl;
         break;
     case OB_SDCARD_DOWNLOAD_FAILED_SERVER:
-        std::cout << "\r  [" << fileName << "] FAILED: server rejected.   " << std::endl;
+        g_lastProgress.erase(file);
+        std::cout << "  [" << file << "] FAILED: server rejected." << std::endl;
         break;
     case OB_SDCARD_DOWNLOAD_FAILED_BUSY:
-        std::cout << "\r  [" << fileName << "] FAILED: device busy.       " << std::endl;
+        g_lastProgress.erase(file);
+        std::cout << "  [" << file << "] FAILED: device busy." << std::endl;
         break;
     case OB_SDCARD_DOWNLOAD_FAILED_CAMERA_STREAMING:
-        std::cout << "\r  [" << fileName << "] FAILED: camera streaming.  " << std::endl;
+        g_lastProgress.erase(file);
+        std::cout << "  [" << file << "] FAILED: camera streaming." << std::endl;
         break;
     default:
         break;
