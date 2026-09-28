@@ -305,7 +305,7 @@ void UMIFingerNetDevice::initSensorList() {
                 // RTSP backend does not expose audio profiles; network audio is PCM16 mono,
                 // 48 kHz, delivered in 2048-sample chunks.
                 StreamProfileList audioProfiles;
-                audioProfiles.push_back(StreamProfileFactory::createAudioStreamProfile(OB_FORMAT_PCM, 48000, 1, 16, 0, 2048));
+                audioProfiles.push_back(StreamProfileFactory::createAudioStreamProfile(OB_FORMAT_PCM, 48000, 2, 16, 0, 2048));
                 sensor->setStreamProfileList(audioProfiles);
 
                 // WiFi audio carries OBNetworkFrameHeader.timestamp (device clock, same source as video/IMU).
