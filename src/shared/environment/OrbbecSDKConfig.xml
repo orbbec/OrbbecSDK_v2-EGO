@@ -3520,21 +3520,21 @@
                 <Width>1600</Width>
                 <Height>1200</Height>
                 <FPS>30</FPS>
-                <Format>MJPG</Format>
+                <Format>H264</Format>
             </Color>
 
             <LeftIR>
                 <Width>1280</Width>
                 <Height>960</Height>
                 <FPS>30</FPS>
-                <Format>MJPG</Format>
+                <Format>H264</Format>
             </LeftIR>
 
             <RightIR>
                 <Width>1280</Width>
                 <Height>960</Height>
                 <FPS>30</FPS>
-                <Format>MJPG</Format>
+                <Format>H264</Format>
             </RightIR>
         </UMI>
         <WristCam>

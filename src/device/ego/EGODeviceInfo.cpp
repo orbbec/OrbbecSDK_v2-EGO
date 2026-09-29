@@ -36,6 +36,8 @@ static const uint16_t EGO_RTSP_AUDIO_PORT       = 8890;
 static const uint16_t EGO_IMU_TCP_PORT          = 8900;  // private TCP IMU data stream (parallel to RTSP)
 // EGODepth's DMC640 IMU packs up to 10 groups (64B each) plus the 8B HID header per TCP packet.
 static const uint32_t EGODEPTH_IMU_TCP_PACKET_SIZE      = 328;
+// EgoPro EC130's HI05R2 IMU packs 5 groups (52B each) plus the 8B HID header per TCP packet.
+static const uint32_t EGOPRO_EC130_IMU_TCP_PACKET_SIZE = 268;
 static const uint16_t EGOPRO_SIDE_LEFT_COLOR_RTSP_PORT  = 8891;
 static const uint16_t EGOPRO_SIDE_RIGHT_COLOR_RTSP_PORT = 8892;
 // EGODepth-only RTSP streams. Color group Left/Right reuse 8888/8889; Top color reuses 8891 and the single
@@ -273,7 +275,9 @@ std::vector<std::shared_ptr<IDeviceEnumInfo>> EGODeviceInfo::pickNetDevices(cons
             iter->emplace_back(std::make_shared<RTSPStreamPortInfo>(*portInfo, EGO_RTSP_AUDIO_PORT, portInfo->port, OB_STREAM_AUDIO));
 
             // IMU over an independent private TCP data stream
-            uint32_t imuPacketSize = isEgoDepthDevice(portInfo->vid, portInfo->pid) ? EGODEPTH_IMU_TCP_PACKET_SIZE : OB_NET_DATA_STREAM_DEFAULT_PACKET_SIZE;
+            uint32_t imuPacketSize = isEgoDepthDevice(portInfo->vid, portInfo->pid)
+                                         ? EGODEPTH_IMU_TCP_PACKET_SIZE
+                                         : portInfo->pid == EGO_PRO_CUSTOM_PID ? EGOPRO_EC130_IMU_TCP_PACKET_SIZE : OB_NET_DATA_STREAM_DEFAULT_PACKET_SIZE;
             iter->emplace_back(std::make_shared<NetDataStreamPortInfo>(*portInfo, EGO_IMU_TCP_PORT, portInfo->port, imuPacketSize));
 
             auto deviceEnumInfo = std::make_shared<EGODeviceInfo>(*iter);
