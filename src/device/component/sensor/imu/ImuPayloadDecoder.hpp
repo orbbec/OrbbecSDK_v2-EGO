@@ -65,6 +65,28 @@ typedef struct {
 
 static_assert(sizeof(OBDMC640ImuOriginData) == 64, "OBDMC640ImuOriginData must be 64 bytes to match the DMC640 wire format");
 
+#pragma pack(push, 1)
+// HI05R2 imu data (EgoPro EC130), firmware outputs physical quantities directly (float), plus attitude
+// angles, temperature and timestamp. No magnetometer. 52 bytes per group.
+typedef struct {
+    int16_t  groupId;
+    int16_t  reserved;
+    float    anglePitch;
+    float    angleRoll;
+    float    angleYaw;
+    float    accX;
+    float    accY;
+    float    accZ;
+    float    gyroX;
+    float    gyroY;
+    float    gyroZ;
+    float    temperature;
+    uint32_t timestamp[2];
+} OBHI05R2ImuOriginData;
+#pragma pack(pop)
+
+static_assert(sizeof(OBHI05R2ImuOriginData) == 52, "OBHI05R2ImuOriginData must be 52 bytes to match the HI05R2 wire format");
+
 // Decoded, unit-normalized IMU sample. Accel in g, gyro in dps, temperature in Celsius.
 struct DecodedImuSample {
     float    accel[3]     = { 0, 0, 0 };
@@ -115,6 +137,20 @@ public:
 
     size_t groupSize() const override {
         return sizeof(OBDMC640ImuOriginData);
+    }
+
+    DecodedImuSample decode(const uint8_t *group, uint8_t accelFsr, uint8_t gyroFsr) const override;
+};
+
+// HI05R2 decoder (EgoPro EC130): firmware already outputs float physical quantities, so accel/gyro/
+// temperature/timestamp are passed through directly. Attitude angles are read but not exposed; no magnetometer.
+class HI05R2Decoder : public IImuPayloadDecoder {
+public:
+    HI05R2Decoder()           = default;
+    ~HI05R2Decoder() override = default;
+
+    size_t groupSize() const override {
+        return sizeof(OBHI05R2ImuOriginData);
     }
 
     DecodedImuSample decode(const uint8_t *group, uint8_t accelFsr, uint8_t gyroFsr) const override;

@@ -6,6 +6,8 @@
 #include "EGONetDevice.hpp"
 #include "EgoProDevice.hpp"
 #include "EgoProNetDevice.hpp"
+#include "EgoProEC130Device.hpp"
+#include "EgoProEC130NetDevice.hpp"
 #include "UMIFingerDevice.hpp"
 #include "UMIFingerNetDevice.hpp"
 #include "EGODepthDevice.hpp"
@@ -128,6 +130,8 @@ std::shared_ptr<IDevice> EGODeviceInfo::createDevice(OBDeviceAccessMode accessMo
     if(connectionType_ == "Ethernet") {
         if(isEgoDepthDevice(vid_, pid_)) {
             device = std::make_shared<EGODepthNetDevice>(shared_from_this());
+        }else if(pid_ == EGO_PRO_CUSTOM_PID) {
+            device = std::make_shared<EgoProEC130NetDevice>(shared_from_this());
         }
         else if(isEgoProDevice(vid_, pid_)) {
             device = std::make_shared<EgoProNetDevice>(shared_from_this());
@@ -142,6 +146,8 @@ std::shared_ptr<IDevice> EGODeviceInfo::createDevice(OBDeviceAccessMode accessMo
     else {
         if(isEgoDepthDevice(vid_, pid_)) {
             device = std::make_shared<EGODepthDevice>(shared_from_this());
+        }else if(pid_ == EGO_PRO_CUSTOM_PID) {
+            device = std::make_shared<EgoProEC130Device>(shared_from_this());
         }
         else if(isEgoProDevice(vid_, pid_)) {
             device = std::make_shared<EgoProDevice>(shared_from_this());

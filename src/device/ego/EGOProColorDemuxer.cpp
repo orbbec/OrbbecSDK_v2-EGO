@@ -137,8 +137,8 @@ void EGOProColorDemuxer::startStream(uint8_t colorId, std::shared_ptr<const Stre
         else if(!isSameProfile(activeProfile_, profile)) {
             THROW_INVALID_PARAM_EXCEPTION("EgoPro shared color endpoint requires identical width, height, fps and format for all active channels");
         }
-        callbacks_[colorId]    = std::move(callback);
-        frameIndexes_[colorId] = 1;  // Frame number starts from 1 for each virtual stream.
+        callbacks_[colorId]       = std::move(callback);
+        frameIndexes_[colorId]    = 1;  // Frame number starts from 1 for each virtual stream.
     }
 
     if(shouldStartRealPort) {
@@ -213,7 +213,7 @@ void EGOProColorDemuxer::onFrame(std::shared_ptr<Frame> frame) {
     const auto          *metadata = reinterpret_cast<const StandardUvcFramePayloadHeader *>(frame->getMetadata());
     const auto           colorId  = getEgoProColorId(metadata);
     MutableFrameCallback callback;
-    uint64_t             frameIndex;
+    uint64_t                             frameIndex;
     {
         std::lock_guard<std::mutex> lock(mutex_);
         auto                        iter = callbacks_.find(colorId);

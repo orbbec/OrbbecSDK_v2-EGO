@@ -5,6 +5,7 @@
 
 #include "IDeviceComponent.hpp"
 #include "ISourcePort.hpp"
+#include "EGOProColorDemuxerInterface.hpp"
 
 #include <array>
 #include <map>
@@ -13,7 +14,7 @@
 
 namespace libobsensor {
 
-class EGOProColorDemuxer : public IDeviceComponent, public std::enable_shared_from_this<EGOProColorDemuxer> {
+class EGOProColorDemuxer : public IEGOProColorDemuxer, public std::enable_shared_from_this<EGOProColorDemuxer> {
 public:
     EGOProColorDemuxer(IDevice *owner, std::shared_ptr<IVideoStreamPort> realPort);
     ~EGOProColorDemuxer() noexcept override;

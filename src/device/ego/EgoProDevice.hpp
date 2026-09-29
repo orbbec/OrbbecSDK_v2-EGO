@@ -8,6 +8,7 @@
 
 #include <map>
 #include <memory>
+#include <cstdint>
 
 namespace libobsensor {
 

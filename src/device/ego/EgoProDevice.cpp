@@ -47,6 +47,11 @@
 #include "monitor/EgoDeviceMonitor.hpp"
 #include "ISourcePort.hpp"
 #include "IProperty.hpp"
+#include "IStreamProfile.hpp"
+#include "DeviceComponentBase.hpp"
+#include "InternalTypes.hpp"
+#include "stream/StreamProfile.hpp"
+#include "exception/ObException.hpp"
 
 #include <tuple>
 #include <algorithm>
@@ -99,7 +104,6 @@ void EgoProDevice::init() {
         registerComponent(OB_DEV_COMPONENT_RECORDING_SESSION_RESULT_MANAGER,
                           std::make_shared<RecordingSessionResultManager>(this, vendorPropertyAccessor.get()));
     }
-
 }
 
 void EgoProDevice::fetchDeviceInfo() {
@@ -230,7 +234,7 @@ void EgoProDevice::initSensorList() {
 
     if(leftColorPortInfoIter != sourcePortInfoList.end()) {
         auto leftColorPortInfo = *leftColorPortInfoIter;
-        registerComponent(OB_DEV_COMPONENT_EGOPRO_COLOR_DEMUXER, [this, leftColorPortInfo]() {
+        registerComponent(OB_DEV_COMPONENT_EGOPRO_COLOR_DEMUXER, [this, leftColorPortInfo]() -> std::shared_ptr<IDeviceComponent> {
             auto port      = getSourcePort(leftColorPortInfo);
             auto videoPort = std::dynamic_pointer_cast<IVideoStreamPort>(port);
             return std::make_shared<EGOProColorDemuxer>(this, videoPort);
@@ -239,7 +243,7 @@ void EgoProDevice::initSensorList() {
         registerComponent(
             OB_DEV_COMPONENT_LEFT_COLOR_SENSOR,
             [this, leftColorPortInfo]() {
-                auto demuxer = getComponentT<EGOProColorDemuxer>(OB_DEV_COMPONENT_EGOPRO_COLOR_DEMUXER);
+                auto demuxer = getComponentT<IEGOProColorDemuxer>(OB_DEV_COMPONENT_EGOPRO_COLOR_DEMUXER);
                 auto port    = demuxer->createVirtualPort(0);
                 auto sensor  = std::make_shared<EGOVideoSensor>(this, OB_SENSOR_COLOR_LEFT, port, OB_PROP_STOP_COLOR_STREAM_BOOL);
 
@@ -293,7 +297,7 @@ void EgoProDevice::initSensorList() {
             registerComponent(
                 sensorComponent,
                 [this, sensorType, frameProcessorComponent, colorId]() {
-                    auto demuxer = getComponentT<EGOProColorDemuxer>(OB_DEV_COMPONENT_EGOPRO_COLOR_DEMUXER);
+                    auto demuxer = getComponentT<IEGOProColorDemuxer>(OB_DEV_COMPONENT_EGOPRO_COLOR_DEMUXER);
                     auto port    = demuxer->createVirtualPort(colorId);
                     auto sensor  = std::make_shared<EGOVideoSensor>(this, sensorType, port, OB_PROP_STOP_COLOR_STREAM_BOOL);
 
@@ -390,8 +394,10 @@ void EgoProDevice::initSensorList() {
             // the gyro and accel are both on the same port; no correction filter applied
             auto sharedHidPort  = getComponentT<SharedDataStreamPort>(OB_DEV_COMPONENT_SHARED_HID_STREAM);
             auto dataStreamPort = sharedHidPort->createClientPort();
-            auto imuStreamer =
-                std::make_shared<ImuStreamer>(this, dataStreamPort, std::vector<std::shared_ptr<IFilter>>{}, std::make_shared<ImuCalculatorBMI088>());
+
+            std::shared_ptr<IImuPayloadDecoder> decoder = std::make_shared<LegacyImuCalculatorDecoder>(std::make_shared<ImuCalculatorBMI088>());
+
+            auto imuStreamer = std::make_shared<ImuStreamer>(this, dataStreamPort, std::vector<std::shared_ptr<IFilter>>{}, decoder);
             return imuStreamer;
         });
 
@@ -518,6 +524,7 @@ void EgoProDevice::initProperties() {
         // interface XU, so it is intentionally NOT registered on this device-global accessor.
         // TODO:
         propertyServer->registerProperty(OB_STRUCT_VERSION, "", "r", vendorPropertyAccessor);
+
         propertyServer->registerProperty(OB_STRUCT_HOST_TIME_INFO, "", "w", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_STRUCT_DEVICE_SERIAL_NUMBER, "r", "r", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_STRUCT_DEVICE_TIME, "rw", "rw", vendorPropertyAccessor);
@@ -573,7 +580,6 @@ void EgoProDevice::initProperties() {
         propertyServer->registerProperty(OB_PROP_COLOR_BITRATE_INT, "rw", "rw", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_PROP_COLOR_DYNAMIC_BITRATE_ENABLE_BOOL, "rw", "rw", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_PROP_COLOR_AE_MAX_EXPOSURE_INT, "rw", "rw", vendorPropertyAccessor);
-
     }
 
     registerComponent(OB_DEV_COMPONENT_PROPERTY_SERVER, propertyServer, false);

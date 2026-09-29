@@ -9,16 +9,23 @@ target_sources(
              ${CMAKE_CURRENT_LIST_DIR}/EGODevice.cpp
              ${CMAKE_CURRENT_LIST_DIR}/EgoProDevice.hpp
              ${CMAKE_CURRENT_LIST_DIR}/EgoProDevice.cpp
+             ${CMAKE_CURRENT_LIST_DIR}/EgoProEC130Device.hpp
+             ${CMAKE_CURRENT_LIST_DIR}/EgoProEC130Device.cpp
              ${CMAKE_CURRENT_LIST_DIR}/EGOVideoSensor.hpp
              ${CMAKE_CURRENT_LIST_DIR}/EGOVideoSensor.cpp
              ${CMAKE_CURRENT_LIST_DIR}/EGOStreamStrategy.hpp
              ${CMAKE_CURRENT_LIST_DIR}/EGOStreamStrategy.cpp
              ${CMAKE_CURRENT_LIST_DIR}/EGOProColorDemuxer.hpp
              ${CMAKE_CURRENT_LIST_DIR}/EGOProColorDemuxer.cpp
+             ${CMAKE_CURRENT_LIST_DIR}/EGOProColorDemuxerInterface.hpp
+             ${CMAKE_CURRENT_LIST_DIR}/EGOProEC130ColorDemuxer.hpp
+             ${CMAKE_CURRENT_LIST_DIR}/EGOProEC130ColorDemuxer.cpp
              ${CMAKE_CURRENT_LIST_DIR}/EGONetDevice.hpp
              ${CMAKE_CURRENT_LIST_DIR}/EGONetDevice.cpp
              ${CMAKE_CURRENT_LIST_DIR}/EgoProNetDevice.hpp
              ${CMAKE_CURRENT_LIST_DIR}/EgoProNetDevice.cpp
+             ${CMAKE_CURRENT_LIST_DIR}/EgoProEC130NetDevice.hpp
+             ${CMAKE_CURRENT_LIST_DIR}/EgoProEC130NetDevice.cpp
              ${CMAKE_CURRENT_LIST_DIR}/UMIFingerDevice.hpp
              ${CMAKE_CURRENT_LIST_DIR}/UMIFingerDevice.cpp
              ${CMAKE_CURRENT_LIST_DIR}/UMIFingerNetDevice.hpp
