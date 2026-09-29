@@ -19,7 +19,7 @@ public:
     ~EGOProEC130ColorDemuxer() noexcept override;
 
     IDevice *getOwner() const override;
-    std::shared_ptr<IVideoStreamPort> createVirtualPort(uint8_t colorId);
+    std::shared_ptr<IVideoStreamPort> createVirtualPort(uint8_t colorId) override;
     void startStream(uint8_t colorId, std::shared_ptr<const StreamProfile> profile, MutableFrameCallback callback);
     void stopStream(uint8_t colorId);
     void stopAllStream();
