@@ -198,13 +198,13 @@
             <Name>EGOPro</Name>
             <Manufacturer>Orbbec</Manufacturer>
         </EGOPro>
-        <EGOProCustom>
-            <!-- EGOPro with a customer-specific RGB sensor. -->
+        <EC130>
+            <!-- EC130 custom four-RGB + HI05R2 IMU + audio device. -->
             <VID>0x2BC5</VID>
             <PID>0x1211</PID>
-            <Name>EGOPro</Name>
+            <Name>EC130</Name>
             <Manufacturer>Orbbec</Manufacturer>
-        </EGOProCustom>
+        </EC130>
         <UMI>
             <!-- TN2611 UMI Finger three-camera (1 Color + 2 IR) + IMU + audio device. -->
             <VID>0x2BC5</VID>
@@ -318,7 +318,7 @@
     <EGOProDeviceList>
         <!-- EGOPro series devices (four-RGB multiplexed on a single shared UVC endpoint) -->
         <Device>EGOPro</Device>
-        <Device>EGOProCustom</Device>
+        <Device>EC130</Device>
         <!-- More devices can be added here -->
     </EGOProDeviceList>
 

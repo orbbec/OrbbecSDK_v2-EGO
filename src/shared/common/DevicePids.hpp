@@ -8,7 +8,7 @@
 #include <cstdint>
 #include "DeviceSeriesInfo.hpp"
 namespace libobsensor {
-constexpr uint16_t EGO_PRO_CUSTOM_PID = 0x1211;
+constexpr uint16_t EGO_EC130_PID = 0x1211;
 
 const std::vector<uint16_t> BootDevPids = {
     0x0501,  // bootloader

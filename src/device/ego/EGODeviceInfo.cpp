@@ -132,7 +132,7 @@ std::shared_ptr<IDevice> EGODeviceInfo::createDevice(OBDeviceAccessMode accessMo
     if(connectionType_ == "Ethernet") {
         if(isEgoDepthDevice(vid_, pid_)) {
             device = std::make_shared<EGODepthNetDevice>(shared_from_this());
-        }else if(pid_ == EGO_PRO_CUSTOM_PID) {
+        }else if(pid_ == EGO_EC130_PID) {
             device = std::make_shared<EgoProEC130NetDevice>(shared_from_this());
         }
         else if(isEgoProDevice(vid_, pid_)) {
@@ -148,7 +148,7 @@ std::shared_ptr<IDevice> EGODeviceInfo::createDevice(OBDeviceAccessMode accessMo
     else {
         if(isEgoDepthDevice(vid_, pid_)) {
             device = std::make_shared<EGODepthDevice>(shared_from_this());
-        }else if(pid_ == EGO_PRO_CUSTOM_PID) {
+        }else if(pid_ == EGO_EC130_PID) {
             device = std::make_shared<EgoProEC130Device>(shared_from_this());
         }
         else if(isEgoProDevice(vid_, pid_)) {
@@ -277,7 +277,7 @@ std::vector<std::shared_ptr<IDeviceEnumInfo>> EGODeviceInfo::pickNetDevices(cons
             // IMU over an independent private TCP data stream
             uint32_t imuPacketSize = isEgoDepthDevice(portInfo->vid, portInfo->pid)
                                          ? EGODEPTH_IMU_TCP_PACKET_SIZE
-                                         : portInfo->pid == EGO_PRO_CUSTOM_PID ? EGOPRO_EC130_IMU_TCP_PACKET_SIZE : OB_NET_DATA_STREAM_DEFAULT_PACKET_SIZE;
+                                         : portInfo->pid == EGO_EC130_PID ? EGOPRO_EC130_IMU_TCP_PACKET_SIZE : OB_NET_DATA_STREAM_DEFAULT_PACKET_SIZE;
             iter->emplace_back(std::make_shared<NetDataStreamPortInfo>(*portInfo, EGO_IMU_TCP_PORT, portInfo->port, imuPacketSize));
 
             auto deviceEnumInfo = std::make_shared<EGODeviceInfo>(*iter);

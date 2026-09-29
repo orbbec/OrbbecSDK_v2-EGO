@@ -3467,6 +3467,38 @@
                 <Format>H264</Format>
             </SideRightColor>
         </EGOPro>
+        <EC130>
+            <!-- Default stream profiles and Linux USB backend for EC130. -->
+            <LinuxUVCDefaultBackend>LibUVC</LinuxUVCDefaultBackend>
+
+            <LeftColor>
+                <Width>2592</Width>
+                <Height>1944</Height>
+                <FPS>30</FPS>
+                <Format>H264</Format>
+            </LeftColor>
+
+            <RightColor>
+                <Width>2592</Width>
+                <Height>1944</Height>
+                <FPS>30</FPS>
+                <Format>H264</Format>
+            </RightColor>
+
+            <SideLeftColor>
+                <Width>1920</Width>
+                <Height>1200</Height>
+                <FPS>30</FPS>
+                <Format>H264</Format>
+            </SideLeftColor>
+
+            <SideRightColor>
+                <Width>1920</Width>
+                <Height>1200</Height>
+                <FPS>30</FPS>
+                <Format>H264</Format>
+            </SideRightColor>
+        </EC130>
         <EGO-D3B>
             <!-- Default backend for Linux UVC devices. If the LinuxUVCBackend is set to "Auto,"
             this item will determine the device's speciality. Optional values: V4L2, LibUVC -->
