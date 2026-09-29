@@ -42,6 +42,8 @@
 15. [SDK 错误码捕获与处理](#15-sdk-错误码捕获与处理)
 16. [EGO SD 卡文件服务](#16-ego-sd-卡文件服务)
 17. [EGODepth 深度工作模式](#17-egodepth-深度工作模式)
+18. [EGO / Wrist 多设备同步模式](#18-ego--wrist-多设备同步模式)
+19. [EGO 外部时钟同步](#19-ego-外部时钟同步)
 
 ---
 
@@ -3116,3 +3118,110 @@ if (depthSensor != null) {
 > 模式名称、可用传感器和流配置均由设备固件决定，可能随固件版本变化。应用应始终以运行时返回的模式与 Profile 列表为准。
 
 完整交互式实现请参考示例工程的 `EgoSdcardFileServiceActivity`；独立专题说明见 [EGO SD 卡文件服务接口说明](EgoSdcardFileServiceApiGuide.md)。
+
+## 18. EGO / Wrist 多设备同步模式
+
+本章适用于支持多设备同步的 EGO / Wrist 设备及其对应固件。同步模式用于指定设备在多设备系统中的角色，例如输出同步信号的主设备（`PRIMARY`）或接收同步信号的从设备（`SECONDARY`）。不同型号和固件支持的模式并不相同，应用必须先查询支持位图，再显示可选模式或执行设置。
+
+调用前建议确认同步配置属性具备相应权限；不支持该属性、设备断开或设备拒绝操作时，接口会抛出 `OBException`。
+
+```java
+boolean canReadSyncMode = device.isPropertySupported(
+        DeviceProperty.OB_STRUCT_MULTI_DEVICE_SYNC_CONFIG,
+        PermissionType.OB_PERMISSION_READ);
+boolean canWriteSyncMode = device.isPropertySupported(
+        DeviceProperty.OB_STRUCT_MULTI_DEVICE_SYNC_CONFIG,
+        PermissionType.OB_PERMISSION_WRITE);
+```
+
+使用本章接口时需导入：
+
+```java
+import com.orbbec.obsensor.Device;
+import com.orbbec.obsensor.property.DeviceProperty;
+import com.orbbec.obsensor.types.MultiDeviceSyncMode;
+import com.orbbec.obsensor.types.PermissionType;
+```
+
+### 18.1 获取支持的同步模式
+
+```java
+int getSupportedMultiDeviceSyncModeBitmap()
+```
+
+`Device.getSupportedMultiDeviceSyncModeBitmap()` 返回设备支持的 `MultiDeviceSyncMode` 位图。每个模式的 `value()` 是一个位标志，使用按位与判断是否支持；不要假设设备一定同时支持主、从两种模式。
+
+```java
+int supportedModes = device.getSupportedMultiDeviceSyncModeBitmap();
+
+boolean supportsPrimary = (supportedModes
+        & MultiDeviceSyncMode.OB_MULTI_DEVICE_SYNC_MODE_PRIMARY.value()) != 0;
+boolean supportsSecondary = (supportedModes
+        & MultiDeviceSyncMode.OB_MULTI_DEVICE_SYNC_MODE_SECONDARY.value()) != 0;
+
+Log.i(TAG, "PRIMARY supported: " + supportsPrimary);
+Log.i(TAG, "SECONDARY supported: " + supportsSecondary);
+```
+
+### 18.2 读取当前同步模式
+
+```java
+MultiDeviceSyncMode getMultiDeviceSyncMode()
+```
+
+`Device.getMultiDeviceSyncMode()` 读取设备当前生效的同步模式。若设备返回的模式值不在当前 SDK 的 `MultiDeviceSyncMode` 枚举中，返回 `null`；应用应保留兼容处理，而不是将其视为某个已知模式。
+
+```java
+MultiDeviceSyncMode currentMode = device.getMultiDeviceSyncMode();
+if (currentMode == null) {
+    Log.w(TAG, "Device returned an unknown multi-device sync mode");
+} else {
+    Log.i(TAG, "Current multi-device sync mode: " + currentMode);
+}
+```
+
+### 18.3 设置同步模式
+
+```java
+void setMultiDeviceSyncMode(MultiDeviceSyncMode syncMode)
+```
+
+`Device.setMultiDeviceSyncMode(syncMode)` 将设备切换到指定模式。该接口会创建并下发一份仅包含目标模式的同步配置，**其余同步配置字段会重置为 0**。如果还需要设置触发延时、触发输出或每次触发帧数，应改用 `setMultiDeviceSyncConfig(...)` 一次性下发完整配置。
+
+仅允许设置由 `getSupportedMultiDeviceSyncModeBitmap()` 确认支持的模式：
+
+```java
+MultiDeviceSyncMode targetMode = MultiDeviceSyncMode.OB_MULTI_DEVICE_SYNC_MODE_PRIMARY;
+int supportedModes = device.getSupportedMultiDeviceSyncModeBitmap();
+
+if ((supportedModes & targetMode.value()) == 0) {
+    throw new IllegalStateException("The device does not support " + targetMode);
+}
+
+device.setMultiDeviceSyncMode(targetMode);
+
+// 设置成功后按需回读，确认设备实际生效的模式。
+MultiDeviceSyncMode appliedMode = device.getMultiDeviceSyncMode();
+Log.i(TAG, "Applied multi-device sync mode: " + appliedMode);
+```
+
+多设备同步模式会影响设备触发与取流行为。切换前应停止当前 Pipeline 和已启动的 Sensor 流，并由同一设备工作线程或串行队列执行“停流 → 设置模式 → 重新开流”，避免与取帧、设备拔插或 `Device.close()` 并发。
+
+## 19. EGO 外部时钟同步
+
+本功能仅提供设置接口：`syncDeviceExternalTime(long externalTimeUs)`。它将 EGO 系列设备的时钟同步到外部时间源，适合设备作为外部主时钟的同步从设备时使用，例如接入动作捕捉系统。
+
+```java
+void syncDeviceExternalTime(long externalTimeUs)
+```
+
+`externalTimeUs` 的单位为**微秒**，必须为非负数；设备不支持、已断开或下发失败时会抛出 `OBException`，传入负数会抛出 `IllegalArgumentException`。实际接入时，应传入外部主设备提供的微秒时间：
+
+```java
+void onExternalMasterTime(long externalMasterTimeUs) {
+    // externalMasterTimeUs 必须为非负的微秒时间。
+    device.syncDeviceExternalTime(externalMasterTimeUs);
+}
+```
+
+建议在开始取流前设置外部时间；该调用可能影响后续帧时间戳，应由同一设备工作线程或串行队列执行，避免与开流、停流、设备拔插或 `Device.close()` 并发。
