@@ -87,6 +87,22 @@ public:
     }
 
     /**
+     * @brief Synchronize the device clock with an external time source.
+     *
+     * The time is sent through @ref OB_STRUCT_DEVICE_TIME. Its unit is
+     * microseconds. This API is intended for Ego-series devices configured as
+     * a synchronization secondary for an external master, such as a motion
+     * capture system.
+     *
+     * @param[in] externalTimeUs External master time in microseconds.
+     */
+    void syncDeviceExternalTime(uint64_t externalTimeUs) const {
+        ob_error *error = nullptr;
+        ob_device_sync_external_time(impl_, externalTimeUs, &error);
+        Error::handle(&error);
+    }
+
+    /**
      * @brief Play a WAV audio file through the EGO device speaker.
      *
      * WAV format requirements:

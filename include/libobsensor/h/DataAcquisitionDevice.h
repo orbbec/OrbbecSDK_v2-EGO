@@ -14,6 +14,20 @@ extern "C" {
 #include "ObTypes.h"
 
 /**
+ * @brief Synchronize an Ego-series device clock with an external time source.
+ *
+ * The external time is sent through @ref OB_STRUCT_DEVICE_TIME. The device
+ * firmware applies the time according to its external synchronization policy.
+ * The time unit is microseconds and the round-trip-time compensation is zero.
+ *
+ * @param[in] device The Ego-series data-acquisition device.
+ * @param[in] external_time_us External time in microseconds.
+ * @param[out] error Pointer to an error object that will be set if the device
+ *                   does not support writing device time or the transfer fails.
+ */
+OB_EXPORT void ob_device_sync_external_time(ob_device *device, uint64_t external_time_us, ob_error **error);
+
+/**
  * @brief Set the persistent user-defined device name.
  *
  * The device receives a 32-byte null-terminated buffer.

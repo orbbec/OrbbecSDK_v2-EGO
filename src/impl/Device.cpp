@@ -30,6 +30,7 @@
 #include "hid/EgoStateService.hpp"
 #include "hid/BatteryInfoService.hpp"
 #include "hid/DirectionKeyService.hpp"
+#include "InternalTypes.hpp"
 #include "utils/PublicTypeHelper.hpp"
 
 #include <algorithm>
@@ -831,6 +832,18 @@ void ob_device_cancel_sdcard_file_operation(ob_device *device, ob_error **error)
 HANDLE_EXCEPTIONS_NO_RETURN(device)
 
 // ── end SD-card file service ──────────────────────────────────────────────
+
+void ob_device_sync_external_time(ob_device *device, uint64_t external_time_us, ob_error **error) BEGIN_API_CALL {
+    VALIDATE_NOT_NULL(device);
+
+    OBDeviceTime deviceTime{};
+    deviceTime.time = external_time_us;
+    deviceTime.rtt  = 0;
+
+    auto propertyServer = device->device->getPropertyServer();
+    propertyServer->setStructureDataT<OBDeviceTime>(OB_STRUCT_DEVICE_TIME, deviceTime, libobsensor::PROP_ACCESS_USER);
+}
+HANDLE_EXCEPTIONS_NO_RETURN(device, external_time_us)
 
 void ob_device_set_device_user_name(ob_device *device, const char *name, ob_error **error) BEGIN_API_CALL {
     VALIDATE_NOT_NULL(device);
