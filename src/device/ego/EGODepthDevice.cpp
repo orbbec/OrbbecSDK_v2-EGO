@@ -94,7 +94,6 @@ private:
 EGODepthDevice::EGODepthDevice(const std::shared_ptr<const IDeviceEnumInfo> &info) : DeviceBase(info) {
     init();
 
-    // check and start heartbeat after initialization is complete
     checkAndStartHeartbeat();
 }
 
@@ -140,22 +139,11 @@ void EGODepthDevice::init() {
     auto vendorPropertyAccessor = getComponentT<VendorPropertyAccessor>(OB_DEV_COMPONENT_MAIN_PROPERTY_ACCESSOR);
     propertyServer->registerProperty(OB_STRUCT_DEVICE_MODEL_TYPE, "r", "r", vendorPropertyAccessor.get());
 
-    // Apply the current depth work mode to the sensor tree. Structural changes only: init() runs from the
-    // constructor, so nothing here may instantiate a sensor/component (see postInitialize()).
     fixSensorList();
 }
 
 void EGODepthDevice::postInitialize() {
-    // Called by DeviceManager::createDevice() once construction is complete, i.e. when
-    // IDevice::shared_from_this() is finally valid.
-    //
-    // Applying the firmware's effective stream profiles has to instantiate the sensors, and creating a
-    // sensor pulls in FrameProcessorFactory -> owner->shared_from_this(), which throws std::bad_weak_ptr if
-    // attempted from the constructor. Doing it here instead is what G330Device/G330NetDevice do for their
-    // own eager component initialization.
-    //
-    // Ordered before DeviceBase::postInitialize() so the profile filters are still attached before
-    // activateDeviceAccessor() eagerly creates the frame processors, matching the previous ordering.
+    // Ordered before DeviceBase::postInitialize() so profile filters precede its eager frame-processor creation; see EGODepthDevice.hpp.
     BEGIN_TRY_EXECUTE({ applyEffectiveStreamProfileFilters(); })
     CATCH_EXCEPTION_AND_EXECUTE({ LOG_WARN("EGODepth: failed to apply effective stream profile filters"); })
 
@@ -231,7 +219,6 @@ void EGODepthDevice::fetchDeviceInfo() {
     }
 
 #ifdef __linux__
-    // todo: net device does not have backend type
     const OBSensorType kBackendCandidates[] = { OB_SENSOR_DEPTH,     OB_SENSOR_COLOR,   OB_SENSOR_COLOR_LEFT, OB_SENSOR_COLOR_RIGHT,
                                                 OB_SENSOR_COLOR_TOP, OB_SENSOR_IR_LEFT, OB_SENSOR_IR_RIGHT };
     for(auto candidateType: kBackendCandidates) {
@@ -250,7 +237,6 @@ void EGODepthDevice::fetchDeviceInfo() {
     deviceInfo_->backendType_ = OB_UVC_BACKEND_TYPE_MSMF;
 #endif
 
-    // mark the device as a multi-sensor device with same clock at default
     extensionInfo_["AllSensorsUsingSameClock"] = "true";
 }
 
@@ -368,7 +354,6 @@ void EGODepthDevice::initSensorList() {
             });
         }
 
-        // The single vendor XU/property channel rides on the Color-group UVC interface.
         registerComponent(OB_DEV_COMPONENT_MAIN_PROPERTY_ACCESSOR, [this, colorGroupPortInfo]() {
             auto port    = getSourcePort(colorGroupPortInfo);
             auto uvcPort = std::dynamic_pointer_cast<UvcDevicePort>(port);
@@ -616,7 +601,6 @@ void EGODepthDevice::initSensorList() {
 
                 sensor->enableTimestampAnomalyDetection(false);
 
-                // Firmware IMU timestamp unit is microseconds (1MHz); pass through directly.
                 auto imuFrameTimestampCalculator = std::make_shared<FrameTimestampCalculatorDirectly>(this, frameTimeFreq_);
                 sensor->setFrameTimestampCalculator(imuFrameTimestampCalculator);
 
@@ -636,7 +620,6 @@ void EGODepthDevice::initSensorList() {
 
                 sensor->enableTimestampAnomalyDetection(false);
 
-                // Firmware IMU timestamp unit is microseconds (1MHz); pass through directly.
                 auto imuFrameTimestampCalculator = std::make_shared<FrameTimestampCalculatorDirectly>(this, frameTimeFreq_);
                 sensor->setFrameTimestampCalculator(imuFrameTimestampCalculator);
 
@@ -688,8 +671,6 @@ void EGODepthDevice::initProperties() {
         }
     }
 
-    // Device-level vendor properties ride on the single vendor XU (the Color-group UVC interface). The four
-    // Color streams are controlled together through it; the firmware normalizes per-sensor.
     bool hasColorGroup = std::find(sensors.begin(), sensors.end(), OB_SENSOR_COLOR_LEFT) != sensors.end();
     if(hasColorGroup) {
         // Factory Calib removes the Depth sensor entry but leaves the IR controls available, so retain the
@@ -792,10 +773,8 @@ void EGODepthDevice::initProperties() {
         propertyServer->aliasProperty(OB_PROP_IR_GAIN_INT, OB_PROP_DEPTH_GAIN_INT);
         propertyServer->registerProperty(OB_PROP_IR_AE_MAX_EXPOSURE_INT, "rw", "rw", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_PROP_IR_BRIGHTNESS_INT, "rw", "rw", vendorPropertyAccessor);
-        // Depth work mode (preset) support: Default <-> Factory Calib
         propertyServer->registerProperty(OB_RAW_DATA_DEPTH_ALG_MODE_LIST, "r", "r", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_STRUCT_CURRENT_DEPTH_ALG_MODE, "rw", "rw", vendorPropertyAccessor);
-        // Effective video stream profile list for the current depth work mode.
         propertyServer->registerProperty(OB_RAW_DATA_EFFECTIVE_VIDEO_STREAM_PROFILE_LIST, "r", "r", vendorPropertyAccessor);
         // Keep the laser-control property path consistent with G335LG.
         propertyServer->registerProperty(OB_PROP_LASER_CONTROL_INT, "rw", "rw", vendorPropertyAccessor);
@@ -837,7 +816,6 @@ void EGODepthDevice::initProperties() {
 }
 
 std::vector<std::shared_ptr<IFilter>> EGODepthDevice::createRecommendedPostProcessingFilters(OBSensorType type) {
-    // EGODepth streams have no recommended post-processing filters by default (Depth is output-only).
     utils::unusedVar(type);
     return {};
 }
@@ -853,33 +831,23 @@ void EGODepthDevice::fixSensorList() {
     auto        propServer  = getPropertyServer();
 
     if(std::strcmp(currentMode.name, kEgoDepthFactoryCalibMode) == 0) {
-        // Factory Calib: no Depth stream.
         deregisterSensor(OB_SENSOR_DEPTH);
         deregisterComponent(OB_DEV_COMPONENT_DEPTH_FRAME_PROCESSOR);
         propServer->unregisterProperty(OB_PROP_STOP_DEPTH_STREAM_BOOL);
     }
     else {
-        // Default: no left/right IR streams.
         deregisterSensor(OB_SENSOR_IR_LEFT);
         deregisterSensor(OB_SENSOR_IR_RIGHT);
         deregisterComponent(OB_DEV_COMPONENT_LEFT_IR_FRAME_PROCESSOR);
         deregisterComponent(OB_DEV_COMPONENT_RIGHT_IR_FRAME_PROCESSOR);
         deregisterComponent(OB_DEV_COMPONENT_EGODEPTH_IR_DEMUXER);
-        // Note: OB_PROP_STOP_IR_STREAM_BOOL is intentionally NOT registered in initProperties() (the IR
-        // demuxer sends it when the last channel of the IR group closes), so nothing to unregister here.
     }
-    // Structural trimming only, mirroring G305Device::fixSensorList(). Do NOT call getSensor() or any
-    // throwing getComponentT<T>() here: fixSensorList() is reached from init(), i.e. from the constructor,
-    // where IDevice::shared_from_this() is not yet usable.
 }
 
-// Instantiate the sensors that survived fixSensorList() and attach the effective stream profiles reported by
-// the firmware for the active work mode. getSensor() creates components (which may pull in
-// FrameProcessorFactory -> owner->shared_from_this()), so this must only run after construction completes.
+// Attach the firmware's effective stream profiles to the surviving sensors; instantiates sensors, so postInitialize() only (see EGODepthDevice.hpp).
 void EGODepthDevice::applyEffectiveStreamProfileFilters() {
     auto depthWorkModeManager = getComponentT<EGODepthDepthWorkModeManager>(OB_DEV_COMPONENT_DEPTH_WORK_MODE_MANAGER, false);
     if(!depthWorkModeManager || depthWorkModeManager->getDepthWorkModeList().empty()) {
-        // Preserve fixSensorList()'s early-out semantics: without depth work modes nothing gets filtered.
         return;
     }
 
