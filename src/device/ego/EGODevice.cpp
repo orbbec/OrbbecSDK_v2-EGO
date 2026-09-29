@@ -21,6 +21,7 @@
 #include "metadata/FrameMetadataParserContainer.hpp"
 #include "timestamp/FrameTimestampCalculator.hpp"
 #include "timestamp/DeviceClockSynchronizer.hpp"
+#include "syncconfig/DeviceSyncConfigurator.hpp"
 #include "property/VendorPropertyAccessor.hpp"
 #include "property/UvcPropertyAccessor.hpp"
 #include "property/PropertyServer.hpp"
@@ -64,6 +65,10 @@ std::shared_ptr<const StreamProfile> normalizeH265AliasProfile(const std::shared
 
 static const uint8_t EGO_USB_INTERFACE_COLOR_LEFT  = 0;
 static const uint8_t EGO_USB_INTERFACE_COLOR_RIGHT = 2;
+static const std::vector<OBMultiDeviceSyncMode> egoSupportedSyncModes = {
+    OB_MULTI_DEVICE_SYNC_MODE_PRIMARY,
+    OB_MULTI_DEVICE_SYNC_MODE_SECONDARY,
+};
 
 EGODevice::EGODevice(const std::shared_ptr<const IDeviceEnumInfo> &info) : DeviceBase(info) {
     init();
@@ -131,6 +136,13 @@ void EGODevice::init() {
         propertyServer->registerProperty(OB_STRUCT_RECORDING_SESSION_RESULT, "", "rw", vendorAccessor.get());
         registerComponent(OB_DEV_COMPONENT_RECORDING_SESSION_RESULT_MANAGER,
                           std::make_shared<RecordingSessionResultManager>(this, vendorAccessor.get()));
+    }
+
+    if(getFirmwareVersionInt() >= 10109) {
+        auto propertyServer = getPropertyServer();
+        auto vendorAccessor = getComponentT<VendorPropertyAccessor>(OB_DEV_COMPONENT_MAIN_PROPERTY_ACCESSOR);
+        propertyServer->registerProperty(OB_STRUCT_MULTI_DEVICE_SYNC_CONFIG, "rw", "rw", vendorAccessor.get());
+        registerComponent(OB_DEV_COMPONENT_DEVICE_SYNC_CONFIGURATOR, std::make_shared<DeviceSyncConfigurator>(this, egoSupportedSyncModes));
     }
 }
 

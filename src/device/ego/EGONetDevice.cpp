@@ -18,6 +18,7 @@
 #include "metadata/FrameMetadataParserContainer.hpp"
 #include "timestamp/FrameTimestampCalculator.hpp"
 #include "timestamp/DeviceClockSynchronizer.hpp"
+#include "syncconfig/DeviceSyncConfigurator.hpp"
 #include "property/VendorPropertyAccessor.hpp"
 #include "property/PropertyServer.hpp"
 #include "property/CommonPropertyAccessors.hpp"
@@ -57,6 +58,11 @@ namespace {
 constexpr uint32_t egoVendorConnectTimeoutMs = 2000;
 constexpr uint32_t egoVendorCommTimeoutMs    = 5000;
 #endif
+
+const std::vector<OBMultiDeviceSyncMode> egoSupportedSyncModes = {
+    OB_MULTI_DEVICE_SYNC_MODE_PRIMARY,
+    OB_MULTI_DEVICE_SYNC_MODE_SECONDARY,
+};
 
 OBFormat normalizeH265AliasFormat(OBFormat format) {
     return format == OB_FORMAT_HEVC ? OB_FORMAT_H265 : format;
@@ -170,6 +176,12 @@ void EGONetDevice::init() {
     auto propertyServer         = getPropertyServer();
     auto vendorPropertyAccessor = getComponentT<VendorPropertyAccessor>(OB_DEV_COMPONENT_MAIN_PROPERTY_ACCESSOR);
     propertyServer->registerProperty(OB_STRUCT_DEVICE_MODEL_TYPE, "r", "r", vendorPropertyAccessor.get());
+
+    if(getFirmwareVersionInt() >= 10109) {
+        auto vendorAccessor = getComponentT<VendorPropertyAccessor>(OB_DEV_COMPONENT_MAIN_PROPERTY_ACCESSOR);
+        propertyServer->registerProperty(OB_STRUCT_MULTI_DEVICE_SYNC_CONFIG, "rw", "rw", vendorAccessor.get());
+        registerComponent(OB_DEV_COMPONENT_DEVICE_SYNC_CONFIGURATOR, std::make_shared<DeviceSyncConfigurator>(this, egoSupportedSyncModes));
+    }
 }
 
 void EGONetDevice::fetchDeviceInfo() {

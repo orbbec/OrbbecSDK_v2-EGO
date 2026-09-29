@@ -7,6 +7,7 @@
 > - **IMU（加速度 / 陀螺仪）** —— 走第二条 `Pipeline`（FrameSet 回调）
 > - **设备信息 / 标定 YAML** —— 走 `Device` 的查询 / 原始数据接口（示例之外的常用补充接口）
 > - **Ego 扩展能力（DataAcquisitionDevice）** —— 设备端音频播放、录制目录、固件日志导出、状态/电池/按键回调
+> - **多设备主从同步** —— 查询支持的同步角色，并读取或设置当前主从模式
 >
 > 所有签名均取自 SDK 头文件 `openorbbecsdk/include/libobsensor/hpp/`，行为说明同时以当前 SDK 实现为准。本文已按当前仓库 `examples/6.ego` 与 `DataAcquisitionDevice.hpp` 新增能力同步更新。
 >
@@ -36,6 +37,7 @@
 18. [固件日志导出与设备状态回调](#ch18)
 19. [蓝牙配对与 Wi-Fi 配网信息管理](#ch19)
 20. [SD 卡文件服务](#ch20)
+21. [多设备主从同步](#ch21)
 
 ---
 
@@ -75,6 +77,7 @@ Ego 支持 **USB** 与**网络（以太网）** 两种接入。二者使用相�
 | 18 | 固件日志导出与设备状态回调 | 新增 |
 | 19 | 蓝牙配对与 Wi-Fi 配网信息管理 | 新增 |
 | 20 | SD 卡文件服务（网络设备，固件 ≥ 1.1.8） | 新增 |
+| 21 | 多设备主从同步（固件 ≥ 1.1.9） | 新增 |
 
 > 标 ✅ 的章节覆盖 `ego_sample.cpp` 的全部调用路径；标「补充」的章节为示例之外、实际集成常用的接口。
 
@@ -1524,3 +1527,85 @@ try {
 **异常处理**
 - 设备固件版本不满足要求（< 1.1.8）时，接口抛出"不支持操作"异常，应在 UI 层隐藏该功能入口。
 - `cancelSdcardFileOperation()` 是唯一 `noexcept` 的接口，其余接口均可能抛出 `ob::Error`，需用 `try/catch` 处理。
+
+---
+
+<a id="ch21"></a>
+
+## 21. 多设备主从同步（固件 ≥ 1.1.9）
+
+本章节适用于固件版本不低于 **1.1.9** 的 Ego、Ego 网络设备、Wrist 与 Wrist 网络设备。新增接口位于 `ob::Device`，USB 和网络设备使用相同的 C++ 调用方式；网络设备的属性命令由 SDK 通过设备的 TCP 连接（端口 `8090`）发送。
+
+目前这几类设备支持两个同步角色：`OB_MULTI_DEVICE_SYNC_MODE_PRIMARY`（主设备，值为 `4`）和 `OB_MULTI_DEVICE_SYNC_MODE_SECONDARY`（从设备，值为 `8`）。集成时应始终按“查询支持能力、读取当前模式、设置目标模式”的顺序处理。
+
+### 21.1 查询支持的同步模式
+
+先调用 `getSupportedMultiDeviceSyncModeBitmap()` 获取设备支持的同步模式位图，再决定是否向用户展示或允许设置对应角色：
+
+```cpp
+const auto supportedModes = device->getSupportedMultiDeviceSyncModeBitmap();
+
+const bool primarySupported =
+    (supportedModes & OB_MULTI_DEVICE_SYNC_MODE_PRIMARY) != 0;
+const bool secondarySupported =
+    (supportedModes & OB_MULTI_DEVICE_SYNC_MODE_SECONDARY) != 0;
+
+std::cout << "Supported sync mode bitmap: 0x"
+          << std::hex << supportedModes << std::dec << std::endl;
+std::cout << "PRIMARY: " << primarySupported
+          << ", SECONDARY: " << secondarySupported << std::endl;
+```
+
+对本章节支持的 Ego / Wrist 设备，返回值为 `0x000C`（`0x0004 | 0x0008`），表示同时支持主、从模式。该接口返回的是 SDK 根据当前设备型号注册的能力位图，不读取固件中的“当前主从状态”，也不会向固件下发查询命令。
+
+固件版本低于 `1.1.9` 时，SDK 不会注册该同步配置能力。应用可在调用前检查读写权限，避免在不支持的设备上进入该功能：
+
+```cpp
+const bool syncReadable = device->isPropertySupported(
+    OB_STRUCT_MULTI_DEVICE_SYNC_CONFIG, OB_PERMISSION_READ);
+const bool syncWritable = device->isPropertySupported(
+    OB_STRUCT_MULTI_DEVICE_SYNC_CONFIG, OB_PERMISSION_WRITE);
+
+if (!syncReadable || !syncWritable) {
+    std::cerr << "Multi-device sync requires firmware 1.1.9 or later." << std::endl;
+    return;
+}
+```
+
+### 21.2 读取当前同步模式
+
+确认支持后，通过 `getMultiDeviceSyncMode()` 读取当前模式：
+
+```cpp
+const auto syncMode = device->getMultiDeviceSyncMode();
+
+if (syncMode == OB_MULTI_DEVICE_SYNC_MODE_PRIMARY) {
+    std::cout << "Current mode: PRIMARY" << std::endl;
+}
+else if (syncMode == OB_MULTI_DEVICE_SYNC_MODE_SECONDARY) {
+    std::cout << "Current mode: SECONDARY" << std::endl;
+}
+else {
+    std::cout << "Current mode: " << static_cast<int>(syncMode) << std::endl;
+}
+```
+
+该接口等价于读取 `getMultiDeviceSyncConfig().syncMode`。首次读取时，SDK 通过属性 `OB_STRUCT_MULTI_DEVICE_SYNC_CONFIG` 从设备读取完整同步配置，再取出其中的 `syncMode`；后续读取会使用 SDK 缓存的配置。因此，设置后立刻再次读取可用于确认本次 SDK 调用的结果；若需重新确认固件保存的状态，请重新创建设备对象后再读取。
+
+### 21.3 设置主设备或从设备模式
+
+在已确认对应位受支持后，调用 `setMultiDeviceSyncMode()` 设置角色：
+
+```cpp
+// 将设备设置为主设备。
+device->setMultiDeviceSyncMode(OB_MULTI_DEVICE_SYNC_MODE_PRIMARY);
+
+// 将设备设置为从设备。
+device->setMultiDeviceSyncMode(OB_MULTI_DEVICE_SYNC_MODE_SECONDARY);
+```
+
+该简化接口在 SDK 内部构造 `OBMultiDeviceSyncConfig`：仅写入 `syncMode`，其余字段均初始化为 `0`，随后调用 `setMultiDeviceSyncConfig()` 下发完整配置。固件当前只需解析并关心配置结构开头的 `OBMultiDeviceSyncMode syncMode` 字段。
+
+`setMultiDeviceSyncMode()` 不会在 SDK 侧校验枚举值是否受设备支持。因此，应用必须先调用 21.1 的能力查询，并且对 Ego / Wrist 设备仅设置 `PRIMARY` 或 `SECONDARY`。设置命令成功返回仅表示设备已成功应答；需要验证持久化状态时，重新创建设备对象后再读取一次。
+
+完整的 USB / 网络交互式验证示例见 `openorbbecsdk/examples/6.ego/ego_multi_device_sync.cpp`：快捷键 `1` 读取当前模式，`2` 设置主设备，`3` 设置从设备，`4` 再次显示支持的模式位图。

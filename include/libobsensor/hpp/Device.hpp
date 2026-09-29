@@ -811,6 +811,28 @@ public:
     }
 
     /**
+     * @brief Get the current multi-device sync mode.
+     *
+     * @return OBMultiDeviceSyncMode The current multi-device sync mode.
+     */
+    OBMultiDeviceSyncMode getMultiDeviceSyncMode() const {
+        return getMultiDeviceSyncConfig().syncMode;
+    }
+
+    /**
+     * @brief Set the multi-device sync mode.
+     *
+     * All other multi-device sync configuration fields are set to zero.
+     *
+     * @param[in] syncMode The multi-device sync mode to set.
+     */
+    void setMultiDeviceSyncMode(OBMultiDeviceSyncMode syncMode) const {
+        OBMultiDeviceSyncConfig config{};
+        config.syncMode = syncMode;
+        setMultiDeviceSyncConfig(config);
+    }
+
+    /**
      * @brief send the capture command to the device.
      * @brief The device will start one time image capture after receiving the capture command when it is in the @ref
      * OB_MULTI_DEVICE_SYNC_MODE_SOFTWARE_TRIGGERING
