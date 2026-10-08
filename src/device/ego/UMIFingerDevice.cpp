@@ -34,6 +34,7 @@
 #include "component/fwrecord/FwRecordProfileManager.hpp"
 #include "component/fwrecord/FwRecordingDirectoryManager.hpp"
 #include "component/fwrecord/RecordingSessionResultManager.hpp"
+#include "component/timezone/HostTimeInfoManager.hpp"
 #include "common/DeviceSeriesInfo.hpp"
 
 #include "FilterFactory.hpp"
@@ -95,6 +96,12 @@ void UMIFingerDevice::init() {
 
     auto deviceClockSynchronizer = std::make_shared<DeviceClockSynchronizer>(this, deviceTimeFreq_, deviceTimeFreq_);
     registerComponent(OB_DEV_COMPONENT_DEVICE_CLOCK_SYNCHRONIZER, deviceClockSynchronizer);
+
+    auto hostTimeInfoManager = std::make_shared<HostTimeInfoManager>(this);
+    registerComponent(OB_DEV_COMPONENT_HOST_TIME_INFO_MANAGER, hostTimeInfoManager);
+    BEGIN_TRY_EXECUTE({ hostTimeInfoManager->setHostTimeInfoToDevice(); })
+    CATCH_EXCEPTION_AND_EXECUTE({ LOG_WARN("Failed to initialize host time information for UMI Finger device"); })
+
     registerComponent(OB_DEV_COMPONENT_FW_RECORD_PROFILE_MANAGER, [this]() { return std::make_shared<FwRecordProfileManager>(this); });
 
     auto propertyServer = getPropertyServer();
@@ -559,6 +566,7 @@ void UMIFingerDevice::initProperties() {
         // Stream stop is endpoint-local: each UMI video sensor sends its matching stop property on
         // its own interface XU, so stop properties are not writable through this global accessor.
         propertyServer->registerProperty(OB_STRUCT_VERSION, "", "r", vendorPropertyAccessor);
+        propertyServer->registerProperty(OB_STRUCT_HOST_TIME_INFO, "", "w", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_STRUCT_DEVICE_SERIAL_NUMBER, "r", "r", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_STRUCT_DEVICE_TIME, "rw", "rw", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_STRUCT_GET_TF_CARD_CAPACITY, "r", "r", vendorPropertyAccessor);

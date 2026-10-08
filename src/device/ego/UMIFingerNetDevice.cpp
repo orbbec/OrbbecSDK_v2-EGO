@@ -29,6 +29,7 @@
 #include "component/fwrecord/FwRecordProfileManager.hpp"
 #include "component/fwrecord/FwRecordingDirectoryManager.hpp"
 #include "component/fwrecord/RecordingSessionResultManager.hpp"
+#include "component/timezone/HostTimeInfoManager.hpp"
 #include "common/DeviceSeriesInfo.hpp"
 
 #include "FilterFactory.hpp"
@@ -92,6 +93,12 @@ void UMIFingerNetDevice::init() {
         registerComponent(OB_DEV_COMPONENT_DEVICE_CLOCK_SYNCHRONIZER, deviceClockSynchronizer);
         registerComponent(OB_DEV_COMPONENT_FW_RECORD_PROFILE_MANAGER, [this]() { return std::make_shared<FwRecordProfileManager>(this); });
     }
+
+    auto hostTimeInfoManager = std::make_shared<HostTimeInfoManager>(this);
+    registerComponent(OB_DEV_COMPONENT_HOST_TIME_INFO_MANAGER, hostTimeInfoManager);
+    BEGIN_TRY_EXECUTE({ hostTimeInfoManager->setHostTimeInfoToDevice(); })
+    CATCH_EXCEPTION_AND_EXECUTE({ LOG_WARN("Failed to initialize host time information for UMI Finger network device"); })
+
     auto propertyServer = getPropertyServer();
     auto vendorAccessor = getComponentT<VendorPropertyAccessor>(OB_DEV_COMPONENT_MAIN_PROPERTY_ACCESSOR);
     propertyServer->registerProperty(OB_STRUCT_EGO_STATE_REPORT, "r", "r", vendorAccessor.get());
@@ -457,6 +464,7 @@ void UMIFingerNetDevice::initProperties() {
     // device / IMU controls
     auto heartbeatPropertyAccessor = std::make_shared<HeartbeatPropertyAccessor>(this);
     propertyServer->registerProperty(OB_STRUCT_VERSION, "", "r", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_STRUCT_HOST_TIME_INFO, "", "w", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_STRUCT_DEVICE_SERIAL_NUMBER, "r", "r", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_STRUCT_DEVICE_TIME, "rw", "rw", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_STRUCT_GET_TF_CARD_CAPACITY, "r", "r", vendorPropertyAccessor);
