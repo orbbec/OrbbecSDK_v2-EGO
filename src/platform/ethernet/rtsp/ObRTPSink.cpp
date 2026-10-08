@@ -79,11 +79,13 @@ ObRTPSink::ObRTPSink(std::shared_ptr<const StreamProfile> streamProfile, UsageEn
       streamProfile_(streamProfile),
       frameCount_(1),
       destroy_(false),
-      currentBuffer_(nullptr) {
+      currentBuffer_(nullptr),
+      maxFrameNum_(streamProfile_->getFormat() == OB_FORMAT_PCM ? 32U : 4U),
+      maxFrameDataSize_(streamProfile_->getFormat() == OB_FORMAT_PCM ? 65536U : 3U * 3840U * 2160U) {
     streamId_ = strDup(streamId);
     envir() << "ObRTPSink created! streamId = " << streamId_ << "\n";
 
-    auto     frame       = std::make_shared<ObRTPBuffer>(MAX_FRAME_DATA_SIZE);
+    auto     frame       = std::make_shared<ObRTPBuffer>(maxFrameDataSize_);
     auto     frameBuffer = frame->getBuffer();
     uint32_t headerSize  = 0;
 
@@ -131,7 +133,7 @@ ObRTPSink::ObRTPSink(std::shared_ptr<const StreamProfile> streamProfile, UsageEn
     // else: header size is 0
 
     std::unique_lock<std::mutex> lk(reclaimedRTPBufferMutex_);
-    for(uint8_t i = 0; i < MAX_FRAME_NUM - 1; i++) {
+    for(uint8_t i = 0; i < maxFrameNum_ - 1; i++) {
         auto newFrame = frame->cloneAndCopyHeader();
         reclaimedRTPBufferQueue_.push(newFrame);
     }
@@ -217,7 +219,7 @@ Boolean ObRTPSink::continuePlaying() {
     }
 
     // Request the next frame of data from our input source.  "afterGettingFrame()" will get called later, when it arrives:
-    fSource->getNextFrame(currentBuffer_->getRecvdDataBuffer(), MAX_FRAME_DATA_SIZE - currentBuffer_->getStaticHeaderSize(), afterGettingFrame, this,
+    fSource->getNextFrame(currentBuffer_->getRecvdDataBuffer(), maxFrameDataSize_ - currentBuffer_->getStaticHeaderSize(), afterGettingFrame, this,
                           onSourceClosure, this);
     return true;
 }
@@ -258,10 +260,7 @@ void ObRTPSink::outputFrameFunc() {
                 frame->setStreamProfile(streamProfile_);
 
                 if(format == OB_FORMAT_PCM) {
-                    auto     audioProfile = streamProfile_->as<AudioStreamProfile>();
-                    uint32_t sampleRate   = audioProfile->getSampleRate();
-                    uint64_t tsUsec       = sampleRate == 0 ? output->getTimestamp() : output->getTimestamp() * 1000000ULL / sampleRate;
-                    frame->setTimeStampUsec(tsUsec);
+                    frame->setTimeStampUsec(output->getTimestamp());
                     frame->setSystemTimeStampUsec(utils::getNowTimesUs());
                     frame->setSteadyTimeStampUsec(utils::getSteadyTimeUs());
                     frame->setNumber(output->getSequenceNumber());

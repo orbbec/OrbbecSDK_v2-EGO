@@ -389,8 +389,9 @@ void EgoProEC130NetDevice::initSensorList() {
                 sensor->setStreamProfileList(audioProfiles);
 
                 // WiFi audio carries OBNetworkFrameHeader.timestamp (device clock, same source as video/IMU).
-                auto videoFrameTimestampCalculator = std::make_shared<FrameTimestampCalculatorBaseDeviceTime>(this, deviceTimeFreq_, deviceTimeFreq_);
-                sensor->setFrameTimestampCalculator(videoFrameTimestampCalculator);
+                // Use the device time and color frame time frequency to calculate frame timestamps.
+                auto frameTimestampCalculator = std::make_shared<FrameTimestampCalculatorBaseDeviceTime>(this, deviceTimeFreq_, colorFrameTimeFreq_);
+                sensor->setFrameTimestampCalculator(frameTimestampCalculator);
 
                 return sensor;
             },

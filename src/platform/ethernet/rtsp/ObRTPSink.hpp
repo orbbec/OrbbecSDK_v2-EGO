@@ -156,8 +156,11 @@ private:
     utils::SteadyCondVar                     frameAvailableCv_;
     std::shared_ptr<ObRTPBuffer>             currentBuffer_;
 
-    const uint8_t  MAX_FRAME_NUM       = 4;
-    const uint32_t MAX_FRAME_DATA_SIZE = 3 * 3840 * 2160;
+    // PCM arrives per RTP packet, often in TCP bursts. Use a modest bounded
+    // packet queue instead of four buffers sized for 4K video (~95 MiB).
+    const uint32_t maxFrameNum_;
+    const uint32_t maxFrameDataSize_;
+
 
     std::thread outputFrameThread_;
 };
