@@ -341,14 +341,17 @@ OB_EXPORT void ob_device_get_sdcard_file_list(ob_device *device, const char *pat
  *            @p percent in callback: 0~100.
  *
  *          OB_SDCARD_DOWNLOAD_TO_URL:
- *            Device initiates HTTP PUT to @p destination (remote URL).
- *            Only plain http:// is supported; https:// is not supported on the
- *            device side. @p percent in callback: real-time percent from firmware.
+ *            Device initiates an HTTP PUT to @p destination (remote URL). Both
+ *            http:// and https:// destinations are supported by FileService
+ *            firmware with TLS support. HTTPS negotiation is performed on the
+ *            device side; availability therefore depends on the device firmware,
+ *            network connectivity, and device time being correctly set.
+ *            @p percent in callback: real-time percent from firmware.
  *
  * @param[in]  device           The device object.
  * @param[in]  device_path      SD-card-relative path.
  * @param[in]  destination_type OB_SDCARD_DOWNLOAD_TO_LOCAL or OB_SDCARD_DOWNLOAD_TO_URL.
- * @param[in]  destination      Local file path (TO_LOCAL) or remote HTTP URL (TO_URL).
+ * @param[in]  destination      Local file path (TO_LOCAL) or remote HTTP/HTTPS URL (TO_URL).
  * @param[in]  callback         Optional progress callback; may be NULL.
  * @param[in]  user_data        Passed as-is to @p callback; may be NULL.
  * @param[in]  async            false = block until complete; true = return immediately, result via callback.

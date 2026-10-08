@@ -1138,7 +1138,7 @@ SD 卡文件服务让上位机可以通过 SDK 直接管理 Ego 设备 SD 卡上
 - **查询** 某个路径是否存在及其元数据（大小、类型）
 - **列出** 目录内容（支持递归）
 - **下载** SD 卡文件到本机磁盘（支持断点续传、大文件并行加速）
-- **推送** SD 卡文件到远端 HTTP URL（对接腾讯云 COS / 阿里云 OSS 等对象存储）
+- **推送** SD 卡文件到远端 HTTP/HTTPS URL（对接腾讯云 COS / 阿里云 OSS 等对象存储）
 - **删除** 文件或目录
 
 **前提条件：**
@@ -1149,7 +1149,7 @@ SD 卡文件服务让上位机可以通过 SDK 直接管理 Ego 设备 SD 卡上
 | 固件版本 | 设备固件 **≥ 1.1.8**；低于此版本调用时 SDK 抛出"不支持操作"异常 |
 | 设备类型 | Ego / EgoPro / Wrist（网络型）|
 
-SDK 通过设备 **8080 端口**的 HTTP 文件服务与固件通信；创建 `DataAcquisitionDevice` 后即可调用，无需额外初始化。
+SDK 通过设备 **8080 端口**的 HTTP 文件服务与固件通信；创建 `DataAcquisitionDevice` 后即可调用，无需额外初始化。该控制链路以及 `TO_LOCAL` 下载链路目前均为 HTTP；只有 `TO_URL` 模式中设备向远端发起的上传支持 HTTPS。
 
 ```cpp
 #include <libobsensor/ObSensor.hpp>
@@ -1350,9 +1350,9 @@ for (const auto &e : entries) {
 
 ### 20.5 推送文件到云存储 URL：`TO_URL` 模式
 
-这种模式下，**设备固件**直接向指定 URL 发起 HTTP PUT 请求，把 SD 卡文件上传到云端对象存储（腾讯云 COS、阿里云 OSS 等）。
+这种模式下，**设备固件**直接向指定 URL 发起 HTTP PUT 请求，把 SD 卡文件上传到云端对象存储（腾讯云 COS、阿里云 OSS 等）。目标 URL 可使用 `http://` 或 `https://`；使用 HTTPS 时由设备固件完成 TLS 握手。
 
-> **前提：** 设备所在 WiFi 网络必须能访问公网；固件仅支持 `http://`，不支持 `https://`。
+> **前提：** 设备所在 WiFi 网络必须能访问公网。`http://` 可直接使用；`https://` 需要支持 TLS 的 FileService 固件，并要求设备系统时间已正确校准。建议对象存储使用 HTTPS 预签名 URL。
 
 #### 阻塞与非阻塞的语义说明
 
@@ -1435,7 +1435,7 @@ for (const auto &e : entries) {
 | 3 | `OB_SDCARD_DOWNLOAD_CANCELLED` | 调用 `cancelSdcardFileOperation()` 后取消 | -1 | 空 |
 | 4 | `OB_SDCARD_DOWNLOAD_FAILED_NOT_FOUND` | 设备端路径不存在（HTTP 404）| -1 | 空 |
 | 5 | `OB_SDCARD_DOWNLOAD_FAILED_TIMEOUT` | 网络超时或传输长时间停滞 | -1 | 空 |
-| 6 | `OB_SDCARD_DOWNLOAD_FAILED_NETWORK` | 网络错误（DNS 失败、TCP 断线等）| -1 | 空 |
+| 6 | `OB_SDCARD_DOWNLOAD_FAILED_NETWORK` | 网络错误（DNS 失败、TCP 断线、HTTPS TLS 握手失败等）| -1 | 空 |
 | 7 | `OB_SDCARD_DOWNLOAD_FAILED_SERVER` | 远端服务器拒绝（非 2xx 响应）| -1 | 空 |
 | 8 | `OB_SDCARD_DOWNLOAD_FAILED_BUSY` | 固件上传槽位已满，请稍后重试 | -1 | 空 |
 | 9 | `OB_SDCARD_DOWNLOAD_FAILED_CAMERA_STREAMING` | 设备正在视频流传输，文件服务被拦截（停流后重试）| -1 | 空 |
@@ -1492,7 +1492,7 @@ try {
 |-----|------|
 | `ob_device_sdcard_file_info getSdcardFileInfo(const std::string &path) const` | 查询路径元信息；路径不存在时 `info.exists=false`，不抛异常 |
 | `std::vector<ob_device_sdcard_file_entry> getSdcardFileList(const std::string &path, bool recursive=false) const` | 列目录内容；`path=""` 为 SD 卡根目录；固件最多返回 5000 条 |
-| `void downloadSdcardFile(devicePath, destType, destination, callback=nullptr, userData=nullptr, async=false) const` | 下载到本机（`TO_LOCAL`）或推送到 URL（`TO_URL`）；支持同步/异步/并发/断点续传 |
+| `void downloadSdcardFile(devicePath, destType, destination, callback=nullptr, userData=nullptr, async=false) const` | 下载到本机（`TO_LOCAL`，HTTP）或推送到 URL（`TO_URL`，支持 HTTP/HTTPS）；支持同步/异步/并发/断点续传 |
 | `void deleteSdcardFile(const std::string &path) const` | 删除文件或目录；目录递归删除，不可撤销 |
 | `void cancelSdcardFileOperation() const noexcept` | 取消所有进行中的文件服务操作；线程安全，无副作用 |
 
@@ -1516,6 +1516,7 @@ try {
 - 并行下载失败后，SDK 自动清除本地预分配文件，下次重新全量下载。
 
 **推送到 URL（`TO_URL`）**
+- 使用对象存储时建议采用 `https://` 预签名 URL；HTTPS 的 TLS 连接由设备固件建立，设备时间未校准时可能握手失败。
 - 预签名 URL 有效期建议设置为 **≥ 预计上传时长**（大文件按 10 Mbps 估算时长）。
 - 每个文件单独生成一个预签名 URL，不要多个文件共用同一 URL。
 - SDK 内置最多 2 路并发上传限制，超出的请求自动排队。

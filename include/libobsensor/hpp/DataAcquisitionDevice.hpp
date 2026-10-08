@@ -176,7 +176,9 @@ public:
      *
      * @param[in] devicePath      SD-card-relative path.
      * @param[in] destinationType OB_SDCARD_DOWNLOAD_TO_LOCAL or OB_SDCARD_DOWNLOAD_TO_URL.
-     * @param[in] destination     Local file path (TO_LOCAL) or remote HTTP URL (TO_URL).
+     * @param[in] destination     Local file path (TO_LOCAL) or remote HTTP/HTTPS URL (TO_URL).
+     *                              HTTPS is established by the device and requires FileService
+     *                              firmware with TLS support and a correctly set device time.
      * @param[in] callback        Optional progress callback; may be nullptr.
      * @param[in] userData        Passed as-is to the callback; may be nullptr.
      */

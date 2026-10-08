@@ -37,7 +37,8 @@ public:
                          SdcardDownloadProgressCallback cb, bool async) override;
 
     /**
-     * Push a file to a remote HTTP URL via the device (async firmware task).
+     * Push a file to a remote HTTP or HTTPS URL via the device (async firmware task).
+     * TLS for HTTPS destinations is handled by the device firmware.
      * async=false : blocks the calling thread until the device reports done/failed.
      * async=true  : returns immediately; result reported via callback.
      */

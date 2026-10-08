@@ -6,7 +6,7 @@
 // Demonstrates the SD-card file service APIs via ob::DataAcquisitionDevice:
 //   getSdcardFileInfo   – query whether a path exists and its metadata
 //   getSdcardFileList   – list a directory (flat or recursive)
-//   downloadSdcardFile  – download to local file, or push to a remote HTTP URL
+//   downloadSdcardFile  – download to local file, or push to a remote HTTP/HTTPS URL
 //   deleteSdcardFile    – delete a file or directory
 //
 // Connect via network (enter the device IP at startup).
@@ -19,7 +19,7 @@
 //   5  – Download a single file to local working directory
 //   6  – Resume download: download same file again, SDK resumes from existing local bytes
 //   7  – Download a directory: list files then download each one (app-level loop)
-//   8  – Push file to Tencent COS (auto-generates COS V5 presign URL, credentials hard-coded)
+//   8  – HTTPS upload test: push file to Tencent COS (auto-generates COS V5 presign URL)
 //   U  – Push entire directory to COS: list files, generate per-file URLs, upload all async
 //   9  – Directory upload note: requires per-file URLs, see in-sample guidance
 //   a  – Async download: start in background (async=true), main loop stays responsive
@@ -141,8 +141,8 @@ static void hmacSha1(const std::string &key, const std::string &msg, uint8_t out
     sha1Hash(outer_, 84, out);
 }
 
-// ── Tencent COS V5 presign URL (http://, PUT method) ─────────────────────
-// Produces the same URL as cos_presign() in test(1).py with scheme="http".
+// ── Tencent COS V5 presign URL (https://, PUT method) ────────────────────
+// Produces an HTTPS URL; the COS signature itself is independent of the scheme.
 static std::string cosPresign(const std::string &secretId, const std::string &secretKey,
                                const std::string &host, const std::string &objectKey,
                                int expireSecs = 600) {
@@ -181,7 +181,7 @@ static std::string cosPresign(const std::string &secretId, const std::string &se
             encoded += ss.str();
         }
     }
-    return "http://" + host + "/" + encoded + "?" + q;
+    return "https://" + host + "/" + encoded + "?" + q;
 }
 
 // ── helpers ────────────────────────────────────────────────────────────────
@@ -351,7 +351,7 @@ static void printHelp() {
               << "  |  5  Download single file to local                                         |\n"
               << "  |  6  Resume download: re-download same file, SDK resumes (Range header)    |\n"
               << "  |  7  Download directory: list + download each file (app-level loop)       |\n"
-              << "  |  8  Push single file to COS (COS V5 presign, credentials hard-coded)        |\n"
+              << "  |  8  HTTPS upload test: push a file to COS (COS V5 presign)                 |\n"
               << "  |  U  Push directory to COS: list + per-file presign + upload all async        |\n"
               << "  |  9  Directory upload note (per-file URLs required, see guidance)          |\n"
               << "  |  a  Async download (async=true): starts in background, main loop free    |\n"
@@ -495,7 +495,8 @@ int main() try {
                 break;
             }
             case '8': {
-                // Push a single file to Tencent COS using auto-generated COS V5 presign URL.
+                // HTTPS integration test: push a file to Tencent COS using an
+                // auto-generated COS V5 pre-signed URL.
                 // Credentials: kCosSecretId / kCosSecretKey / kCosBucketHost (hard-coded above).
                 const auto devicePath = readLine("  Device file path to push to COS: ");
                 if(devicePath.empty()) { std::cout << "  (cancelled)" << std::endl; break; }
