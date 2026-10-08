@@ -30,6 +30,7 @@
 #include "component/fwrecord/FwRecordingDirectoryManager.hpp"
 #include "component/fwrecord/RecordingSessionResultManager.hpp"
 #include "component/timezone/HostTimeInfoManager.hpp"
+#include "component/httpfileservice/HttpFileServiceManager.hpp"
 #include "common/DeviceSeriesInfo.hpp"
 
 #include "FilterFactory.hpp"
@@ -81,6 +82,17 @@ void UMIFingerNetDevice::init() {
         propertyServer->registerProperty(OB_STRUCT_FW_RECORDING_FILE_NAME, "rw", "rw", fwRecordingTextPropertyAccessor);
     }
     fetchExtensionInfo();
+
+    auto netPortInfo = std::dynamic_pointer_cast<const NetSourcePortInfo>(enumInfo_->getSourcePortInfoList().front());
+    if(netPortInfo) {
+        const auto deviceIp = netPortInfo->address;
+        registerComponent(OB_DEV_COMPONENT_HTTP_FILE_SERVICE_MANAGER, [this, deviceIp]() {
+            return std::make_shared<HttpFileServiceManager>(this, deviceIp);
+        });
+    }
+    else {
+        LOG_WARN("UMIFingerNetDevice: HTTP file service unavailable ¡ª network port info is missing");
+    }
 
     if(!inRecoveryMode_) {
         initSensorList();
