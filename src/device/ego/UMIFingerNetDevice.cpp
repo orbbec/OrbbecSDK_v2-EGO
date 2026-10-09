@@ -91,7 +91,7 @@ void UMIFingerNetDevice::init() {
         });
     }
     else {
-        LOG_WARN("UMIFingerNetDevice: HTTP file service unavailable ¡ª network port info is missing");
+        LOG_WARN("UMIFingerNetDevice: HTTP file service unavailable; network port info is missing");
     }
 
     if(!inRecoveryMode_) {
