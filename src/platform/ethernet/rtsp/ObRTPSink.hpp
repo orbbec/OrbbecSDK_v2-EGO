@@ -4,6 +4,7 @@
 #pragma once
 #include "IFrame.hpp"
 #include "IStreamProfile.hpp"
+#include "RTPReceiveBufferConfig.hpp"
 #include "exception/ObException.hpp"
 
 #include "liveMedia.hh"
@@ -11,6 +12,7 @@
 
 #include <queue>
 #include <atomic>
+#include <chrono>
 #include <mutex>
 #include <thread>
 #include "utils/SteadyCondVar.hpp"
@@ -98,6 +100,22 @@ public:
         return buffer_ + staticHeaderSize_ + offset;
     }
 
+    void setEnqueueSteadyTimeUs(uint64_t timeUs) {
+        enqueueSteadyTimeUs_ = timeUs;
+    }
+
+    uint64_t getEnqueueSteadyTimeUs() const {
+        return enqueueSteadyTimeUs_;
+    }
+
+    void setKeyFrame(bool isKeyFrame) {
+        isKeyFrame_ = isKeyFrame;
+    }
+
+    bool isKeyFrame() const {
+        return isKeyFrame_;
+    }
+
     std::shared_ptr<ObRTPBuffer> cloneAndCopyHeader() {
         auto frame = std::make_shared<ObRTPBuffer>(bufferSize_);
         memcpy(frame->getBuffer(), buffer_, staticHeaderSize_);
@@ -115,6 +133,8 @@ private:
     uint32_t    staticHeaderSize_;
     uint32_t    recvdDataSize_;  // size of data received = dataSize_ + dynamicHeaderSize_
     uint32_t    dynamicHeaderSize_;
+    uint64_t    enqueueSteadyTimeUs_ = 0;
+    bool        isKeyFrame_          = false;
 };
 
 class ObRTPSink : public MediaSink {
@@ -122,13 +142,14 @@ public:
     static ObRTPSink *createNew(std::shared_ptr<const StreamProfile> streamProfile, UsageEnvironment &env,
                                 MediaSubsession     &subsession,  // identifies the kind of data that's being received
                                 MutableFrameCallback callback,
-                                char const          *streamId = NULL);  // identifies the stream itself (optional)
+                                char const          *streamId,
+                                const RTPReceiveBufferConfig &rtpReceiveBufferConfig);  // identifies the stream itself (optional)
 
     virtual ~ObRTPSink() noexcept override;
 
 protected:
     ObRTPSink(std::shared_ptr<const StreamProfile> streamProfile, UsageEnvironment &env, MediaSubsession &subsession, MutableFrameCallback callback,
-              char const *streamId = NULL);
+              char const *streamId, const RTPReceiveBufferConfig &rtpReceiveBufferConfig);
 
 private:
     static void afterGettingFrame(void *clientData, unsigned frameSize, unsigned numTruncatedBytes, struct timeval presentationTime,
@@ -140,12 +161,15 @@ private:
     virtual Boolean continuePlaying() override;
     void            outputFrameFunc();
     void            mjpgUpdateMetadata(std::shared_ptr<Frame> frame);
+    bool            isCompressedVideo() const;
+    bool            isKeyFrame(const ObRTPBuffer &buffer) const;
 
 private:
     MediaSubsession                     &subsession_;
     char                                *streamId_;
     MutableFrameCallback                 frameCallback_;
     std::shared_ptr<const StreamProfile> streamProfile_;
+    RTPReceiveBufferConfig                rtpReceiveBufferConfig_;
     uint64_t                             frameCount_;
     std::atomic<bool>                    destroy_;
 
@@ -161,6 +185,19 @@ private:
     const uint32_t maxFrameNum_;
     const uint32_t maxFrameDataSize_;
 
+    std::atomic<bool>     awaitingKeyFrame_{ false };
+    std::atomic<uint64_t> droppedPoolExhaustionFrames_{ 0 };
+    std::atomic<uint64_t> droppedBacklogFrames_{ 0 };
+    std::atomic<uint64_t> droppedAwaitingKeyFrames_{ 0 };
+    std::atomic<uint64_t> truncatedFrames_{ 0 };
+    std::atomic<uint64_t> truncatedBytes_{ 0 };
+    std::atomic<uint64_t> receivedFrames_{ 0 };
+    std::atomic<uint64_t> deliveredFrames_{ 0 };
+    std::atomic<uint64_t> outputQueuePeak_{ 0 };
+    std::atomic<uint64_t> maxQueueDelayUs_{ 0 };
+
+    std::chrono::steady_clock::time_point lastLegacyPoolExhaustionLogTime_{};
+    uint64_t                              legacyPoolExhaustionDropsSinceLastLog_ = 0;
 
     std::thread outputFrameThread_;
 };

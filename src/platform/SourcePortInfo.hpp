@@ -8,6 +8,7 @@
 #pragma once
 
 #include "libobsensor/h/ObTypes.h"
+#include "ethernet/rtsp/RTPReceiveBufferConfig.hpp"
 
 #include <string>
 #include <memory>
@@ -144,8 +145,9 @@ struct RTPStreamPortInfo : public NetSourcePortInfo {
 };
 
 struct RTSPStreamPortInfo : public NetSourcePortInfo {
-    RTSPStreamPortInfo(const NetSourcePortInfo &portInfo, uint16_t newPort, uint16_t vendorPort, OBStreamType streamType)
-        : NetSourcePortInfo(portInfo), vendorPort(vendorPort), streamType(streamType) {
+    RTSPStreamPortInfo(const NetSourcePortInfo &portInfo, uint16_t newPort, uint16_t vendorPort, OBStreamType streamType,
+                       const RTPReceiveBufferConfig &rtpReceiveBufferConfig = {})
+        : NetSourcePortInfo(portInfo), vendorPort(vendorPort), streamType(streamType), rtpReceiveBufferConfig(rtpReceiveBufferConfig) {
         port     = newPort;
         portType = SOURCE_PORT_NET_RTSP;
     }
@@ -161,6 +163,7 @@ struct RTSPStreamPortInfo : public NetSourcePortInfo {
 
     uint16_t     vendorPort;
     OBStreamType streamType;
+    RTPReceiveBufferConfig rtpReceiveBufferConfig;
 };
 
 typedef std::vector<std::shared_ptr<const SourcePortInfo>> SourcePortInfoList;

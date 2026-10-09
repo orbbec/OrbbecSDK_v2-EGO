@@ -129,7 +129,7 @@ void RTSPStreamPort::createClient(std::shared_ptr<const StreamProfile> profile, 
     }
     std::string url =
         std::string("rtsp://") + portInfo_->address + ":" + std::to_string(portInfo_->port) + "/" + mapStreamTypeToString(streamType) + "/" + formatStr;
-    currentRtspClient_ = ObRTSPClient::createNew(profile, *live555Env_, url.c_str(), callback, 1);
+    currentRtspClient_ = ObRTSPClient::createNew(profile, *live555Env_, url.c_str(), callback, portInfo_->rtpReceiveBufferConfig, 1);
     LOG_DEBUG("ObRTSPClient created! url={}", url);
 }
 

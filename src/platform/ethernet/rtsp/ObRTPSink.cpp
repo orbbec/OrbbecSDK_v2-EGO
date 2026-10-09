@@ -14,6 +14,8 @@
 #include <map>
 #include <string>
 #include <algorithm>
+#include <chrono>
+#include <limits>
 
 namespace libobsensor {
 
@@ -66,22 +68,124 @@ OBFormat codecToOBFormat(const std::string &codec) {
     return OB_FORMAT_UNKNOWN;
 }
 
+namespace {
+constexpr uint32_t kLegacyVideoBufferBytes      = 3U * 3840U * 2160U;
+constexpr uint32_t kPcmBufferBytes              = 65536U;
+constexpr uint32_t kPcmBufferCount              = 32U;
+constexpr uint32_t kLegacyVideoBufferCount      = 4U;
+constexpr uint32_t kCodecStaticHeaderReserve    = 64U * 1024U;
+
+bool hasCodecStaticHeader(MediaSubsession &subsession) {
+    return std::strcmp(subsession.codecName(), "H264") == 0 || std::strcmp(subsession.codecName(), "H265") == 0;
+}
+
+const char *receiveModeToString(RTPReceiveMode mode) {
+    switch(mode) {
+    case RTPReceiveMode::Legacy:
+        return "legacy";
+    case RTPReceiveMode::ProfileDropOldest:
+        return "profile-drop-oldest";
+    default:
+        return "unknown";
+    }
+}
+
+const char *formatToString(OBFormat format) {
+    switch(format) {
+    case OB_FORMAT_YUYV:
+        return "YUYV";
+    case OB_FORMAT_MJPG:
+        return "MJPG";
+    case OB_FORMAT_H264:
+        return "H264";
+    case OB_FORMAT_H265:
+        return "H265";
+    case OB_FORMAT_HEVC:
+        return "HEVC";
+    case OB_FORMAT_Y16:
+        return "Y16";
+    case OB_FORMAT_Y8:
+        return "Y8";
+    case OB_FORMAT_Y10:
+        return "Y10";
+    case OB_FORMAT_I420:
+        return "I420";
+    case OB_FORMAT_RVL:
+        return "RVL";
+    case OB_FORMAT_PCM:
+        return "PCM";
+    default:
+        return "UNKNOWN";
+    }
+}
+
+void updateMaximum(std::atomic<uint64_t> &target, uint64_t value) {
+    auto current = target.load(std::memory_order_relaxed);
+    while(current < value && !target.compare_exchange_weak(current, value, std::memory_order_relaxed)) {}
+}
+
+uint32_t resolvePayloadBytes(const std::shared_ptr<const StreamProfile> &profile, MediaSubsession &,
+                             const RTPReceiveBufferConfig &config) {
+    if(profile->getFormat() == OB_FORMAT_PCM)
+        return kPcmBufferBytes;
+    if(config.mode == RTPReceiveMode::Legacy)
+        return kLegacyVideoBufferBytes;
+    if(config.maxPayloadBytes != 0)
+        return config.maxPayloadBytes;
+    if(!profile->is<VideoStreamProfile>())
+        return 0;
+    return profile->as<VideoStreamProfile>()->getMaxFrameDataSize();
+}
+
+uint32_t resolveBufferCount(const std::shared_ptr<const StreamProfile> &profile, MediaSubsession &subsession,
+                            const RTPReceiveBufferConfig &config) {
+    if(profile->getFormat() == OB_FORMAT_PCM)
+        return kPcmBufferCount;
+    if(config.mode == RTPReceiveMode::Legacy)
+        return kLegacyVideoBufferCount;
+
+    const uint64_t payload = resolvePayloadBytes(profile, subsession, config);
+    const uint64_t allocation = payload + (hasCodecStaticHeader(subsession) ? kCodecStaticHeaderReserve : 0U);
+    if(payload == 0 || allocation > (std::numeric_limits<uint32_t>::max)())
+        return 0;
+    const uint64_t byBudget = config.perSinkMemoryBudgetBytes == 0 ? config.preferredBufferCount
+                                                                    : config.perSinkMemoryBudgetBytes / allocation;
+    return static_cast<uint32_t>((std::min)(static_cast<uint64_t>(config.preferredBufferCount), byBudget));
+}
+
+uint32_t resolveAllocationBytes(const std::shared_ptr<const StreamProfile> &profile, MediaSubsession &subsession,
+                                const RTPReceiveBufferConfig &config) {
+    const uint64_t bytes = static_cast<uint64_t>(resolvePayloadBytes(profile, subsession, config))
+                         + (config.mode == RTPReceiveMode::ProfileDropOldest && hasCodecStaticHeader(subsession) ? kCodecStaticHeaderReserve : 0U);
+    return bytes > (std::numeric_limits<uint32_t>::max)() ? 0 : static_cast<uint32_t>(bytes);
+}
+}  // namespace
+
 ObRTPSink *ObRTPSink::createNew(std::shared_ptr<const StreamProfile> streamProfile, UsageEnvironment &env, MediaSubsession &subsession,
-                                MutableFrameCallback callback, char const *streamId) {
-    return new ObRTPSink(streamProfile, env, subsession, callback, streamId);
+                                MutableFrameCallback callback, char const *streamId, const RTPReceiveBufferConfig &rtpReceiveBufferConfig) {
+    const auto bufferCount = resolveBufferCount(streamProfile, subsession, rtpReceiveBufferConfig);
+    const auto allocationBytes = resolveAllocationBytes(streamProfile, subsession, rtpReceiveBufferConfig);
+    if(bufferCount == 0 || allocationBytes == 0
+       || (rtpReceiveBufferConfig.mode == RTPReceiveMode::ProfileDropOldest && streamProfile->getFormat() != OB_FORMAT_PCM
+           && bufferCount < rtpReceiveBufferConfig.minBufferCount)) {
+        env.setResultMsg("RTSP receive buffer configuration exceeds its memory budget");
+        return nullptr;
+    }
+    return new ObRTPSink(streamProfile, env, subsession, callback, streamId, rtpReceiveBufferConfig);
 }
 
 ObRTPSink::ObRTPSink(std::shared_ptr<const StreamProfile> streamProfile, UsageEnvironment &env, MediaSubsession &subsession, MutableFrameCallback callback,
-                     char const *streamId)
+                     char const *streamId, const RTPReceiveBufferConfig &rtpReceiveBufferConfig)
     : MediaSink(env),
       subsession_(subsession),
       frameCallback_(callback),
       streamProfile_(streamProfile),
+      rtpReceiveBufferConfig_(rtpReceiveBufferConfig),
       frameCount_(1),
       destroy_(false),
       currentBuffer_(nullptr),
-      maxFrameNum_(streamProfile_->getFormat() == OB_FORMAT_PCM ? 32U : 4U),
-      maxFrameDataSize_(streamProfile_->getFormat() == OB_FORMAT_PCM ? 65536U : 3U * 3840U * 2160U) {
+      maxFrameNum_(resolveBufferCount(streamProfile, subsession, rtpReceiveBufferConfig)),
+      maxFrameDataSize_(resolveAllocationBytes(streamProfile, subsession, rtpReceiveBufferConfig)) {
     streamId_ = strDup(streamId);
     envir() << "ObRTPSink created! streamId = " << streamId_ << "\n";
 
@@ -132,8 +236,13 @@ ObRTPSink::ObRTPSink(std::shared_ptr<const StreamProfile> streamProfile, UsageEn
     }
     // else: header size is 0
 
+    LOG_INFO("RTSP receive pool configured: stream={}, mode={}, format={}({}), buffers={}, payloadBytes={}, allocationBytes={}",
+             streamId_ ? streamId_ : "", receiveModeToString(rtpReceiveBufferConfig_.mode), formatToString(streamProfile_->getFormat()),
+             static_cast<int>(streamProfile_->getFormat()), maxFrameNum_,
+             resolvePayloadBytes(streamProfile_, subsession, rtpReceiveBufferConfig_), maxFrameDataSize_);
+
     std::unique_lock<std::mutex> lk(reclaimedRTPBufferMutex_);
-    for(uint8_t i = 0; i < maxFrameNum_ - 1; i++) {
+    for(uint32_t i = 0; i < maxFrameNum_ - 1; i++) {
         auto newFrame = frame->cloneAndCopyHeader();
         reclaimedRTPBufferQueue_.push(newFrame);
     }
@@ -144,13 +253,13 @@ ObRTPSink::ObRTPSink(std::shared_ptr<const StreamProfile> streamProfile, UsageEn
 
 ObRTPSink::~ObRTPSink() noexcept {
     envir() << "ObRTPSink destructor! streamId = " << streamId_ << "\n";
-    frameCallback_ = nullptr;
     destroy_       = true;
     frameAvailableCv_.notify_all();
-    delete[] streamId_;
     if(outputFrameThread_.joinable()) {
         outputFrameThread_.join();
     }
+    frameCallback_ = nullptr;
+    delete[] streamId_;
 }
 
 void ObRTPSink::afterGettingFrame(void *clientData, unsigned frameSize, unsigned numTruncatedBytes, struct timeval presentationTime,
@@ -160,9 +269,19 @@ void ObRTPSink::afterGettingFrame(void *clientData, unsigned frameSize, unsigned
 }
 
 void ObRTPSink::afterGettingFrame(unsigned frameSize, unsigned numTruncatedBytes, struct timeval presentationTime, unsigned /*duration in microseconds*/) {
-    utils::unusedVar(numTruncatedBytes);
-
     do {
+        if(rtpReceiveBufferConfig_.mode == RTPReceiveMode::ProfileDropOldest && numTruncatedBytes != 0) {
+            truncatedFrames_.fetch_add(1, std::memory_order_relaxed);
+            truncatedBytes_.fetch_add(numTruncatedBytes, std::memory_order_relaxed);
+            if(rtpReceiveBufferConfig_.waitForKeyFrameAfterDrop && isCompressedVideo()) {
+                awaitingKeyFrame_.store(true, std::memory_order_relaxed);
+            }
+            break;
+        }
+        utils::unusedVar(numTruncatedBytes);
+        if(rtpReceiveBufferConfig_.mode == RTPReceiveMode::ProfileDropOldest && frameSize == 0) {
+            break;
+        }
         if(strcmp(subsession_.codecName(), "H264") == 0) {
             auto recv = currentBuffer_->getRecvdDataBuffer();
             if((recv[0] & 0x1f) == H264_NAL_SPS || (recv[0] & 0x1f) == H264_NAL_PPS) {  // SPS(7) or PPS(8)
@@ -181,10 +300,22 @@ void ObRTPSink::afterGettingFrame(unsigned frameSize, unsigned numTruncatedBytes
         currentBuffer_->setSequenceNumber(frameCount_);
         auto tsp = subsession_.getNormalPlayTime(presentationTime);
         currentBuffer_->setTimestamp(static_cast<uint64_t>(tsp));
+        currentBuffer_->setKeyFrame(isKeyFrame(*currentBuffer_));
+
+        if(rtpReceiveBufferConfig_.mode == RTPReceiveMode::ProfileDropOldest && awaitingKeyFrame_.load(std::memory_order_relaxed)) {
+            if(!currentBuffer_->isKeyFrame()) {
+                droppedAwaitingKeyFrames_.fetch_add(1, std::memory_order_relaxed);
+                break;
+            }
+            awaitingKeyFrame_.store(false, std::memory_order_relaxed);
+        }
+        currentBuffer_->setEnqueueSteadyTimeUs(utils::getSteadyTimeUs());
 
         {
             std::unique_lock<std::mutex> lk(outputRTPBufferQueueMutex_);
             outputRTPBufferQueue_.push(currentBuffer_);
+            receivedFrames_.fetch_add(1, std::memory_order_relaxed);
+            updateMaximum(outputQueuePeak_, static_cast<uint64_t>(outputRTPBufferQueue_.size()));
             currentBuffer_.reset();
         }
         frameAvailableCv_.notify_all();
@@ -214,7 +345,23 @@ Boolean ObRTPSink::continuePlaying() {
         if(!outputRTPBufferQueue_.empty()) {
             currentBuffer_ = outputRTPBufferQueue_.front();
             outputRTPBufferQueue_.pop();
-            LOG_WARN("Drop output-frame to receive new frame due to reclaimed-frame queue is empty: devTsp={}", currentBuffer_->getTimestamp());
+            if(rtpReceiveBufferConfig_.mode == RTPReceiveMode::ProfileDropOldest) {
+                droppedPoolExhaustionFrames_.fetch_add(1, std::memory_order_relaxed);
+                if(rtpReceiveBufferConfig_.waitForKeyFrameAfterDrop && isCompressedVideo()) {
+                    awaitingKeyFrame_.store(true, std::memory_order_relaxed);
+                }
+            }
+            if(rtpReceiveBufferConfig_.mode == RTPReceiveMode::Legacy) {
+                ++legacyPoolExhaustionDropsSinceLastLog_;
+                const auto now = std::chrono::steady_clock::now();
+                if(lastLegacyPoolExhaustionLogTime_ == std::chrono::steady_clock::time_point{}
+                   || now - lastLegacyPoolExhaustionLogTime_ >= std::chrono::seconds(5)) {
+                    LOG_WARN("RTSP receive buffer exhausted; droppedOldestFrames={} in the last reporting interval: stream={}",
+                             legacyPoolExhaustionDropsSinceLastLog_, streamId_ ? streamId_ : "");
+                    legacyPoolExhaustionDropsSinceLastLog_ = 0;
+                    lastLegacyPoolExhaustionLogTime_        = now;
+                }
+            }
         }
     }
 
@@ -224,17 +371,77 @@ Boolean ObRTPSink::continuePlaying() {
     return true;
 }
 
+bool ObRTPSink::isCompressedVideo() const {
+    return std::strcmp(subsession_.codecName(), "H264") == 0 || std::strcmp(subsession_.codecName(), "H265") == 0;
+}
+
+bool ObRTPSink::isKeyFrame(const ObRTPBuffer &buffer) const {
+    if(!isCompressedVideo() || buffer.getRecvdDataSize() == 0) {
+        return false;
+    }
+    const auto *data = buffer.getRecvdDataBuffer();
+    if(std::strcmp(subsession_.codecName(), "H264") == 0) {
+        return (data[0] & 0x1f) == 5;
+    }
+    const uint8_t nalType = static_cast<uint8_t>((data[0] >> 1) & 0x3f);
+    return nalType >= 16 && nalType <= 23;
+}
+
 void ObRTPSink::outputFrameFunc() {
+    auto lastStatsLog = std::chrono::steady_clock::now();
     while(!destroy_) {
         std::shared_ptr<ObRTPBuffer> output;
+        std::vector<std::shared_ptr<ObRTPBuffer>> discarded;
         {
             std::unique_lock<std::mutex> lk(outputRTPBufferQueueMutex_);
             frameAvailableCv_.wait(lk, [&]() { return !outputRTPBufferQueue_.empty() || destroy_; });
             if(destroy_) {
                 break;
             }
-            output = outputRTPBufferQueue_.front();
-            outputRTPBufferQueue_.pop();
+
+            if(rtpReceiveBufferConfig_.mode == RTPReceiveMode::ProfileDropOldest) {
+                const uint64_t nowUs = utils::getSteadyTimeUs();
+                const uint64_t maxDelayUs = static_cast<uint64_t>(rtpReceiveBufferConfig_.maxReadyQueueDelayMs) * 1000ULL;
+                while(outputRTPBufferQueue_.size() > 1 && maxDelayUs != 0
+                      && nowUs > outputRTPBufferQueue_.front()->getEnqueueSteadyTimeUs()
+                      && nowUs - outputRTPBufferQueue_.front()->getEnqueueSteadyTimeUs() > maxDelayUs) {
+                    discarded.emplace_back(outputRTPBufferQueue_.front());
+                    outputRTPBufferQueue_.pop();
+                    droppedBacklogFrames_.fetch_add(1, std::memory_order_relaxed);
+                    if(rtpReceiveBufferConfig_.waitForKeyFrameAfterDrop && isCompressedVideo()) {
+                        awaitingKeyFrame_.store(true, std::memory_order_relaxed);
+                    }
+                }
+                while(!outputRTPBufferQueue_.empty() && awaitingKeyFrame_.load(std::memory_order_relaxed)
+                      && !outputRTPBufferQueue_.front()->isKeyFrame()) {
+                    discarded.emplace_back(outputRTPBufferQueue_.front());
+                    outputRTPBufferQueue_.pop();
+                    droppedAwaitingKeyFrames_.fetch_add(1, std::memory_order_relaxed);
+                }
+                if(!outputRTPBufferQueue_.empty() && awaitingKeyFrame_.load(std::memory_order_relaxed)
+                   && outputRTPBufferQueue_.front()->isKeyFrame()) {
+                    awaitingKeyFrame_.store(false, std::memory_order_relaxed);
+                }
+            }
+
+            if(!outputRTPBufferQueue_.empty()) {
+                output = outputRTPBufferQueue_.front();
+                outputRTPBufferQueue_.pop();
+                const auto enqueuedUs = output->getEnqueueSteadyTimeUs();
+                if(enqueuedUs != 0) {
+                    const auto nowUs = utils::getSteadyTimeUs();
+                    if(nowUs >= enqueuedUs) {
+                        updateMaximum(maxQueueDelayUs_, nowUs - enqueuedUs);
+                    }
+                }
+            }
+        }
+
+        if(!discarded.empty()) {
+            std::unique_lock<std::mutex> lk(reclaimedRTPBufferMutex_);
+            for(auto &buffer: discarded) {
+                reclaimedRTPBufferQueue_.push(buffer);
+            }
         }
 
         if(!output) {
@@ -301,12 +508,25 @@ void ObRTPSink::outputFrameFunc() {
                 }
 
                 frameCallback_(frame);
+                deliveredFrames_.fetch_add(1, std::memory_order_relaxed);
             });
         } while(0);
 
         {
             std::unique_lock<std::mutex> lk(reclaimedRTPBufferMutex_);
             reclaimedRTPBufferQueue_.push(output);
+        }
+
+        if(rtpReceiveBufferConfig_.mode == RTPReceiveMode::ProfileDropOldest
+           && std::chrono::steady_clock::now() - lastStatsLog >= std::chrono::seconds(5)) {
+            LOG_INFO("RTSP buffer stats: stream={}, received={}, delivered={}, droppedPool={}, droppedBacklog={}, droppedAwaitKey={}, "
+                     "truncatedFrames={}, truncatedBytes={}, queuePeak={}, maxQueueDelayUs={}",
+                     streamId_ ? streamId_ : "", receivedFrames_.load(std::memory_order_relaxed), deliveredFrames_.load(std::memory_order_relaxed),
+                     droppedPoolExhaustionFrames_.load(std::memory_order_relaxed), droppedBacklogFrames_.load(std::memory_order_relaxed),
+                     droppedAwaitingKeyFrames_.load(std::memory_order_relaxed), truncatedFrames_.load(std::memory_order_relaxed),
+                     truncatedBytes_.load(std::memory_order_relaxed), outputQueuePeak_.load(std::memory_order_relaxed),
+                     maxQueueDelayUs_.load(std::memory_order_relaxed));
+            lastStatsLog = std::chrono::steady_clock::now();
         }
     }
 }

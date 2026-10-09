@@ -135,12 +135,16 @@ std::vector<std::shared_ptr<IDeviceEnumInfo>> G2DeviceInfo::pickNetDevices(const
     while(iter != groups.end()) {
         if(iter->size() >= 1) {
             auto portInfo = std::dynamic_pointer_cast<const NetSourcePortInfo>(iter->front());
-            iter->emplace_back(std::make_shared<RTSPStreamPortInfo>(*portInfo, static_cast<uint16_t>(8888), portInfo->port, OB_STREAM_COLOR));
-            iter->emplace_back(std::make_shared<RTSPStreamPortInfo>(*portInfo, static_cast<uint16_t>(8554), portInfo->port, OB_STREAM_DEPTH));
-            iter->emplace_back(std::make_shared<RTSPStreamPortInfo>(*portInfo, static_cast<uint16_t>(8555), portInfo->port, OB_STREAM_IR_LEFT));
-            iter->emplace_back(std::make_shared<RTSPStreamPortInfo>(*portInfo, static_cast<uint16_t>(8556), portInfo->port, OB_STREAM_IR_RIGHT));
+            RTPReceiveBufferConfig rtpConfig;
+            if(isDeviceInContainer(G435LeDevPids, portInfo->vid, portInfo->pid)) {
+                rtpConfig.mode = RTPReceiveMode::Legacy;
+            }
+            iter->emplace_back(std::make_shared<RTSPStreamPortInfo>(*portInfo, static_cast<uint16_t>(8888), portInfo->port, OB_STREAM_COLOR, rtpConfig));
+            iter->emplace_back(std::make_shared<RTSPStreamPortInfo>(*portInfo, static_cast<uint16_t>(8554), portInfo->port, OB_STREAM_DEPTH, rtpConfig));
+            iter->emplace_back(std::make_shared<RTSPStreamPortInfo>(*portInfo, static_cast<uint16_t>(8555), portInfo->port, OB_STREAM_IR_LEFT, rtpConfig));
+            iter->emplace_back(std::make_shared<RTSPStreamPortInfo>(*portInfo, static_cast<uint16_t>(8556), portInfo->port, OB_STREAM_IR_RIGHT, rtpConfig));
             iter->emplace_back(std::make_shared<NetDataStreamPortInfo>(*portInfo, static_cast<uint16_t>(8900), portInfo->port));
-            iter->emplace_back(std::make_shared<RTSPStreamPortInfo>(*portInfo, static_cast<uint16_t>(8557), portInfo->port, OB_STREAM_CONFIDENCE));
+            iter->emplace_back(std::make_shared<RTSPStreamPortInfo>(*portInfo, static_cast<uint16_t>(8557), portInfo->port, OB_STREAM_CONFIDENCE, rtpConfig));
 
             auto deviceEnumInfo = std::make_shared<G2DeviceInfo>(*iter);
             gemini2DeviceInfos.push_back(deviceEnumInfo);

@@ -114,9 +114,11 @@ std::vector<std::shared_ptr<IDeviceEnumInfo>> FemtoMegaDeviceInfo::pickNetDevice
         if(iter->size() >= 1) {
 
             auto portInfo = std::dynamic_pointer_cast<const NetSourcePortInfo>(iter->front());
-            iter->emplace_back(std::make_shared<RTSPStreamPortInfo>(*portInfo, static_cast<uint16_t>(8888), portInfo->port, OB_STREAM_COLOR));
-            iter->emplace_back(std::make_shared<RTSPStreamPortInfo>(*portInfo, static_cast<uint16_t>(8554), portInfo->port, OB_STREAM_DEPTH));
-            iter->emplace_back(std::make_shared<RTSPStreamPortInfo>(*portInfo, static_cast<uint16_t>(8554), portInfo->port, OB_STREAM_IR));
+            RTPReceiveBufferConfig legacyRtpConfig;
+            legacyRtpConfig.mode = RTPReceiveMode::Legacy;
+            iter->emplace_back(std::make_shared<RTSPStreamPortInfo>(*portInfo, static_cast<uint16_t>(8888), portInfo->port, OB_STREAM_COLOR, legacyRtpConfig));
+            iter->emplace_back(std::make_shared<RTSPStreamPortInfo>(*portInfo, static_cast<uint16_t>(8554), portInfo->port, OB_STREAM_DEPTH, legacyRtpConfig));
+            iter->emplace_back(std::make_shared<RTSPStreamPortInfo>(*portInfo, static_cast<uint16_t>(8554), portInfo->port, OB_STREAM_IR, legacyRtpConfig));
             iter->emplace_back(std::make_shared<NetDataStreamPortInfo>(*portInfo, static_cast<uint16_t>(8900), portInfo->port));  // imu data stream
 
             auto deviceEnumInfo = std::make_shared<FemtoMegaDeviceInfo>(*iter);

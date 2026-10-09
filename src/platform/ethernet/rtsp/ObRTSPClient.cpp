@@ -29,13 +29,16 @@ UsageEnvironment &operator<<(UsageEnvironment &env, const MediaSubsession &subse
 }
 
 ObRTSPClient *ObRTSPClient::createNew(std::shared_ptr<const StreamProfile> profile, UsageEnvironment &env, char const *rtspURL, MutableFrameCallback callback,
-                                      int verbosityLevel, portNumBits tunnelOverHTTPPortNum, int socketNumToServer) {
-    return new ObRTSPClient(profile, env, rtspURL, callback, verbosityLevel, tunnelOverHTTPPortNum, socketNumToServer);
+                                      const RTPReceiveBufferConfig &rtpReceiveBufferConfig, int verbosityLevel,
+                                      portNumBits tunnelOverHTTPPortNum, int socketNumToServer) {
+    return new ObRTSPClient(profile, env, rtspURL, callback, rtpReceiveBufferConfig, verbosityLevel, tunnelOverHTTPPortNum, socketNumToServer);
 }
 
 ObRTSPClient::ObRTSPClient(std::shared_ptr<const StreamProfile> profile, UsageEnvironment &env, char const *rtspURL, MutableFrameCallback callback,
-                           int verbosityLevel, portNumBits tunnelOverHTTPPortNum, int socketNumToServer)
-    : RTSPClient(env, rtspURL, verbosityLevel, "Open-Orbbec-SDK", tunnelOverHTTPPortNum, socketNumToServer), profile_(profile), frameCallback_(callback) {
+                           const RTPReceiveBufferConfig &rtpReceiveBufferConfig, int verbosityLevel, portNumBits tunnelOverHTTPPortNum,
+                           int socketNumToServer)
+    : RTSPClient(env, rtspURL, verbosityLevel, "Open-Orbbec-SDK", tunnelOverHTTPPortNum, socketNumToServer), profile_(profile), frameCallback_(callback),
+      rtpReceiveBufferConfig_(rtpReceiveBufferConfig) {
     envir() << "ObRTSPClient created! rtspURL = " << url();
 }
 
@@ -196,7 +199,8 @@ void ObRTSPClient::cmdResponseHandlerSETUP(RTSPClient *rtspClient, int resultCod
             // Having successfully setup the curSubsession, create a data sink for it.
             // (This will prepare the data sink to receive data; the actual flow of data from the client won't start happening until later,
             // after we've sent a RTSP "PLAY" command.)
-            subsession->sink = ObRTPSink::createNew(obRtspClient->profile_, env, *subsession, frameCallback, rtspClient->url());
+            subsession->sink = ObRTPSink::createNew(obRtspClient->profile_, env, *subsession, frameCallback, rtspClient->url(),
+                                                     obRtspClient->rtpReceiveBufferConfig_);
             if(subsession->sink == NULL) {
                 obRtspClient->commandState_ = CMD_RESP_WITH_ERROR;
                 obRtspClient->errorMsg_     = utils::string::to_string()
