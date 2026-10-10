@@ -2404,6 +2404,21 @@ typedef enum {
 
 #define OB_BLUETOOTH_PAIRED_DEVICE_MAX_COUNT 8U
 #define OB_BLUETOOTH_DEVICE_NAME_MAX_SIZE    32U
+#define OB_WIFI_NAME_MAX_SIZE                 64U
+#define OB_WIFI_PASSWORD_MAX_SIZE             64U
+
+/**
+ * @brief Wi-Fi configuration for Ego-series devices.
+ *
+ * Both fields are fixed-size, null-terminated UTF-8/ASCII buffers. Initialize
+ * this structure to zero before setting either field so that unused bytes are
+ * transmitted as zero padding.
+ */
+typedef struct {
+    char wifi[OB_WIFI_NAME_MAX_SIZE];
+    char password[OB_WIFI_PASSWORD_MAX_SIZE];
+} OBWifiConfig,
+    ob_wifi_config;
 
 /**
  * @brief Bluetooth pairing state.

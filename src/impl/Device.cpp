@@ -44,6 +44,7 @@ namespace {
 
 static_assert(sizeof(ob_fw_recording_mcap_topic) == 130, "MCAP topic protocol item must occupy 130 bytes");
 static_assert(sizeof(ob_fw_recording_mcap_topic) % 2 == 0, "MCAP topic protocol item must have an even byte length");
+static_assert(sizeof(ob_wifi_config) == 128, "Wi-Fi configuration protocol payload must occupy 128 bytes");
 
 constexpr size_t kDeviceUserNameBufferSize = 32;
 constexpr size_t kDeviceModelTypeBufferSize = 32;
@@ -947,6 +948,24 @@ void ob_device_clear_wifi_config(ob_device *device, ob_error **error) BEGIN_API_
     propertyServer->setPropertyValueT<int32_t>(OB_PROP_CLEAR_WIFI_CONFIG_INT, kClearWifiConfigValue, libobsensor::PROP_ACCESS_USER);
 }
 HANDLE_EXCEPTIONS_NO_RETURN(device)
+
+void ob_device_set_wifi_config(ob_device *device, const ob_wifi_config *config, ob_error **error) BEGIN_API_CALL {
+    VALIDATE_NOT_NULL(device);
+    VALIDATE_NOT_NULL(config);
+
+    auto propertyServer = device->device->getPropertyServer();
+    propertyServer->setStructureDataT<ob_wifi_config>(OB_STRUCT_WIFI_CONFIG, *config, libobsensor::PROP_ACCESS_USER);
+}
+HANDLE_EXCEPTIONS_NO_RETURN(device, config)
+
+void ob_device_get_wifi_config(ob_device *device, ob_wifi_config *config, ob_error **error) BEGIN_API_CALL {
+    VALIDATE_NOT_NULL(device);
+    VALIDATE_NOT_NULL(config);
+
+    auto propertyServer = device->device->getPropertyServer();
+    *config             = propertyServer->getStructureDataT<ob_wifi_config>(OB_STRUCT_WIFI_CONFIG, libobsensor::PROP_ACCESS_USER);
+}
+HANDLE_EXCEPTIONS_NO_RETURN(device, config)
 
 void ob_device_get_raw_data(ob_device *device, ob_property_id property_id, ob_get_data_callback cb, void *user_data, ob_error **error) BEGIN_API_CALL {
     VALIDATE_NOT_NULL(device);

@@ -1089,6 +1089,15 @@ typedef enum {
     OB_STRUCT_FW_RECORDING_FILE_NAME = 1122,
 
     /**
+     * @brief Wi-Fi name and password for Ego-series devices.
+     *
+     * Payload is an @ref ob_wifi_config structure.
+     *
+     * @attention Read and write.
+     */
+    OB_STRUCT_WIFI_CONFIG = 1124,
+
+    /**
      * @brief Device model type for EgoPro and EgoProNet devices.
      *
      * Payload is a null-terminated 32-byte character buffer.

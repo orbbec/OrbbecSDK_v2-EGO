@@ -83,6 +83,24 @@ OB_EXPORT void ob_device_clear_bluetooth_pairing(ob_device *device, ob_error **e
 OB_EXPORT void ob_device_clear_wifi_config(ob_device *device, ob_error **error);
 
 /**
+ * @brief Set the Wi-Fi name and password on an Ego-series device.
+ *
+ * @param[in] device The device object.
+ * @param[in] config Fixed-size Wi-Fi configuration to write.
+ * @param[out] error Pointer to an error object that will be set if an error occurs.
+ */
+OB_EXPORT void ob_device_set_wifi_config(ob_device *device, const ob_wifi_config *config, ob_error **error);
+
+/**
+ * @brief Get the Wi-Fi name and password from an Ego-series device.
+ *
+ * @param[in] device The device object.
+ * @param[out] config Fixed-size Wi-Fi configuration read from the device.
+ * @param[out] error Pointer to an error object that will be set if an error occurs.
+ */
+OB_EXPORT void ob_device_get_wifi_config(ob_device *device, ob_wifi_config *config, ob_error **error);
+
+/**
  * @brief Start exporting firmware log files.
  *
  * @param[in] device The device object.

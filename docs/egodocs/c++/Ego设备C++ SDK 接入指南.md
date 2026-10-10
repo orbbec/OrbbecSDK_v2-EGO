@@ -847,6 +847,7 @@ auto device = ob::DataAcquisitionDevice::fromDevice(pipe.getDevice());
 | `std::shared_ptr<ob::DataAcquisitionDevice> ob::DataAcquisitionDevice::fromDevice(std::shared_ptr<Device> device)` | 从基础设备包装为 Ego 扩展设备 |
 | `void setDeviceUserName(const std::string &name) const` / `std::string getDeviceUserName() const` | 设置/读取持久化设备名 |
 | `OBEgoPairingInfo getEgoPairingInfo() const` / `void clearEgoPairing() const` | 配对信息读取与清空 |
+| `OBWifiConfig getWifiConfig() const` / `void setWifiConfig(const OBWifiConfig &config) const` | 读取/写入设备保存的 Wi-Fi 名称和密码 |
 
 <a id="ch16"></a>
 
@@ -1055,7 +1056,7 @@ catch(const ob::Error &error) {
 
 ## 19. 蓝牙配对与 Wi-Fi 配网信息管理
 
-以下接口用于读取设备保存的蓝牙配对记录，以及清除蓝牙配对或已保存的 Wi-Fi 配网信息。它们都通过 `DataAcquisitionDevice` 调用；设备或固件不支持时会抛出 `ob::Error`。清除操作会改变设备中保存的配置，建议仅在用户明确确认后执行。
+以下接口用于读取设备保存的蓝牙配对记录、读取或写入 Wi-Fi 配网信息，以及清除蓝牙配对或已保存的 Wi-Fi 配网信息。它们都通过 `DataAcquisitionDevice` 调用；设备或固件不支持时会抛出 `ob::Error`。写入和清除操作会改变设备中保存的配置，建议仅在用户明确确认后执行。
 
 ```cpp
 auto egoDev = ob::DataAcquisitionDevice::fromDevice(rawDevice);
@@ -1066,6 +1067,9 @@ if(pairing.paired_device_count > 0) {
     std::string name(reinterpret_cast<const char *>(mainDevice.device_name), mainDevice.name_length);
     // pairing.pairing_state / pairing.pairing_time_s / name
 }
+
+const auto wifiConfig = egoDev->getWifiConfig();
+// wifiConfig.wifi / wifiConfig.password 为固定长度、以 '\0' 结尾的 UTF-8 字符串。
 
 // 以下操作会清除设备中保存的信息，应仅在用户确认后调用。
 egoDev->clearBluetoothPairing();
@@ -1102,7 +1106,40 @@ catch(const ob::Error &error) {
 
 注意：每个 `device_name` 都不是以 `\0` 结尾的字符串，必须严格用对应的 `name_length` 构造 `std::string`；不能直接把 `device_name` 当作 C 字符串输出。
 
-### 19.2 清除蓝牙配对或 Wi-Fi 配网：`clearBluetoothPairing` / `clearWifiConfig`
+### 19.2 读取和写入 Wi-Fi 配网信息：`getWifiConfig` / `setWifiConfig`
+
+`getWifiConfig()` 返回 `OBWifiConfig`，`setWifiConfig()` 写入同一结构体。该结构体包含两个固定长度的字符数组：
+
+| 字段 | 容量 | 说明 |
+|------|------|------|
+| `wifi` | `OB_WIFI_NAME_MAX_SIZE`（64 字节） | Wi-Fi 名称（SSID） |
+| `password` | `OB_WIFI_PASSWORD_MAX_SIZE`（64 字节） | Wi-Fi 密码 |
+
+两个字段均使用 UTF-8/ASCII 编码，并应以 `\0` 结束。写入前必须将结构体零初始化；每个字段最多写入 63 个字节，预留一个字节给结尾的 `\0`。请在写入前按业务需要确认设备支持 `OB_STRUCT_WIFI_CONFIG` 的读、写权限。
+
+```cpp
+#include <cstdio>
+
+OBWifiConfig config{};  // 其余字节以 0 填充。
+std::snprintf(config.wifi, sizeof(config.wifi), "%s", "Office-WiFi");
+std::snprintf(config.password, sizeof(config.password), "%s", "example-password");
+
+try {
+    egoDev->setWifiConfig(config);
+
+    const auto readBack = egoDev->getWifiConfig();
+    std::cout << "Wi-Fi: " << readBack.wifi << std::endl;
+    // 生产环境不应记录或显示密码；这里仅用于调试验证。
+    std::cout << "Password: " << readBack.password << std::endl;
+}
+catch(const ob::Error &error) {
+    // 当前设备或固件不支持 Wi-Fi 配网信息读写，或通信失败。
+}
+```
+
+> 可参考 `examples/6.ego/ego_wifi_config.cpp`：该示例支持 USB 或网络设备，提供读、写和读回校验流程。
+
+### 19.3 清除蓝牙配对或 Wi-Fi 配网：`clearBluetoothPairing` / `clearWifiConfig`
 
 这两个接口没有返回值；调用成功仅表示清除命令已被设备接受。若要在界面中反馈结果，建议捕获异常，并在 `clearBluetoothPairing()` 后重新调用 `getBluetoothPairingInfo()` 刷新配对状态。
 
@@ -1123,7 +1160,9 @@ catch(const ob::Error &error) {
 |-----|------|
 | `OBBluetoothPairingInfo getBluetoothPairingInfo() const` | 获取 SDK 解析后的蓝牙配对信息；通过 `pairing_state`、`paired_device_count`、`pairing_time_s` 与 `paired_devices` 读取结果 |
 | `void clearBluetoothPairing() const` | 清除设备保存的全部蓝牙配对记录 |
-| `void clearWifiConfig() const` | 清除 Ego 或 Wrist 设备保存的 Wi-Fi 配网信息 |
+| `OBWifiConfig getWifiConfig() const` | 获取设备保存的 Wi-Fi 名称和密码 |
+| `void setWifiConfig(const OBWifiConfig &config) const` | 写入设备保存的 Wi-Fi 名称和密码 |
+| `void clearWifiConfig() const` | 清除设备保存的 Wi-Fi 配网信息 |
 
 ---
 

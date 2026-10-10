@@ -357,6 +357,26 @@ public:
     }
 
     /**
+     * @brief Set the Wi-Fi name and password on this Ego-series device.
+     */
+    void setWifiConfig(const OBWifiConfig &config) const {
+        ob_error *error = nullptr;
+        ob_device_set_wifi_config(impl_, &config, &error);
+        Error::handle(&error);
+    }
+
+    /**
+     * @brief Get the Wi-Fi name and password from this Ego-series device.
+     */
+    OBWifiConfig getWifiConfig() const {
+        OBWifiConfig config{};
+        ob_error    *error = nullptr;
+        ob_device_get_wifi_config(impl_, &config, &error);
+        Error::handle(&error);
+        return config;
+    }
+
+    /**
      * @brief Start exporting firmware log files.
      *
      * @param[in] callback Callback to receive each log file packet.

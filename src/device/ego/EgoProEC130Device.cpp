@@ -564,6 +564,7 @@ void EgoProEC130Device::initProperties() {
         propertyServer->registerProperty(OB_STRUCT_FW_RECORDING_DIRECTORY, "rw", "rw", recordingDirectoryAccessor);
         propertyServer->registerProperty(OB_STRUCT_DEVICE_USER_NAME, "rw", "rw", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_STRUCT_BLUETOOTH_PAIRING_INFO, "r", "r", vendorPropertyAccessor);
+        propertyServer->registerProperty(OB_STRUCT_WIFI_CONFIG, "rw", "rw", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_PROP_BLUETOOTH_CLEAR_PAIRING_INT, "w", "w", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_PROP_CLEAR_WIFI_CONFIG_INT, "w", "w", vendorPropertyAccessor);
         auto customMetadataManager = std::make_shared<CustomMetadataManager>(this, vendorPropertyAccessor);
