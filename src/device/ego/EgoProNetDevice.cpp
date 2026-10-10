@@ -29,6 +29,7 @@
 #include "component/fwrecord/RecordingSessionResultManager.hpp"
 #include "component/custommetadata/CustomMetadataManager.hpp"
 #include "component/timezone/HostTimeInfoManager.hpp"
+#include "component/httpfileservice/HttpFileServiceManager.hpp"
 #include "common/DeviceSeriesInfo.hpp"
 
 #include "FilterFactory.hpp"
@@ -96,6 +97,24 @@ void EgoProNetDevice::init() {
         auto deviceClockSynchronizer = std::make_shared<DeviceClockSynchronizer>(this, deviceTimeFreq_, deviceTimeFreq_);
         registerComponent(OB_DEV_COMPONENT_DEVICE_CLOCK_SYNCHRONIZER, deviceClockSynchronizer);
         registerComponent(OB_DEV_COMPONENT_FW_RECORD_PROFILE_MANAGER, [this]() { return std::make_shared<FwRecordProfileManager>(this); });
+
+        // // SD-card HTTP file service (port 8080) — requires firmware >= 1.0.9
+        // if(getFirmwareVersionInt() >= 10108) {
+            auto netPortInfo = std::dynamic_pointer_cast<const NetSourcePortInfo>(enumInfo_->getSourcePortInfoList().front());
+            if(netPortInfo) {
+                const auto deviceIp = netPortInfo->address;
+                registerComponent(OB_DEV_COMPONENT_HTTP_FILE_SERVICE_MANAGER, [this, deviceIp]() {
+                    return std::make_shared<HttpFileServiceManager>(this, deviceIp);
+                });
+            }
+            else {
+                LOG_WARN("EGONetDevice: HTTP file service unavailable — network port info is missing");
+            }
+        // }
+        // else {
+        //     LOG_DEBUG("EGONetDevice: HTTP file service not supported by this firmware (requires >= 1.0.9, got {})",
+        //               deviceInfo_->fwVersion_);
+        // }
     }
 
     // firmware updater

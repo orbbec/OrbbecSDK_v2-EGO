@@ -16,6 +16,7 @@
 #include "sensor/imu/MagEncoderStreamer.hpp"
 #include "sensor/imu/MagEncoderSensor.hpp"
 #include "sensor/audio/AudioSensor.hpp"
+#include "audio/IAudioChannelCountConfigurable.hpp"
 #include "hid/SharedDataStreamPort.hpp"
 #include "hid/DirectionKeyService.hpp"
 #include "hid/EgoStateService.hpp"
@@ -378,6 +379,10 @@ void UMIFingerDevice::initSensorList() {
             OB_DEV_COMPONENT_AUDIO_SENSOR,
             [this, audioPortInfo]() {
                 auto port   = getSourcePort(audioPortInfo);
+                auto configurablePort = std::dynamic_pointer_cast<IAudioChannelCountConfigurable>(port);
+                if(configurablePort) {
+                    configurablePort->setAudioChannelCount(2);
+                }
                 auto sensor = std::make_shared<AudioSensor>(this, port);
 
                 // USB audio timestamps are host wall-clock (UAC has no device clock); no device-time calculator.

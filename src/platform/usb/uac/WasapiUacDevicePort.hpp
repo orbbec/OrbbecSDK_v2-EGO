@@ -7,6 +7,7 @@
 #include "AudioTimestampFitter.hpp"
 #include "ISourcePort.hpp"
 #include "stream/StreamProfile.hpp"
+#include "audio/IAudioChannelCountConfigurable.hpp"
 
 #include <atomic>
 #include <condition_variable>
@@ -23,7 +24,7 @@ namespace libobsensor {
 // WASAPI-based USB Audio Class capture port for Windows. The system usbaudio.sys driver already exposes
 // the UAC microphone as a standard capture endpoint, so libusb is not used here. The endpoint is paired
 // to the EGO device by matching the USB VID/PID carried in PKEY_Device_InstanceId.
-class WasapiUacDevicePort : public IVideoStreamPort {
+class WasapiUacDevicePort : public IVideoStreamPort, public IAudioChannelCountConfigurable {
 public:
     explicit WasapiUacDevicePort(std::shared_ptr<const USBSourcePortInfo> portInfo);
     ~WasapiUacDevicePort() noexcept override;
@@ -32,6 +33,7 @@ public:
     void              startStream(std::shared_ptr<const StreamProfile> profile, MutableFrameCallback callback) override;
     void              stopStream(std::shared_ptr<const StreamProfile> profile) override;
     void              stopAllStream() override;
+    void              setAudioChannelCount(uint32_t channelCount) override;
 
     std::shared_ptr<const SourcePortInfo> getSourcePortInfo() const override;
 
@@ -47,10 +49,10 @@ private:
 private:
     std::shared_ptr<const USBSourcePortInfo> portInfo_;
 
-    // Output format. The channel count is read from the bound WASAPI capture endpoint;
-    // sample rate and bit depth remain the SDK's fixed output format.
+    // Output format. Device classes set the channel count; sample rate and bit depth
+    // remain the SDK's fixed output format.
     uint32_t sampleRate_    = 48000;
-    uint32_t channelCount_  = 1;
+    uint32_t channelCount_  = 2;
     uint32_t bitsPerSample_ = 16;
 
     std::shared_ptr<const AudioStreamProfile> activatedProfile_;

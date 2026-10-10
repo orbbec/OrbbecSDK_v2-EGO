@@ -132,32 +132,6 @@ WasapiUacDevicePort::WasapiUacDevicePort(std::shared_ptr<const USBSourcePortInfo
     if(!com.usable() || !bindCaptureEndpoint()) {
         THROW_ITEM_NOT_FOUND_EXCEPTION("WASAPI: no matching UAC capture endpoint found for the EGO device");
     }
-    // Read the channel count from the actual WASAPI capture endpoint instead of inferring it from
-    // the product PID. The USB enumeration info only identifies the endpoint; it does not carry
-    // the audio format. Keep the fixed sample rate/16-bit output format below, but use the
-    // endpoint's channel count so EGO product variants do not need hard-coded audio assumptions.
-    IAudioClient *probeAudioClient = nullptr;
-    HRESULT       hr               = mmDevice_->Activate(__uuidof(IAudioClient), CLSCTX_ALL, nullptr, reinterpret_cast<void **>(&probeAudioClient));
-    if(SUCCEEDED(hr) && probeAudioClient) {
-        WAVEFORMATEX *mixFormat = nullptr;
-        hr                       = probeAudioClient->GetMixFormat(&mixFormat);
-        if(SUCCEEDED(hr) && mixFormat && mixFormat->nChannels > 0) {
-            channelCount_ = mixFormat->nChannels;
-        }
-        else {
-            LOG_WARN("WASAPI: failed to read capture endpoint mix format, keep default channel count={}, HRESULT=0x{:08X}", channelCount_,
-                     static_cast<uint32_t>(hr));
-        }
-        if(mixFormat) {
-            CoTaskMemFree(mixFormat);
-        }
-        probeAudioClient->Release();
-    }
-    else {
-        LOG_WARN("WASAPI: failed to activate capture endpoint for format detection, keep default channel count={}, HRESULT=0x{:08X}", channelCount_,
-                 static_cast<uint32_t>(hr));
-    }
-
     // Probe only. Streaming interfaces are acquired and released on the capture thread.
     mmDevice_->Release();
     mmDevice_ = nullptr;
@@ -166,8 +140,19 @@ WasapiUacDevicePort::WasapiUacDevicePort(std::shared_ptr<const USBSourcePortInfo
     // 32-bit float @48 kHz; consuming that as OB_FORMAT_PCM (16-bit) produced noise. We request
     // the target format explicitly at stream start via AUDCLNT_STREAMFLAGS_AUTOCONVERTPCM, so the
     // audio engine resamples/reformats for us. Keep the fixed target rate and bit depth, while
-    // preserving the endpoint's actual channel count.
+    // using the device series' configured channel count above.
     LOG_DEBUG("WasapiUacDevicePort created: sampleRate={}, channels={}, bits={} (forced 16-bit PCM)", sampleRate_, channelCount_, bitsPerSample_);
+}
+
+void WasapiUacDevicePort::setAudioChannelCount(uint32_t channelCount) {
+    if(streaming_) {
+        THROW_WRONG_API_CALL_SEQUENCE_EXCEPTION("WasapiUacDevicePort::setAudioChannelCount() called while streaming");
+    }
+    if(channelCount == 0 || channelCount > 2) {
+        THROW_INVALID_PARAM_EXCEPTION("WASAPI UAC audio channel count must be 1 or 2");
+    }
+    channelCount_ = channelCount;
+    LOG_DEBUG("WASAPI UAC audio channel count configured: {}", channelCount_);
 }
 
 bool WasapiUacDevicePort::bindCaptureEndpoint() {

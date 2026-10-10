@@ -14,6 +14,7 @@
 #include "sensor/imu/AccelSensor.hpp"
 #include "sensor/imu/GyroSensor.hpp"
 #include "sensor/audio/AudioSensor.hpp"
+#include "audio/IAudioChannelCountConfigurable.hpp"
 #include "hid/SharedDataStreamPort.hpp"
 #include "hid/EgoStateService.hpp"
 #include "hid/BatteryInfoService.hpp"
@@ -366,6 +367,10 @@ void EgoProDevice::initSensorList() {
             OB_DEV_COMPONENT_AUDIO_SENSOR,
             [this, audioPortInfo]() {
                 auto port   = getSourcePort(audioPortInfo);
+                auto configurablePort = std::dynamic_pointer_cast<IAudioChannelCountConfigurable>(port);
+                if(configurablePort) {
+                    configurablePort->setAudioChannelCount(2);
+                }
                 auto sensor = std::make_shared<AudioSensor>(this, port);
 
                 // USB audio timestamps are host wall-clock (UAC has no device clock); no device-time calculator.
