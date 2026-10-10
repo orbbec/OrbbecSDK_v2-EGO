@@ -389,6 +389,10 @@ bool ObRTPSink::isKeyFrame(const ObRTPBuffer &buffer) const {
 
 void ObRTPSink::outputFrameFunc() {
     auto lastStatsLog = std::chrono::steady_clock::now();
+    uint64_t lastReportedDroppedPool     = 0;
+    uint64_t lastReportedDroppedBacklog  = 0;
+    uint64_t lastReportedDroppedAwaitKey = 0;
+    uint64_t lastReportedTruncatedFrames = 0;
     while(!destroy_) {
         std::shared_ptr<ObRTPBuffer> output;
         std::vector<std::shared_ptr<ObRTPBuffer>> discarded;
@@ -519,13 +523,23 @@ void ObRTPSink::outputFrameFunc() {
 
         if(rtpReceiveBufferConfig_.mode == RTPReceiveMode::ProfileDropOldest
            && std::chrono::steady_clock::now() - lastStatsLog >= std::chrono::seconds(5)) {
-            LOG_INFO("RTSP buffer stats: stream={}, received={}, delivered={}, droppedPool={}, droppedBacklog={}, droppedAwaitKey={}, "
-                     "truncatedFrames={}, truncatedBytes={}, queuePeak={}, maxQueueDelayUs={}",
-                     streamId_ ? streamId_ : "", receivedFrames_.load(std::memory_order_relaxed), deliveredFrames_.load(std::memory_order_relaxed),
-                     droppedPoolExhaustionFrames_.load(std::memory_order_relaxed), droppedBacklogFrames_.load(std::memory_order_relaxed),
-                     droppedAwaitingKeyFrames_.load(std::memory_order_relaxed), truncatedFrames_.load(std::memory_order_relaxed),
-                     truncatedBytes_.load(std::memory_order_relaxed), outputQueuePeak_.load(std::memory_order_relaxed),
-                     maxQueueDelayUs_.load(std::memory_order_relaxed));
+            const auto droppedPool     = droppedPoolExhaustionFrames_.load(std::memory_order_relaxed);
+            const auto droppedBacklog  = droppedBacklogFrames_.load(std::memory_order_relaxed);
+            const auto droppedAwaitKey = droppedAwaitingKeyFrames_.load(std::memory_order_relaxed);
+            const auto truncatedFrames = truncatedFrames_.load(std::memory_order_relaxed);
+            if(droppedPool != lastReportedDroppedPool || droppedBacklog != lastReportedDroppedBacklog
+               || droppedAwaitKey != lastReportedDroppedAwaitKey || truncatedFrames != lastReportedTruncatedFrames) {
+                LOG_WARN("RTSP buffer stats: stream={}, received={}, delivered={}, droppedPool={}, droppedBacklog={}, droppedAwaitKey={}, "
+                         "truncatedFrames={}, truncatedBytes={}, queuePeak={}, maxQueueDelayUs={}",
+                         streamId_ ? streamId_ : "", receivedFrames_.load(std::memory_order_relaxed), deliveredFrames_.load(std::memory_order_relaxed),
+                         droppedPool, droppedBacklog, droppedAwaitKey, truncatedFrames,
+                         truncatedBytes_.load(std::memory_order_relaxed), outputQueuePeak_.load(std::memory_order_relaxed),
+                         maxQueueDelayUs_.load(std::memory_order_relaxed));
+                lastReportedDroppedPool     = droppedPool;
+                lastReportedDroppedBacklog  = droppedBacklog;
+                lastReportedDroppedAwaitKey = droppedAwaitKey;
+                lastReportedTruncatedFrames = truncatedFrames;
+            }
             lastStatsLog = std::chrono::steady_clock::now();
         }
     }
