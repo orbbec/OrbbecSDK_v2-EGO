@@ -169,6 +169,20 @@ void UMIFingerNetDevice::fetchDeviceInfo() {
     }
     deviceInfo_->fullName_ = deviceInfo_->name_;
 
+    const size_t         deviceUserNameBufferSize = 32;
+    std::vector<uint8_t> userNameData;
+    BEGIN_TRY_EXECUTE({ userNameData = propServer->getStructureData(OB_STRUCT_DEVICE_USER_NAME, PROP_ACCESS_INTERNAL); })
+    CATCH_EXCEPTION_AND_EXECUTE({ userNameData.clear(); })
+
+    if(userNameData.size() == deviceUserNameBufferSize) {
+        const auto terminator = std::find(userNameData.begin(), userNameData.end(), static_cast<uint8_t>(0));
+        if(terminator != userNameData.begin() && terminator != userNameData.end()) {
+            const std::string userName(userNameData.begin(), terminator);
+            deviceInfo_->name_     = userName;
+            deviceInfo_->fullName_ = userName;
+        }
+    }
+
     // mark the device as a multi-sensor device with same clock at default
     extensionInfo_["AllSensorsUsingSameClock"] = "true";
 }
@@ -487,6 +501,7 @@ void UMIFingerNetDevice::initProperties() {
     propertyServer->registerProperty(OB_STRUCT_VERSION, "", "r", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_STRUCT_HOST_TIME_INFO, "", "w", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_STRUCT_DEVICE_SERIAL_NUMBER, "r", "r", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_STRUCT_DEVICE_USER_NAME, "rw", "rw", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_STRUCT_WIFI_CONFIG, "rw", "rw", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_STRUCT_DEVICE_TIME, "rw", "rw", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_STRUCT_GET_TF_CARD_CAPACITY, "r", "r", vendorPropertyAccessor);
