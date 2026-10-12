@@ -5,6 +5,7 @@
 
 #pragma once
 
+#include <cstring>
 #include <limits>
 #include <string>
 #include <vector>
@@ -124,7 +125,7 @@ struct CameraParams {
     CameraParams()
         : camera_id(), camera_name(), image_size(), intrinsics(), distortion(), extrinsics(), vcm_code(0),
           calibration_temperature(std::numeric_limits<double>::quiet_NaN()) {
-        memset(reserved, 0, sizeof(reserved));
+        std::memset(reserved, 0, sizeof(reserved));
     }
 
     std::string  camera_id;       ///< Camera ID (string, e.g. "cam_0")
@@ -168,7 +169,7 @@ struct ValidateResult {
  */
 struct CalibrationData {
     CalibrationData() {
-        memset(reserved, 0, sizeof(reserved));
+        std::memset(reserved, 0, sizeof(reserved));
     }
 
     std::vector<CameraParams>  cameras;  ///< Original resolution camera parameters
@@ -191,7 +192,7 @@ struct CalibrationData {
  */
 struct CameraImuParams {
     CameraImuParams() : timeshift_cam_imu(0.0), gravity() {
-        memset(reserved, 0, sizeof(reserved));
+        std::memset(reserved, 0, sizeof(reserved));
     }
 
     Intrinsics                intrinsics;          ///< cam0 intrinsics

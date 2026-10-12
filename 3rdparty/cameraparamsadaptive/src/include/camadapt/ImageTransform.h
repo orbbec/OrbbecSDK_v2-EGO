@@ -7,6 +7,7 @@
 
 #include "Types.h"
 
+#include <cstring>
 #include <string>
 #include <vector>
 
@@ -223,7 +224,7 @@ struct ImageTransform {
         crop.height = 0;
         scale.x     = 1.0;
         scale.y     = 1.0;
-        memset(reserved, 0, sizeof(reserved));
+        std::memset(reserved, 0, sizeof(reserved));
     }
 
     Rect     crop;             ///< Crop region in original image coordinates
@@ -250,7 +251,7 @@ struct ImageTransform {
  */
 struct CameraMode {
     CameraMode() : lock(true) {
-        memset(reserved, 0, sizeof(reserved));
+        std::memset(reserved, 0, sizeof(reserved));
     }
 
     std::string    name;           ///< Mode name (unique within a camera)
@@ -270,7 +271,7 @@ struct CameraMode {
  */
 struct CameraConfig {
     CameraConfig() : id(), temp_coeff(0.0) {
-        memset(reserved, 0, sizeof(reserved));
+        std::memset(reserved, 0, sizeof(reserved));
     }
 
     // Field order is a wire/ABI contract: new fields are appended immediately before
@@ -297,7 +298,7 @@ struct CameraConfig {
  */
 struct ConvertConfig {
     ConvertConfig() : format_version(), file_type(), fingerprint(), description() {
-        memset(reserved, 0, sizeof(reserved));
+        std::memset(reserved, 0, sizeof(reserved));
     }
 
     // Field order is a wire/ABI contract: fields are only ever APPENDED here, immediately
