@@ -4,7 +4,7 @@
 #include "EgoProEC130Device.hpp"
 #include "EGOProColorDemuxer.hpp"
 #include "EGOProEC130ColorDemuxer.hpp"
-#include "EGOAlgParamManager.hpp"
+#include "DataAcquisitionAlgParamManager.hpp"
 #include "EGOVideoSensor.hpp"
 #include "EGOStreamStrategy.hpp"
 #include "DevicePids.hpp"
@@ -85,7 +85,7 @@ void EgoProEC130Device::init() {
     deviceTimeFreq_ = 1000000;
     frameTimeFreq_  = 1000000;
 
-    // auto algParamManager = std::make_shared<EGOAlgParamManager>(this);
+    // auto algParamManager = std::make_shared<DataAcquisitionAlgParamManager>(this);
     // registerComponent(OB_DEV_COMPONENT_ALG_PARAM_MANAGER, algParamManager);
 
     auto deviceClockSynchronizer = std::make_shared<DeviceClockSynchronizer>(this, deviceTimeFreq_, deviceTimeFreq_);
@@ -206,7 +206,7 @@ void EgoProEC130Device::initSensorStreamProfile(std::shared_ptr<ISensor> sensor)
 
     /*
         if(sensorType == OB_SENSOR_COLOR_LEFT || sensorType == OB_SENSOR_COLOR_RIGHT || sensorType == OB_SENSOR_ACCEL || sensorType == OB_SENSOR_GYRO) {
-            auto algParamManager = getComponentT<EGOAlgParamManager>(OB_DEV_COMPONENT_ALG_PARAM_MANAGER);
+            auto algParamManager = getComponentT<DataAcquisitionAlgParamManager>(OB_DEV_COMPONENT_ALG_PARAM_MANAGER);
             algParamManager->bindStreamProfileParams(profiles);
         }
     */

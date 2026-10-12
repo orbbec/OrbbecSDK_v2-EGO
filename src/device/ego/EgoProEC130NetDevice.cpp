@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 #include "EgoProEC130NetDevice.hpp"
-#include "EGOAlgParamManager.hpp"
+#include "DataAcquisitionAlgParamManager.hpp"
 #include "EGOStreamStrategy.hpp"
 #include "environment/EnvConfig.hpp"
 #include "stream/StreamProfileFactory.hpp"
@@ -90,7 +90,7 @@ void EgoProEC130NetDevice::init() {
         fetchAllVideoStreamProfileList();
 
         deviceTimeFreq_ = 1000000;
-        // auto algParamManager = std::make_shared<EGOAlgParamManager>(this);
+        // auto algParamManager = std::make_shared<DataAcquisitionAlgParamManager>(this);
         // registerComponent(OB_DEV_COMPONENT_ALG_PARAM_MANAGER, algParamManager);
 
         auto deviceClockSynchronizer = std::make_shared<DeviceClockSynchronizer>(this, deviceTimeFreq_, deviceTimeFreq_);
@@ -414,7 +414,7 @@ void EgoProEC130NetDevice::initSensorList() {
         });
 
         registerComponent(OB_DEV_COMPONENT_IMU_STREAMER, [this, imuPortInfo]() {
-            // no correction filter applied: EGOAlgParamManager is disabled, so no intrinsics would be bound
+            // no correction filter applied: DataAcquisitionAlgParamManager is disabled, so no intrinsics would be bound
             auto sharedHidPort  = getComponentT<SharedDataStreamPort>(OB_DEV_COMPONENT_SHARED_HID_STREAM);
             auto dataStreamPort = sharedHidPort->createClientPort();
 
@@ -647,7 +647,7 @@ void EgoProEC130NetDevice::initSensorStreamProfile(std::shared_ptr<ISensor> sens
     auto profiles = sensor->getStreamProfileList();
 
     if(sensorType != OB_SENSOR_AUDIO) {
-        auto algParamManager = getComponentT<EGOAlgParamManager>(OB_DEV_COMPONENT_ALG_PARAM_MANAGER, false);
+        auto algParamManager = getComponentT<DataAcquisitionAlgParamManager>(OB_DEV_COMPONENT_ALG_PARAM_MANAGER, false);
         if(algParamManager) {
             algParamManager->bindStreamProfileParams(profiles);
         }
