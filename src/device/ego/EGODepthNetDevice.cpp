@@ -16,6 +16,7 @@
 #include "sensor/audio/AudioSensor.hpp"
 #include "hid/EgoStateService.hpp"
 #include "hid/BatteryInfoService.hpp"
+#include "hid/DirectionKeyService.hpp"
 #include "hid/SharedDataStreamPort.hpp"
 
 #include "metadata/FrameMetadataParserContainer.hpp"
@@ -332,6 +333,11 @@ void EGODepthNetDevice::initSensorList() {
         registerComponent(OB_DEV_COMPONENT_EGO_STATE_SERVICE, [this]() {
             auto sharedHidPort = getComponentT<SharedDataStreamPort>(OB_DEV_COMPONENT_SHARED_HID_STREAM);
             return std::make_shared<EgoStateService>(this, sharedHidPort->createClientPort());
+        });
+
+        registerComponent(OB_DEV_COMPONENT_DIRECTION_KEY_SERVICE, [this]() {
+            auto sharedHidPort = getComponentT<SharedDataStreamPort>(OB_DEV_COMPONENT_SHARED_HID_STREAM);
+            return std::make_shared<DirectionKeyService>(this, sharedHidPort->createClientPort());
         });
 
         registerComponent(OB_DEV_COMPONENT_BATTERY_INFO_SERVICE, [this]() {
