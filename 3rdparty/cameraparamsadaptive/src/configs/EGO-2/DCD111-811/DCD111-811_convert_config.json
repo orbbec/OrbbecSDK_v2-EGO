@@ -1,0 +1,93 @@
+{
+  // ============================================================================
+  // EGO-2 / DCD111-811（产品 PID 0x1201，项目 TN2608-RGB2612）
+  // 2 路，各路均为模组 rgb2612。
+  //
+  // 分辨率口径（**重要，别按物理 sensor 写**）：
+  //   模组 sensor 最大阵列 1928x1208  →  模组**可用区** 1920x1200
+  //   →  本型号固件在出流前已固定裁剪为 **1600x1200**（左右各裁 (1920-1600)/2 = 160，
+  //      偶数偏移，Bayer 相位不变），raw 上下不裁。
+  //   所以**固件实际能拿到的最大图像就是 1600x1200**，本 config 的 sensor_width/height
+  //   必须写 1600x1200 —— 库一律以"固件上报的尺寸"为准，若上报 1920x1200 会与声明不符
+  //   → 错误码 60（validateConfigSensor）。
+  //   标定文件 params_cam.yaml / params_imu.yaml 同样在 1600x1200 帧内标定，
+  //   因此 anchorCalibrationToSensor() 是空操作（calib == sensor，无需居中平移）。
+  //
+  // 本型号**只开放 1600x1200 一个分辨率**：它等于整幅，裁剪窗口没有任何可移动空间，
+  //   故日后也无法对 1600x1200 做"按各机主点自适应裁剪"（要恢复该能力，必须让固件
+  //   交付大于 1600x1200 的流，例如回到 1920x1200 可用区）。
+  //
+  // 多产品固件按 **PID + 各 cam 模组型号** 选择本文件：validateConfigIdentity()（错误码 64/65）
+  // 或 selectConfigByDevice()。两者都进语义指纹 ⇒ convert_params.json 会记录产品身份，SDK 可自证。
+  //
+  // 裁剪值：**一律 lock=true**（本 config 只有一个整幅模式，裁剪值恒为 0）。
+  // ============================================================================
+  "format_version": "2.5",
+  "description": "EGO-2 / DCD111-811（2 路 rgb2612，固件交付帧 1600x1200；仅开放 1600x1200）",
+  "file_type": "config",
+  "fingerprint": "", // config 恒为空；params 写入 hash(来源 config 语义字段)（check b）
+  "body_fingerprint": "", // config 恒为空；params 写入 hash(本文件自身语义字段)（check b2，错误码 62）
+  "pid": "0x1201", // 产品 PID：多产品固件据此 + 各 cam 模组型号选择本文件
+  "cameras": [
+    {
+      "id": "cam_0",
+      "name": "0",
+      "module": "rgb2612", // 模组型号（小写）：与固件读到的模组比对（错误码 65）
+      "sensor_width": 1600, // = 固件实际能拿到的最大宽度（不是模组可用区 1920）
+      "sensor_height": 1200,
+      "temp_coeff": 0.0, // 温补系数 px/°C（0=不温补，§3.7）
+      // 读出朝向（§4.9）：本产品 raw 读出无镜像/翻转（已知）；纳入语义指纹
+      "readout_orientation": { "mirror": false, "flip": false },
+      "modes": [
+        {
+          "name": "1600x1200_native",
+          "description": "整幅（固件已在出流前裁到 1600x1200；本型号唯一开放分辨率）",
+          "width": 1600,
+          "height": 1200,
+          "crop_x": 0,
+          "crop_y": 0,
+          "crop_width": 1600,
+          "crop_height": 1200,
+          "scale_x": 1.0,
+          "scale_y": 1.0,
+          "rotate": 0,
+          "mirror": false,
+          "flip": false,
+          "skipping": 0,
+          "binning": 0,
+          "lock": true // 整幅模式：锁定（无裁剪）
+        }
+      ]
+    },
+    {
+      "id": "cam_1",
+      "name": "1",
+      "module": "rgb2612", // 模组型号（小写）：与固件读到的模组比对（错误码 65）
+      "sensor_width": 1600,
+      "sensor_height": 1200,
+      "temp_coeff": 0.0, // 温补系数 px/°C（0=不温补，§3.7）
+      // 读出朝向（§4.9）：本产品 raw 读出无镜像/翻转（已知）；纳入语义指纹
+      "readout_orientation": { "mirror": false, "flip": false },
+      "modes": [
+        {
+          "name": "1600x1200_native",
+          "description": "整幅（固件已在出流前裁到 1600x1200；本型号唯一开放分辨率）",
+          "width": 1600,
+          "height": 1200,
+          "crop_x": 0,
+          "crop_y": 0,
+          "crop_width": 1600,
+          "crop_height": 1200,
+          "scale_x": 1.0,
+          "scale_y": 1.0,
+          "rotate": 0,
+          "mirror": false,
+          "flip": false,
+          "skipping": 0,
+          "binning": 0,
+          "lock": true // 整幅模式：锁定（无裁剪）
+        }
+      ]
+    }
+  ]
+}

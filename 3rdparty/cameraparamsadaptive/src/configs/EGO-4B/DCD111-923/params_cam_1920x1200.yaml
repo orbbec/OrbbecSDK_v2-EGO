@@ -1,0 +1,138 @@
+# ============================================================
+# TN2608-A-250201157 / params_cam_1920x1200.yaml —— **四个模组**（cam_0 .. cam_3），整幅标定
+# 与同目录 params_cam.yaml（sensor 1920x1200 上的居中子窗口 1600x1200 标定，§4.10）**等价**：
+#   cx = 子窗口标定值 + 160，cy 不变；fx/fy/畸变/外参完全沿用。
+# 用途：验证"同一份 convert_config.json 同时服务两代标定"——两份标定生成的 convert_params.json
+#       指纹与内容应完全一致（config 全量 lock=true，裁剪值来自 config）。
+# cam_2 / cam_3 为四模组场景补的样例数据（第二对模组，垂直偏移 60 mm），非真实标定输出。
+# ============================================================
+calibration_info:
+  format_version: 1.0
+  calibration_date: 2026-8-28
+  serial_number: AK7J8640010
+  chart_type: Ux
+  chart_version: 2
+  num_cameras: 4
+  num_temperature_sensors: 5
+  reference_camera: cam_0
+  reserved: 0
+environment:
+  temperature:
+    - sensor: cam_0
+      value_t: 31.660000
+    - sensor: cam_1
+      value_t: 23.260000
+    - sensor: cam_2
+      value_t: 25.400000
+    - sensor: cam_3
+      value_t: 26.150000
+    - sensor: cpu
+      value_t: 20.799999
+  relative_humidity: 50% RH
+  ambient_atmospheric_pressure: /
+  location: ORBBEC_lab_A
+cameras:
+  - id: cam_0
+    name: IR_L
+    distortion_model: KB
+    image_width: 1920
+    image_height: 1200
+    intrinsics:
+      fx: 507.47261727
+      fy: 507.21458242
+      cx: 968.01270498
+      cy: 600.17045299
+    distortion:
+      k1: 0.06559093
+      k2: 0.00562431
+      k3: -0.02625236
+      k4: 0.01325803
+      k5: 0.00000000
+      k6: 0.00000000
+      p1: 0.00000000
+      p2: 0.00000000
+    extrinsics:
+      rotation:
+        - [1.00000000, -0.00000000, 0.00000000]
+        - [0.00000000, 1.00000000, -0.00000000]
+        - [-0.00000000, 0.00000000, 1.00000000]
+      translation: [0.00000000, 0.00000000, 0.00000000]
+    vcm_code: 0
+  - id: cam_1
+    name: IR_R
+    distortion_model: KB
+    image_width: 1920
+    image_height: 1200
+    intrinsics:
+      fx: 507.88196102
+      fy: 507.75250165
+      cx: 967.22601014
+      cy: 610.69648582
+    distortion:
+      k1: 0.06654493
+      k2: -0.00670611
+      k3: -0.00374706
+      k4: 0.00180387
+      k5: 0.00000000
+      k6: 0.00000000
+      p1: 0.00000000
+      p2: 0.00000000
+    extrinsics:
+      rotation:
+        - [0.99999334, 0.00190431, 0.00311371]
+        - [-0.00190541, 0.99999812, 0.00034961]
+        - [-0.00311304, -0.00035554, 0.99999509]
+      translation: [-119.09679114, -0.39325823, -0.32722539]
+    vcm_code: 0
+  - id: cam_2
+    name: IR_L_top
+    distortion_model: KB
+    image_width: 1920
+    image_height: 1200
+    intrinsics:
+      fx: 507.88196102
+      fy: 507.75250165
+      cx: 966.50000000
+      cy: 609.50000000
+    distortion:
+      k1: 0.06654493
+      k2: -0.00670611
+      k3: -0.00374706
+      k4: 0.00180387
+      k5: 0.00000000
+      k6: 0.00000000
+      p1: 0.00000000
+      p2: 0.00000000
+    extrinsics:
+      rotation:
+        - [0.99999334, 0.00190431, 0.00311371]
+        - [-0.00190541, 0.99999812, 0.00034961]
+        - [-0.00311304, -0.00035554, 0.99999509]
+      translation: [0.00000000, 60.00000000, -0.32722539]
+    vcm_code: 0
+  - id: cam_3
+    name: IR_R_top
+    distortion_model: KB
+    image_width: 1920
+    image_height: 1200
+    intrinsics:
+      fx: 507.88196102
+      fy: 507.75250165
+      cx: 967.80000000
+      cy: 611.90000000
+    distortion:
+      k1: 0.06654493
+      k2: -0.00670611
+      k3: -0.00374706
+      k4: 0.00180387
+      k5: 0.00000000
+      k6: 0.00000000
+      p1: 0.00000000
+      p2: 0.00000000
+    extrinsics:
+      rotation:
+        - [0.99999334, 0.00190431, 0.00311371]
+        - [-0.00190541, 0.99999812, 0.00034961]
+        - [-0.00311304, -0.00035554, 0.99999509]
+      translation: [-119.09679114, 60.00000000, -0.32722539]
+    vcm_code: 0

@@ -1,0 +1,153 @@
+{
+  // ============================================================================
+  // EGO-4B-HY / DCD113-5232（产品 PID 0x1211，项目 TN2615）
+  // 4 路，**同一整机混装两种模组 / 两种 sensor 分辨率**（§1.2 需求 8 的现成用例）。
+  //
+  // 已确认规格（每路**只开放一个分辨率**，且它就是标定分辨率）：
+  //   cam_0（左相机）    / cam_1（右相机）    ：模组 rgb2616，sensor 可用区 2592x1944
+  //   cam_2（右外侧相机）/ cam_3（左外侧相机）：模组 rgb2617，sensor 可用区 1920x1200
+  //   两种分辨率混装 ⇒ 固件/示例必须**逐 cam** 上报 sensor 尺寸
+  //   （validateConfigSensor(..., SensorSizeConfig)，错误码 60）。
+  //
+  // raw 读出：**四路全部为镜像 + 翻转**（readout_orientation，§4.9；与 EGO-4B /
+  //   DCD111-523 同一编码约定），配置阶段已知，直接写实际值；该字段计入语义指纹
+  //   ⇒ params 与真实读出状态绑定。
+  //
+  // 单 mode / 整幅：每个 cam 只有一个模式，命名 `<W>x<H>_native`，crop_x=crop_y=0、
+  //   crop_width/height = 整幅、scale=1.0、rotate=0、lock=true（与 EGO-2 / DCD111-811
+  //   的"单模式整幅"风格一致）。因为只有一个分辨率，本产品**没有**"按各机主点
+  //   自适应裁剪"的空间（裁剪窗口无余量），lock=true 恒成立。
+  //
+  // 多产品固件按 **PID + 各 cam 模组型号** 选择本文件：validateConfigIdentity()（错误码
+  //   64/65）或 selectConfigByDevice()。两者都进语义指纹 ⇒ convert_params.json 会记录
+  //   产品身份，SDK 可自证。
+  // ============================================================================
+  "format_version": "2.5",
+  "description": "EGO-4B-HY / DCD113-5232（cam_0/1 rgb2616 2592x1944 + cam_2/3 rgb2617 1920x1200，混装两种分辨率）",
+  "file_type": "config",
+  "fingerprint": "", // config 恒为空；params 写入 hash(来源 config 语义字段)（check b）。本文件语义指纹 = d0e3da3da28fdd61（example_calib 打印）
+  "body_fingerprint": "", // config 恒为空；params 写入 hash(本文件自身语义字段)（check b2，错误码 62）
+  "pid": "0x1211", // 多产品固件据此 + 各 cam 模组型号选择本文件
+  "cameras": [
+    {
+      "id": "cam_0", // 左相机
+      "name": "0",
+      "module": "rgb2616", // 模组型号（小写）：与固件读到的模组比对（错误码 65）
+      "sensor_width": 2592,
+      "sensor_height": 1944,
+      "temp_coeff": 0.0, // 温补系数 px/°C（0=不温补，§3.7）
+      // 读出朝向（§4.9）：本产品 raw 读出为**镜像+翻转**（已知，直接写实际值）
+      "readout_orientation": { "mirror": true, "flip": true },
+      "modes": [
+        {
+          "name": "2592x1944_native",
+          "description": "整幅（本型号唯一开放分辨率，也是标定分辨率）",
+          "width": 2592,
+          "height": 1944,
+          "crop_x": 0,
+          "crop_y": 0,
+          "crop_width": 2592,
+          "crop_height": 1944,
+          "scale_x": 1.0,
+          "scale_y": 1.0,
+          "rotate": 0,
+          "mirror": false,
+          "flip": false,
+          "skipping": 0,
+          "binning": 0,
+          "lock": true // 整幅模式：锁定（无裁剪，无可移动空间）
+        }
+      ]
+    },
+    {
+      "id": "cam_1", // 右相机
+      "name": "1",
+      "module": "rgb2616", // 模组型号（小写）：与固件读到的模组比对（错误码 65）
+      "sensor_width": 2592,
+      "sensor_height": 1944,
+      "temp_coeff": 0.0, // 温补系数 px/°C（0=不温补，§3.7）
+      // 读出朝向（§4.9）：本产品 raw 读出为**镜像+翻转**（已知，直接写实际值）
+      "readout_orientation": { "mirror": true, "flip": true },
+      "modes": [
+        {
+          "name": "2592x1944_native",
+          "description": "整幅（本型号唯一开放分辨率，也是标定分辨率）",
+          "width": 2592,
+          "height": 1944,
+          "crop_x": 0,
+          "crop_y": 0,
+          "crop_width": 2592,
+          "crop_height": 1944,
+          "scale_x": 1.0,
+          "scale_y": 1.0,
+          "rotate": 0,
+          "mirror": false,
+          "flip": false,
+          "skipping": 0,
+          "binning": 0,
+          "lock": true // 整幅模式：锁定（无裁剪，无可移动空间）
+        }
+      ]
+    },
+    {
+      "id": "cam_2", // 右外侧相机
+      "name": "2",
+      "module": "rgb2617", // 模组型号（小写）：与固件读到的模组比对（错误码 65）
+      "sensor_width": 1920,
+      "sensor_height": 1200,
+      "temp_coeff": 0.0, // 温补系数 px/°C（0=不温补，§3.7）
+      // 读出朝向（§4.9）：本产品 raw 读出为**镜像+翻转**（已知，直接写实际值）
+      "readout_orientation": { "mirror": true, "flip": true },
+      "modes": [
+        {
+          "name": "1920x1200_native",
+          "description": "整幅（本型号唯一开放分辨率，也是标定分辨率）",
+          "width": 1920,
+          "height": 1200,
+          "crop_x": 0,
+          "crop_y": 0,
+          "crop_width": 1920,
+          "crop_height": 1200,
+          "scale_x": 1.0,
+          "scale_y": 1.0,
+          "rotate": 0,
+          "mirror": false,
+          "flip": false,
+          "skipping": 0,
+          "binning": 0,
+          "lock": true // 整幅模式：锁定（无裁剪，无可移动空间）
+        }
+      ]
+    },
+    {
+      "id": "cam_3", // 左外侧相机
+      "name": "3",
+      "module": "rgb2617", // 模组型号（小写）：与固件读到的模组比对（错误码 65）
+      "sensor_width": 1920,
+      "sensor_height": 1200,
+      "temp_coeff": 0.0, // 温补系数 px/°C（0=不温补，§3.7）
+      // 读出朝向（§4.9）：本产品 raw 读出为**镜像+翻转**（已知，直接写实际值）
+      "readout_orientation": { "mirror": true, "flip": true },
+      "modes": [
+        {
+          "name": "1920x1200_native",
+          "description": "整幅（本型号唯一开放分辨率，也是标定分辨率）",
+          "width": 1920,
+          "height": 1200,
+          "crop_x": 0,
+          "crop_y": 0,
+          "crop_width": 1920,
+          "crop_height": 1200,
+          "scale_x": 1.0,
+          "scale_y": 1.0,
+          "rotate": 0,
+          "mirror": false,
+          "flip": false,
+          "skipping": 0,
+          "binning": 0,
+          "lock": true // 整幅模式：锁定（无裁剪，无可移动空间）
+        }
+      ]
+    }
+  ]
+}

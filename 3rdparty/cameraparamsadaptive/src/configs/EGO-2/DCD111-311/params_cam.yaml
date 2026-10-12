@@ -1,0 +1,84 @@
+# ============================================================
+# Camera Calibration Parameters
+# Coordinate System: Right-handed (OpenCV convention)
+#   X -> right, Y -> down, Z -> forward
+# ============================================================
+
+calibration_info:
+  format_version: "1.0"
+  calibration_date: "2026-8-22"
+  serial_number: "AK7J86400NP"
+  chart_type: "Ux"
+  chart_version: "2"
+  num_cameras: 2
+  num_temperature_sensors: 3
+  reference_camera: "cam_0"
+  reserved: 0
+environment:
+    temperature:
+    - sensor: "cam_0"
+      value_t: 32.480000
+    - sensor: "cam_1"
+      value_t: 24.740000
+    - sensor: "cpu"
+      value_t: 22.799999
+    relative_humidity: "50% RH"
+    ambient_atmospheric_pressure: "/"
+    location: "ORBBEC_lab_A"
+
+cameras:
+  - id: "cam_0"
+    name: "IR_L"
+    distortion_model: "KB"
+    image_width: 1600
+    image_height: 1300
+    intrinsics:
+      fx: 505.91961055
+      fy: 506.12952672
+      cx: 806.68798911
+      cy: 642.90626013
+    distortion:
+      k1: 0.07246736
+      k2: -0.00941391
+      k3: -0.00371104
+      k4: 0.00211767
+      k5: 0.00000000
+      k6: 0.00000000
+      p1: 0.00000000
+      p2: 0.00000000
+    extrinsics:
+      rotation:
+        - [1.00000000, -0.00000000, 0.00000000]
+        - [0.00000000, 1.00000000, -0.00000000]
+        - [-0.00000000, 0.00000000, 1.00000000]
+      translation: [0.00000000, 0.00000000, 0.00000000]
+    vcm_code: 0
+
+  - id: "cam_1"
+    name: "IR_R"
+    distortion_model: "KB"
+    image_width: 1600
+    image_height: 1300
+    intrinsics:
+      fx: 506.96915114
+      fy: 506.90521507
+      cx: 802.01423868
+      cy: 633.91311648
+    distortion:
+      k1: 0.07121790
+      k2: -0.00748732
+      k3: -0.00443349
+      k4: 0.00198785
+      k5: 0.00000000
+      k6: 0.00000000
+      p1: 0.00000000
+      p2: 0.00000000
+    extrinsics:
+      rotation:
+        - [0.99995466, 0.00887732, 0.00344570]
+        - [-0.00887739, 0.99996060, 0.00000418]
+        - [-0.00344552, -0.00003477, 0.99999406]
+      translation: [-121.24887369, 0.80079905, 0.42198865]
+    vcm_code: 0
+
+

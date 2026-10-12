@@ -85,6 +85,7 @@ typedef enum {
     OB_RAW_DATA_PRESET_RESOLUTION_MASK_LIST              = 4062, /**< Resolution ratio mask list*/
     OB_RAW_DATA_DEPTH_POST_FILTER_PARAMS                 = 4063, /**< Comprehensive filter parameters*/
     OB_RAW_DATA_EXPORT_LOG                               = 4066, /**< Export device log package from firmware */
+    OB_RAW_DATA_CONVERT_PARAMS                           = 4067, /**< Convert json parameters*/ 
     OB_RAW_DATA_DEPTH_ALG_MODE_LIST_V2                   = 4077, /**< Depth algorithm mode list with version*/
     OB_PROP_DEVICE_LOG_SEVERITY_LEVEL_INT                = 5003, /**< Device log level*/
     OB_STRUCT_DEVICE_ERROR_STATE                         = 5524, /**< Device error state*/

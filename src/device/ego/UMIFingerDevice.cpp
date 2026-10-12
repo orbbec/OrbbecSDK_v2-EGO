@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 #include "UMIFingerDevice.hpp"
-#include "EGOAlgParamManager.hpp"
+#include "DataAcquisitionAlgParamManager.hpp"
 #include "EGOVideoSensor.hpp"
 #include "EGOStreamStrategy.hpp"
 #include "DevicePids.hpp"
@@ -94,6 +94,9 @@ void UMIFingerDevice::init() {
 
     deviceTimeFreq_ = 1000000;
     frameTimeFreq_  = 1000000;
+
+    // auto algParamManager = std::make_shared<DataAcquisitionAlgParamManager>(this);
+    // registerComponent(OB_DEV_COMPONENT_ALG_PARAM_MANAGER, algParamManager);
 
     auto deviceClockSynchronizer = std::make_shared<DeviceClockSynchronizer>(this, deviceTimeFreq_, deviceTimeFreq_);
     registerComponent(OB_DEV_COMPONENT_DEVICE_CLOCK_SYNCHRONIZER, deviceClockSynchronizer);
@@ -210,6 +213,13 @@ void UMIFingerDevice::initSensorStreamProfile(std::shared_ptr<ISensor> sensor) {
     }
 
     auto profiles = sensor->getStreamProfileList();
+
+    if(sensorType != OB_SENSOR_AUDIO) {
+        auto algParamManager = getComponentT<DataAcquisitionAlgParamManager>(OB_DEV_COMPONENT_ALG_PARAM_MANAGER, false);
+        if(algParamManager) {
+            algParamManager->bindStreamProfileParams(profiles);
+        }
+    }
 
     LOG_DEBUG("Sensor {} created! Found {} stream profiles.", sensorType, profiles.size());
     for(auto &profile: profiles) {
@@ -635,6 +645,7 @@ void UMIFingerDevice::initProperties() {
         //  Transparent YAML passthrough interfaces for production calibration.
         propertyServer->registerProperty(OB_RAW_DATA_ALIGN_CALIB_YAML, "r", "r", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_RAW_DATA_IMU_CALIB_YAML, "r", "r", vendorPropertyAccessor);
+        propertyServer->registerProperty(OB_RAW_DATA_CONVERT_PARAMS, "r", "r", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_RAW_DATA_EXPORT_LOG, "r", "r", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_PROP_MJPEG_QUALITY_INT, "rw", "rw", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_PROP_COLOR_BITRATE_INT, "rw", "rw", vendorPropertyAccessor);

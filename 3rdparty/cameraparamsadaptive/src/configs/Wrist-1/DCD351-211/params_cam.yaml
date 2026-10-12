@@ -1,0 +1,56 @@
+# ============================================================
+# Wrist-1 / DCD351-211 —— **合成标定数据（仅用于工程验证，不是真实标定，不可用于量产）**
+#   该型号尚无真实标定；本文件仅用于把本型号的标定/运行链路跑通并可验证。
+#   单相机（cam_0），**整幅 1600x1200** 标定 = 固件交付帧 = 本型号唯一开放分辨率
+#   ⇒ anchorCalibrationToSensor() 空操作（calib == sensor，无需居中平移）。
+#   主点取图像中心附近（略偏心，体现标定噪声；唯一 mode 为整幅且 lock=true，不影响裁剪值）。
+#   外参/温度/时间约定**完全沿用** configs/EGO-2/DCD111-811/params_cam.yaml
+#   （同为 rgb2612 / 1600x1200 / 无镜像翻转），未发明新的符号约定。
+#   真实标定到位后请直接替换本文件。
+# ============================================================
+calibration_info:
+  format_version: 1.0
+  calibration_date: 2026-9-28
+  serial_number: SYNTH-DCD351-211
+  chart_type: Ux
+  chart_version: 2
+  num_cameras: 1
+  num_temperature_sensors: 2
+  reference_camera: cam_0
+  reserved: 0
+environment:
+  temperature:
+    - sensor: cam_0
+      value_t: 34.014282
+    - sensor: cpu
+      value_t: 25.214285
+  relative_humidity: 50% RH
+  ambient_atmospheric_pressure: /
+  location: SYNTH_LAB
+cameras:
+  - id: cam_0
+    name: 腕部相机
+    distortion_model: KB
+    image_width: 1600
+    image_height: 1200
+    intrinsics:
+      fx: 506.41138124
+      fy: 506.53864725
+      cx: 801.0
+      cy: 596.0
+    distortion:
+      k1: 0.07341570
+      k2: -0.01333398
+      k3: 0.00257357
+      k4: -0.00031306
+      k5: 0.00000000
+      k6: 0.00000000
+      p1: 0.00000000
+      p2: 0.00000000
+    extrinsics:
+      rotation:
+        - [1.00000000, -0.00000000, 0.00000000]
+        - [0.00000000, 1.00000000, -0.00000000]
+        - [-0.00000000, 0.00000000, 1.00000000]
+      translation: [0.00000000, 0.00000000, 0.00000000]
+    vcm_code: 0

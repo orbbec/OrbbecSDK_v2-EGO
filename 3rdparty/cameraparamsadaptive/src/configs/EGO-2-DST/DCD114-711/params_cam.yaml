@@ -1,0 +1,79 @@
+# ============================================================
+# EGO-2-DST / DCD114-711 —— **合成标定数据（仅用于工程验证，不是真实标定）**
+#   2 路，整幅 1920x1200 标定；主点略微偏心以体现自适应（当前 config 全 lock=true，不影响裁剪值）
+#   真实标定到位后请直接替换本文件
+# ============================================================
+calibration_info:
+  format_version: 1.0
+  calibration_date: 2026-3-1
+  serial_number: SYNTH-DCD114-711
+  chart_type: Ux
+  chart_version: 2
+  num_cameras: 2
+  num_temperature_sensors: 3
+  reference_camera: cam_0
+  reserved: 0
+environment:
+  temperature:
+    - sensor: cam_0
+      value_t: 30.000000
+    - sensor: cam_1
+      value_t: 31.500000
+    - sensor: cpu
+      value_t: 20.799999
+  relative_humidity: 50% RH
+  ambient_atmospheric_pressure: /
+  location: SYNTH_LAB
+cameras:
+  - id: cam_0
+    name: cam_0
+    distortion_model: KB
+    image_width: 1920
+    image_height: 1200
+    intrinsics:
+      fx: 507.47261727
+      fy: 507.21458242
+      cx: 968.0
+      cy: 606.0
+    distortion:
+      k1: 0.06559093
+      k2: 0.00562431
+      k3: -0.02625236
+      k4: 0.01325803
+      k5: 0.00000000
+      k6: 0.00000000
+      p1: 0.00000000
+      p2: 0.00000000
+    extrinsics:
+      rotation:
+        - [1.00000000, -0.00000000, 0.00000000]
+        - [0.00000000, 1.00000000, -0.00000000]
+        - [-0.00000000, 0.00000000, 1.00000000]
+      translation: [0.00000000, 0.00000000, -0.32722539]
+    vcm_code: 0
+  - id: cam_1
+    name: cam_1
+    distortion_model: KB
+    image_width: 1920
+    image_height: 1200
+    intrinsics:
+      fx: 507.47261727
+      fy: 507.21458242
+      cx: 969.0
+      cy: 607.0
+    distortion:
+      k1: 0.06559093
+      k2: 0.00562431
+      k3: -0.02625236
+      k4: 0.01325803
+      k5: 0.00000000
+      k6: 0.00000000
+      p1: 0.00000000
+      p2: 0.00000000
+    extrinsics:
+      rotation:
+        - [1.00000000, -0.00000000, 0.00000000]
+        - [0.00000000, 1.00000000, -0.00000000]
+        - [-0.00000000, 0.00000000, 1.00000000]
+      translation: [-119.09679114, -0.39325823, -0.32722539]
+    vcm_code: 0

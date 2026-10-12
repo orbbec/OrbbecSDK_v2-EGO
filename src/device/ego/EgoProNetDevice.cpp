@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 #include "EgoProNetDevice.hpp"
-#include "EGOAlgParamManager.hpp"
+#include "DataAcquisitionAlgParamManager.hpp"
 #include "EGOStreamStrategy.hpp"
 #include "environment/EnvConfig.hpp"
 #include "stream/StreamProfileFactory.hpp"
@@ -90,10 +90,12 @@ void EgoProNetDevice::init() {
 
         fetchAllVideoStreamProfileList();
 
+        if(getFirmwareVersionInt() >= 10008) {
+            auto algParamManager = std::make_shared<DataAcquisitionAlgParamManager>(this);
+            registerComponent(OB_DEV_COMPONENT_ALG_PARAM_MANAGER, algParamManager);
+        }
+        
         deviceTimeFreq_ = 1000000;
-        // auto algParamManager = std::make_shared<EGOAlgParamManager>(this);
-        // registerComponent(OB_DEV_COMPONENT_ALG_PARAM_MANAGER, algParamManager);
-
         auto deviceClockSynchronizer = std::make_shared<DeviceClockSynchronizer>(this, deviceTimeFreq_, deviceTimeFreq_);
         registerComponent(OB_DEV_COMPONENT_DEVICE_CLOCK_SYNCHRONIZER, deviceClockSynchronizer);
         registerComponent(OB_DEV_COMPONENT_FW_RECORD_PROFILE_MANAGER, [this]() { return std::make_shared<FwRecordProfileManager>(this); });
@@ -436,7 +438,8 @@ void EgoProNetDevice::initSensorList() {
         });
 
         registerComponent(OB_DEV_COMPONENT_IMU_STREAMER, [this, imuPortInfo]() {
-            // no correction filter applied: EGOAlgParamManager is disabled, so no intrinsics would be bound
+            // No correction filter is applied in the streamer path; intrinsics/extrinsics are
+            // bound by DataAcquisitionAlgParamManager when stream profiles are created.
             auto sharedHidPort  = getComponentT<SharedDataStreamPort>(OB_DEV_COMPONENT_SHARED_HID_STREAM);
             auto dataStreamPort = sharedHidPort->createClientPort();
 
@@ -571,6 +574,7 @@ void EgoProNetDevice::initProperties() {
 
     propertyServer->registerProperty(OB_RAW_DATA_ALIGN_CALIB_YAML, "r", "r", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_RAW_DATA_IMU_CALIB_YAML, "r", "r", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_RAW_DATA_CONVERT_PARAMS, "r", "r", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_RAW_DATA_EXPORT_LOG, "r", "r", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_PROP_COLOR_BITRATE_INT, "rw", "rw", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_PROP_COLOR_DYNAMIC_BITRATE_ENABLE_BOOL, "rw", "rw", vendorPropertyAccessor);
@@ -666,7 +670,7 @@ void EgoProNetDevice::initSensorStreamProfile(std::shared_ptr<ISensor> sensor) {
     auto profiles = sensor->getStreamProfileList();
 
     if(sensorType != OB_SENSOR_AUDIO) {
-        auto algParamManager = getComponentT<EGOAlgParamManager>(OB_DEV_COMPONENT_ALG_PARAM_MANAGER, false);
+        auto algParamManager = getComponentT<DataAcquisitionAlgParamManager>(OB_DEV_COMPONENT_ALG_PARAM_MANAGER, false);
         if(algParamManager) {
             algParamManager->bindStreamProfileParams(profiles);
         }

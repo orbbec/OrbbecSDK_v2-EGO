@@ -30,6 +30,12 @@ target_sources(
              ${CMAKE_CURRENT_LIST_DIR}/UMIFingerDevice.cpp
              ${CMAKE_CURRENT_LIST_DIR}/UMIFingerNetDevice.hpp
              ${CMAKE_CURRENT_LIST_DIR}/UMIFingerNetDevice.cpp
+             ${CMAKE_CURRENT_LIST_DIR}/WristDevice.hpp
+             ${CMAKE_CURRENT_LIST_DIR}/WristDevice.cpp
+             ${CMAKE_CURRENT_LIST_DIR}/WristNetDevice.hpp
+             ${CMAKE_CURRENT_LIST_DIR}/WristNetDevice.cpp
+             ${CMAKE_CURRENT_LIST_DIR}/WristDeviceInfo.hpp
+             ${CMAKE_CURRENT_LIST_DIR}/WristDeviceInfo.cpp
              ${CMAKE_CURRENT_LIST_DIR}/EGOStreamDemuxer.hpp
              ${CMAKE_CURRENT_LIST_DIR}/EGOStreamDemuxer.cpp
              ${CMAKE_CURRENT_LIST_DIR}/EGODepthDevice.hpp
@@ -42,14 +48,8 @@ target_sources(
              ${CMAKE_CURRENT_LIST_DIR}/EGODepthNetDevice.cpp
              ${CMAKE_CURRENT_LIST_DIR}/EGODeviceInfo.hpp
              ${CMAKE_CURRENT_LIST_DIR}/EGODeviceInfo.cpp
-             ${CMAKE_CURRENT_LIST_DIR}/EGOAlgParamManager.hpp
-             ${CMAKE_CURRENT_LIST_DIR}/EGOAlgParamManager.cpp
-             ${CMAKE_CURRENT_LIST_DIR}/WristDevice.hpp
-             ${CMAKE_CURRENT_LIST_DIR}/WristDevice.cpp
-             ${CMAKE_CURRENT_LIST_DIR}/WristNetDevice.hpp
-             ${CMAKE_CURRENT_LIST_DIR}/WristNetDevice.cpp
-             ${CMAKE_CURRENT_LIST_DIR}/WristDeviceInfo.hpp
-             ${CMAKE_CURRENT_LIST_DIR}/WristDeviceInfo.cpp
+             ${CMAKE_CURRENT_LIST_DIR}/DataAcquisitionAlgParamManager.hpp
+             ${CMAKE_CURRENT_LIST_DIR}/DataAcquisitionAlgParamManager.cpp
              ${CMAKE_CURRENT_LIST_DIR}/boot/EGOBootDevice.hpp
              ${CMAKE_CURRENT_LIST_DIR}/boot/EGOBootDevice.cpp
              ${CMAKE_CURRENT_LIST_DIR}/boot/EGOBootDeviceInfo.hpp

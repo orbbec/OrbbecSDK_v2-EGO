@@ -1,0 +1,81 @@
+# ============================================================
+# Camera Calibration Parameters
+# Coordinate System: Right-handed (OpenCV convention)
+#   X -> right, Y -> down, Z -> forward
+# ============================================================
+
+calibration_info:
+  format_version: "1.0"
+  calibration_date: "2026-09-17"
+  serial_number: "AK7J86400YJ"
+  chart_type: "chAruco"
+  chart_version: "0.3"
+  num_cameras: 2
+  num_temperature_sensors: 3
+  reference_camera: "cam_0"
+  reserved: 0
+environment:
+  temperature:
+    - sensor: "cam_0"
+      value_t: 34.014282
+    - sensor: "cam_1"
+      value_t: 27.021427
+    - sensor: "cpu"
+      value_t: 25.214285
+  relative_humidity: "50% RH"
+  ambient_atmospheric_pressure: "/"
+  location: "ORBBEC Calibration Factory, ShunDe, Guangdong"
+cameras:
+  - id: "cam_0"
+    name: "Color_Left"
+    distortion_model: "KB"
+    image_width: 1600
+    image_height: 1200
+    intrinsics:
+      fx: 506.41138123605396
+      fy: 506.53864724944185
+      cx: 801.25376797745287
+      cy: 595.72480389916575
+    distortion:
+      k1: 0.073415699736431139
+      k2: -0.013333975070127414
+      k3: 0.0025735658858141012
+      k4: -0.00031305950350787003
+      k5: 0
+      k6: 0
+      p1: 0
+      p2: 0
+    extrinsics:
+      rotation:
+        - [1, 0, 0]
+        - [0, 1, 0]
+        - [0, 0, 1]
+      translation: [0, 0, 0]
+    vcm_code: 0
+
+  - id: "cam_1"
+    name: "Color_Right"
+    distortion_model: "KB"
+    image_width: 1600
+    image_height: 1200
+    intrinsics:
+      fx: 505.70758685900074
+      fy: 505.87610869518005
+      cx: 795.61875400332372
+      cy: 593.05227834437187
+    distortion:
+      k1: 0.073874291920990459
+      k2: -0.012998916940135627
+      k3: 0.001282073893379312
+      k4: 0.000126437535937362
+      k5: 0
+      k6: 0
+      p1: 0
+      p2: 0
+    extrinsics:
+      rotation:
+        - [0.99999000679137695, 0.0010540139902826522, 0.0043445795987874531]
+        - [-0.0010423842348602293, 0.99999587022891023, -0.0026782382701170033]
+        - [-0.0043473845572742417, 0.002673682784642356, 0.99998697574912354]
+      translation: [-120.09685337844796, -0.087096224151983717, 0.20382412982632475]
+    vcm_code: 0

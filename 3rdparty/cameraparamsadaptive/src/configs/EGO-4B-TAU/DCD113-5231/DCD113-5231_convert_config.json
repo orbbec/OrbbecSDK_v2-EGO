@@ -1,0 +1,287 @@
+{
+  // ============================================================================
+  // EGO-4B-TAU / DCD113-5231（产品 PID 0x1208，项目 TN2610-C）
+  // 4 路，各路均为模组 rgb2612；sensor **可用区** 1920x1200
+  //   （config 的 sensor_width/height 写的就是这个可用区尺寸，固件上报值必须一致，否则错误码 60）
+  //
+  // 多产品固件按 **PID + 各 cam 模组型号** 选择本文件：validateConfigIdentity()（错误码 64/65）
+  // 或 selectConfigByDevice()。两者都进语义指纹 ⇒ convert_params.json 会记录产品身份，SDK 可自证。
+  //
+  // 裁剪值：**所有 mode 一律 lock=true**（native 无裁剪；裁剪模式锁定为对称值，与固件在 sensor 端的对称裁剪一致，§4.8）。
+  //   待固件支持"开流前计算自适应裁剪"后，再把这些 mode 改回 lock=false（那时才会按各机主点重算）。
+
+
+  // ============================================================================
+  "format_version": "2.5",
+  "description": "EGO-4B-TAU / DCD113-5231（4 路 rgb2612，sensor 可用区 1920x1200）",
+  "file_type": "config",
+  "fingerprint": "", // config 恒为空；params 写入 hash(来源 config 语义字段)（check b）
+  "body_fingerprint": "", // config 恒为空；params 写入 hash(本文件自身语义字段)（check b2，错误码 62）
+  "pid": "0x1208", // 产品 PID：多产品固件据此 + 各 cam 模组型号选择本文件
+  "cameras": [
+    {
+      "id": "cam_0",
+      "name": "0",
+      "module": "rgb2612", // 模组型号（小写）：与固件读到的模组比对（错误码 65）
+      "sensor_width": 1920,
+      "sensor_height": 1200,
+      "temp_coeff": 0.0, // 温补系数 px/°C（0=不温补，§3.7）
+      // 读出朝向（§4.9）：本产品 raw 读出为**镜像+翻转**（已知，直接写实际值）；纳入语义指纹，故 params 与真实读出状态绑定
+      "readout_orientation": { "mirror": true, "flip": true },
+      "modes": [
+        {
+          "name": "1920x1200_native",
+          "description": "原始分辨率（整幅，无裁剪）",
+          "width": 1920,
+          "height": 1200,
+          "crop_x": 0,
+          "crop_y": 0,
+          "crop_width": 1920,
+          "crop_height": 1200,
+          "scale_x": 1.0,
+          "scale_y": 1.0,
+          "rotate": 0,
+          "mirror": false,
+          "flip": false,
+          "skipping": 0,
+          "binning": 0,
+          "lock": true // 原始模式：锁定（无裁剪）
+        },
+        {
+          "name": "1920x1080_cropped",
+          "description": "上下对称裁剪 (1200-1080)/2 = 60",
+          "width": 1920,
+          "height": 1080,
+          "crop_x": 0,
+          "crop_y": 60,
+          "crop_width": 1920,
+          "crop_height": 1080,
+          "scale_x": 1.0,
+          "scale_y": 1.0,
+          "rotate": 0,
+          "mirror": false,
+          "flip": false,
+          "skipping": 0,
+          "binning": 0,
+          "lock": true // 锁定为上面的对称值：与固件在 sensor 端的对称裁剪一致（§4.8）；待固件支持"开流前计算自适应裁剪"后再放开为 false
+        },
+        {
+          "name": "1600x1200_cropped",
+          "description": "左右对称裁剪 (1920-1600)/2 = 160",
+          "width": 1600,
+          "height": 1200,
+          "crop_x": 160,
+          "crop_y": 0,
+          "crop_width": 1600,
+          "crop_height": 1200,
+          "scale_x": 1.0,
+          "scale_y": 1.0,
+          "rotate": 0,
+          "mirror": false,
+          "flip": false,
+          "skipping": 0,
+          "binning": 0,
+          "lock": true // 锁定为上面的对称值：与固件在 sensor 端的对称裁剪一致（§4.8）；待固件支持"开流前计算自适应裁剪"后再放开为 false
+        }
+      ]
+    },
+    {
+      "id": "cam_1",
+      "name": "1",
+      "module": "rgb2612", // 模组型号（小写）：与固件读到的模组比对（错误码 65）
+      "sensor_width": 1920,
+      "sensor_height": 1200,
+      "temp_coeff": 0.0, // 温补系数 px/°C（0=不温补，§3.7）
+      // 读出朝向（§4.9）：本产品 raw 读出为**镜像+翻转**（已知，直接写实际值）；纳入语义指纹，故 params 与真实读出状态绑定
+      "readout_orientation": { "mirror": true, "flip": true },
+      "modes": [
+        {
+          "name": "1920x1200_native",
+          "description": "原始分辨率（整幅，无裁剪）",
+          "width": 1920,
+          "height": 1200,
+          "crop_x": 0,
+          "crop_y": 0,
+          "crop_width": 1920,
+          "crop_height": 1200,
+          "scale_x": 1.0,
+          "scale_y": 1.0,
+          "rotate": 0,
+          "mirror": false,
+          "flip": false,
+          "skipping": 0,
+          "binning": 0,
+          "lock": true // 原始模式：锁定（无裁剪）
+        },
+        {
+          "name": "1920x1080_cropped",
+          "description": "上下对称裁剪 (1200-1080)/2 = 60",
+          "width": 1920,
+          "height": 1080,
+          "crop_x": 0,
+          "crop_y": 60,
+          "crop_width": 1920,
+          "crop_height": 1080,
+          "scale_x": 1.0,
+          "scale_y": 1.0,
+          "rotate": 0,
+          "mirror": false,
+          "flip": false,
+          "skipping": 0,
+          "binning": 0,
+          "lock": true // 锁定为上面的对称值：与固件在 sensor 端的对称裁剪一致（§4.8）；待固件支持"开流前计算自适应裁剪"后再放开为 false
+        },
+        {
+          "name": "1600x1200_cropped",
+          "description": "左右对称裁剪 (1920-1600)/2 = 160",
+          "width": 1600,
+          "height": 1200,
+          "crop_x": 160,
+          "crop_y": 0,
+          "crop_width": 1600,
+          "crop_height": 1200,
+          "scale_x": 1.0,
+          "scale_y": 1.0,
+          "rotate": 0,
+          "mirror": false,
+          "flip": false,
+          "skipping": 0,
+          "binning": 0,
+          "lock": true // 锁定为上面的对称值：与固件在 sensor 端的对称裁剪一致（§4.8）；待固件支持"开流前计算自适应裁剪"后再放开为 false
+        }
+      ]
+    },
+    {
+      "id": "cam_2",
+      "name": "2",
+      "module": "rgb2612", // 模组型号（小写）：与固件读到的模组比对（错误码 65）
+      "sensor_width": 1920,
+      "sensor_height": 1200,
+      "temp_coeff": 0.0, // 温补系数 px/°C（0=不温补，§3.7）
+      // 读出朝向（§4.9）：本产品 raw 读出为**镜像+翻转**（已知，直接写实际值）；纳入语义指纹，故 params 与真实读出状态绑定
+      "readout_orientation": { "mirror": true, "flip": true },
+      "modes": [
+        {
+          "name": "1920x1200_native",
+          "description": "原始分辨率（整幅，无裁剪）",
+          "width": 1920,
+          "height": 1200,
+          "crop_x": 0,
+          "crop_y": 0,
+          "crop_width": 1920,
+          "crop_height": 1200,
+          "scale_x": 1.0,
+          "scale_y": 1.0,
+          "rotate": 0,
+          "mirror": false,
+          "flip": false,
+          "skipping": 0,
+          "binning": 0,
+          "lock": true // 原始模式：锁定（无裁剪）
+        },
+        {
+          "name": "1920x1080_cropped",
+          "description": "上下对称裁剪 (1200-1080)/2 = 60",
+          "width": 1920,
+          "height": 1080,
+          "crop_x": 0,
+          "crop_y": 60,
+          "crop_width": 1920,
+          "crop_height": 1080,
+          "scale_x": 1.0,
+          "scale_y": 1.0,
+          "rotate": 0,
+          "mirror": false,
+          "flip": false,
+          "skipping": 0,
+          "binning": 0,
+          "lock": true // 锁定为上面的对称值：与固件在 sensor 端的对称裁剪一致（§4.8）；待固件支持"开流前计算自适应裁剪"后再放开为 false
+        },
+        {
+          "name": "1600x1200_cropped",
+          "description": "左右对称裁剪 (1920-1600)/2 = 160",
+          "width": 1600,
+          "height": 1200,
+          "crop_x": 160,
+          "crop_y": 0,
+          "crop_width": 1600,
+          "crop_height": 1200,
+          "scale_x": 1.0,
+          "scale_y": 1.0,
+          "rotate": 0,
+          "mirror": false,
+          "flip": false,
+          "skipping": 0,
+          "binning": 0,
+          "lock": true // 锁定为上面的对称值：与固件在 sensor 端的对称裁剪一致（§4.8）；待固件支持"开流前计算自适应裁剪"后再放开为 false
+        }
+      ]
+    },
+    {
+      "id": "cam_3",
+      "name": "3",
+      "module": "rgb2612", // 模组型号（小写）：与固件读到的模组比对（错误码 65）
+      "sensor_width": 1920,
+      "sensor_height": 1200,
+      "temp_coeff": 0.0, // 温补系数 px/°C（0=不温补，§3.7）
+      // 读出朝向（§4.9）：本产品 raw 读出为**镜像+翻转**（已知，直接写实际值）；纳入语义指纹，故 params 与真实读出状态绑定
+      "readout_orientation": { "mirror": true, "flip": true },
+      "modes": [
+        {
+          "name": "1920x1200_native",
+          "description": "原始分辨率（整幅，无裁剪）",
+          "width": 1920,
+          "height": 1200,
+          "crop_x": 0,
+          "crop_y": 0,
+          "crop_width": 1920,
+          "crop_height": 1200,
+          "scale_x": 1.0,
+          "scale_y": 1.0,
+          "rotate": 0,
+          "mirror": false,
+          "flip": false,
+          "skipping": 0,
+          "binning": 0,
+          "lock": true // 原始模式：锁定（无裁剪）
+        },
+        {
+          "name": "1920x1080_cropped",
+          "description": "上下对称裁剪 (1200-1080)/2 = 60",
+          "width": 1920,
+          "height": 1080,
+          "crop_x": 0,
+          "crop_y": 60,
+          "crop_width": 1920,
+          "crop_height": 1080,
+          "scale_x": 1.0,
+          "scale_y": 1.0,
+          "rotate": 0,
+          "mirror": false,
+          "flip": false,
+          "skipping": 0,
+          "binning": 0,
+          "lock": true // 锁定为上面的对称值：与固件在 sensor 端的对称裁剪一致（§4.8）；待固件支持"开流前计算自适应裁剪"后再放开为 false
+        },
+        {
+          "name": "1600x1200_cropped",
+          "description": "左右对称裁剪 (1920-1600)/2 = 160",
+          "width": 1600,
+          "height": 1200,
+          "crop_x": 160,
+          "crop_y": 0,
+          "crop_width": 1600,
+          "crop_height": 1200,
+          "scale_x": 1.0,
+          "scale_y": 1.0,
+          "rotate": 0,
+          "mirror": false,
+          "flip": false,
+          "skipping": 0,
+          "binning": 0,
+          "lock": true // 锁定为上面的对称值：与固件在 sensor 端的对称裁剪一致（§4.8）；待固件支持"开流前计算自适应裁剪"后再放开为 false
+        }
+      ]
+    }
+  ]
+}

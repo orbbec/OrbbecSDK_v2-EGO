@@ -1,0 +1,144 @@
+# ============================================================
+# EGO-4B-HY / DCD113-5232 —— **合成标定数据（仅用于工程验证，不是真实标定，不可用于量产）**
+#   该型号规格已确认；但**真标定尚未产出**，本文件是**合成标定数据（仅用于工程验证，不可用于量产）**，
+#   用于把 "同一整机混装两种模组 / 两种 sensor 分辨率" 这条链路（§1.2 需求 8）跑通并可验证。
+#   4 路**整幅**标定，标定分辨率 = 该 cam 的 sensor 可用区（= 本型号唯一开放分辨率）：
+#     cam_0 / cam_1：rgb2616，2592x1944（整幅标定 ⇒ anchorCalibrationToSensor() 空操作）
+#     cam_2 / cam_3：rgb2617，1920x1200（整幅标定 ⇒ anchorCalibrationToSensor() 空操作）
+#   fx/fy 由同一光学族的 1920x1200 参考值按"宽度比"缩放而来（1920→2592 即 ×1.35），
+#   主点取图像中心附近并**逐台略有不同**（体现标定噪声）。本型号每路只有整幅一个 mode
+#   且 lock=true，故主点差异不影响任何裁剪值。
+#   外参/温度/时间约定**完全沿用** configs/EGO-4B/DCD111-523/params_cam.yaml（同一整机布局：
+#     cam_1 水平基线约 119 mm、cam_2 / cam_3 相对 cam_0 垂直偏移 60 mm），未发明新的符号约定。
+#   真实标定到位后请直接替换本文件。
+# ============================================================
+calibration_info:
+  format_version: 1.0
+  calibration_date: 2026-9-28
+  serial_number: SYNTH-DCD113-5232
+  chart_type: Ux
+  chart_version: 2
+  num_cameras: 4
+  num_temperature_sensors: 5
+  reference_camera: cam_0
+  reserved: 0
+environment:
+  temperature:
+    - sensor: cam_0
+      value_t: 31.660000
+    - sensor: cam_1
+      value_t: 23.260000
+    - sensor: cam_2
+      value_t: 25.400000
+    - sensor: cam_3
+      value_t: 26.150000
+    - sensor: cpu
+      value_t: 20.799999
+  relative_humidity: 50% RH
+  ambient_atmospheric_pressure: /
+  location: SYNTH_LAB
+cameras:
+  - id: cam_0
+    name: 左相机
+    distortion_model: KB
+    image_width: 2592
+    image_height: 1944
+    intrinsics:
+      fx: 685.08803331
+      fy: 684.73968627
+      cx: 1297.0
+      cy: 973.0
+    distortion:
+      k1: 0.06559093
+      k2: 0.00562431
+      k3: -0.02625236
+      k4: 0.01325803
+      k5: 0.00000000
+      k6: 0.00000000
+      p1: 0.00000000
+      p2: 0.00000000
+    extrinsics:
+      rotation:
+        - [1.00000000, -0.00000000, 0.00000000]
+        - [0.00000000, 1.00000000, -0.00000000]
+        - [-0.00000000, 0.00000000, 1.00000000]
+      translation: [0.00000000, 0.00000000, 0.00000000]
+    vcm_code: 0
+  - id: cam_1
+    name: 右相机
+    distortion_model: KB
+    image_width: 2592
+    image_height: 1944
+    intrinsics:
+      fx: 685.64064738
+      fy: 685.46587723
+      cx: 1296.0
+      cy: 974.0
+    distortion:
+      k1: 0.06654493
+      k2: -0.00670611
+      k3: -0.00374706
+      k4: 0.00180387
+      k5: 0.00000000
+      k6: 0.00000000
+      p1: 0.00000000
+      p2: 0.00000000
+    extrinsics:
+      rotation:
+        - [0.99999334, 0.00190431, 0.00311371]
+        - [-0.00190541, 0.99999812, 0.00034961]
+        - [-0.00311304, -0.00035554, 0.99999509]
+      translation: [-119.09679114, -0.39325823, -0.32722539]
+    vcm_code: 0
+  - id: cam_2
+    name: 右外侧相机
+    distortion_model: KB
+    image_width: 1920
+    image_height: 1200
+    intrinsics:
+      fx: 507.47261727
+      fy: 507.21458242
+      cx: 961.0
+      cy: 599.0
+    distortion:
+      k1: 0.06559093
+      k2: 0.00562431
+      k3: -0.02625236
+      k4: 0.01325803
+      k5: 0.00000000
+      k6: 0.00000000
+      p1: 0.00000000
+      p2: 0.00000000
+    extrinsics:
+      rotation:
+        - [0.99999334, 0.00190431, 0.00311371]
+        - [-0.00190541, 0.99999812, 0.00034961]
+        - [-0.00311304, -0.00035554, 0.99999509]
+      translation: [0.00000000, 60.00000000, -0.32722539]
+    vcm_code: 0
+  - id: cam_3
+    name: 左外侧相机
+    distortion_model: KB
+    image_width: 1920
+    image_height: 1200
+    intrinsics:
+      fx: 507.88196102
+      fy: 507.75250165
+      cx: 962.0
+      cy: 600.0
+    distortion:
+      k1: 0.06654493
+      k2: -0.00670611
+      k3: -0.00374706
+      k4: 0.00180387
+      k5: 0.00000000
+      k6: 0.00000000
+      p1: 0.00000000
+      p2: 0.00000000
+    extrinsics:
+      rotation:
+        - [0.99999334, 0.00190431, 0.00311371]
+        - [-0.00190541, 0.99999812, 0.00034961]
+        - [-0.00311304, -0.00035554, 0.99999509]
+      translation: [-119.09679114, 60.00000000, -0.32722539]
+    vcm_code: 0

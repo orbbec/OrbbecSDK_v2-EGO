@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 
 #include "EGODevice.hpp"
-#include "EGOAlgParamManager.hpp"
+#include "DataAcquisitionAlgParamManager.hpp"
 #include "EGOVideoSensor.hpp"
 #include "EGOStreamStrategy.hpp"
 #include "DevicePids.hpp"
@@ -94,12 +94,13 @@ void EGODevice::init() {
     registerRecoveryModeProperty();
     fetchExtensionInfo();
 
+    if(getFirmwareVersionInt() >= 10109) {
+        auto algParamManager = std::make_shared<DataAcquisitionAlgParamManager>(this);
+        registerComponent(OB_DEV_COMPONENT_ALG_PARAM_MANAGER, algParamManager);
+    }
+    
     deviceTimeFreq_ = 1000000;
     frameTimeFreq_  = 1000000;
-
-    // auto algParamManager = std::make_shared<EGOAlgParamManager>(this);
-    // registerComponent(OB_DEV_COMPONENT_ALG_PARAM_MANAGER, algParamManager);
-
     auto deviceClockSynchronizer = std::make_shared<DeviceClockSynchronizer>(this, deviceTimeFreq_, deviceTimeFreq_);
     registerComponent(OB_DEV_COMPONENT_DEVICE_CLOCK_SYNCHRONIZER, deviceClockSynchronizer);
     registerComponent(OB_DEV_COMPONENT_FW_RECORD_PROFILE_MANAGER, [this]() { return std::make_shared<FwRecordProfileManager>(this); });
@@ -278,12 +279,12 @@ void EGODevice::initSensorStreamProfile(std::shared_ptr<ISensor> sensor) {
 
     auto profiles = sensor->getStreamProfileList();
 
-    /*
-        if(sensorType == OB_SENSOR_COLOR_LEFT || sensorType == OB_SENSOR_COLOR_RIGHT || sensorType == OB_SENSOR_ACCEL || sensorType == OB_SENSOR_GYRO) {
-            auto algParamManager = getComponentT<EGOAlgParamManager>(OB_DEV_COMPONENT_ALG_PARAM_MANAGER);
+    if(sensorType != OB_SENSOR_AUDIO) {
+        auto algParamManager = getComponentT<DataAcquisitionAlgParamManager>(OB_DEV_COMPONENT_ALG_PARAM_MANAGER, false);
+        if(algParamManager) {
             algParamManager->bindStreamProfileParams(profiles);
         }
-    */
+    }
     LOG_DEBUG("Sensor {} created! Found {} stream profiles.", sensorType, profiles.size());
     for(auto &profile: profiles) {
         LOG_DEBUG(" - {}", profile);
@@ -632,6 +633,7 @@ void EGODevice::initProperties() {
         //  raw bytes. The SDK does not parse the data; the application layer saves it directly to a file.
         propertyServer->registerProperty(OB_RAW_DATA_ALIGN_CALIB_YAML, "r", "r", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_RAW_DATA_IMU_CALIB_YAML, "r", "r", vendorPropertyAccessor);
+        propertyServer->registerProperty(OB_RAW_DATA_CONVERT_PARAMS, "r", "r", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_RAW_DATA_EXPORT_LOG, "r", "r", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_PROP_MJPEG_QUALITY_INT, "rw", "rw", vendorPropertyAccessor);
         propertyServer->registerProperty(OB_PROP_COLOR_BITRATE_INT, "rw", "rw", vendorPropertyAccessor);

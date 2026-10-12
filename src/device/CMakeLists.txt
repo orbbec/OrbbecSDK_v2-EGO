@@ -37,6 +37,9 @@ add_subdirectory(lidar) # LiDAR series
 add_subdirectory(${OB_3RDPARTY_DIR}/jsoncpp jsoncpp)
 target_link_libraries(${OB_TARGET_DEVICE} PUBLIC jsoncpp::jsoncpp)
 
+add_subdirectory(${OB_3RDPARTY_DIR}/cameraparamsadaptive cameraparamsadaptive)
+target_link_libraries(${OB_TARGET_DEVICE} PUBLIC camadapt::camadapt)
+
 add_subdirectory(${OB_3RDPARTY_DIR}/curl curl)
 target_link_libraries(${OB_TARGET_DEVICE} PUBLIC libcurl_static)
 
