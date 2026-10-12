@@ -74,9 +74,16 @@ constexpr uint32_t kPcmBufferBytes              = 65536U;
 constexpr uint32_t kPcmBufferCount              = 32U;
 constexpr uint32_t kLegacyVideoBufferCount      = 4U;
 constexpr uint32_t kCodecStaticHeaderReserve    = 64U * 1024U;
+constexpr uint32_t kNetworkFrameHeaderReserve    = sizeof(OBNetworkFrameHeader);
+
+static_assert(kNetworkFrameHeaderReserve == 26U, "Unexpected OBNetworkFrameHeader layout");
 
 bool hasCodecStaticHeader(MediaSubsession &subsession) {
     return std::strcmp(subsession.codecName(), "H264") == 0 || std::strcmp(subsession.codecName(), "H265") == 0;
+}
+
+bool hasNetworkFrameHeader(MediaSubsession &subsession) {
+    return isOBVendorCodec(subsession.codecName());
 }
 
 const char *receiveModeToString(RTPReceiveMode mode) {
@@ -137,6 +144,9 @@ uint32_t resolvePayloadBytes(const std::shared_ptr<const StreamProfile> &profile
     return profile->as<VideoStreamProfile>()->getMaxFrameDataSize();
 }
 
+uint32_t resolveAllocationBytes(const std::shared_ptr<const StreamProfile> &profile, MediaSubsession &subsession,
+                                const RTPReceiveBufferConfig &config);
+
 uint32_t resolveBufferCount(const std::shared_ptr<const StreamProfile> &profile, MediaSubsession &subsession,
                             const RTPReceiveBufferConfig &config) {
     if(profile->getFormat() == OB_FORMAT_PCM)
@@ -144,9 +154,9 @@ uint32_t resolveBufferCount(const std::shared_ptr<const StreamProfile> &profile,
     if(config.mode == RTPReceiveMode::Legacy)
         return kLegacyVideoBufferCount;
 
-    const uint64_t payload = resolvePayloadBytes(profile, subsession, config);
-    const uint64_t allocation = payload + (hasCodecStaticHeader(subsession) ? kCodecStaticHeaderReserve : 0U);
-    if(payload == 0 || allocation > (std::numeric_limits<uint32_t>::max)())
+    const uint64_t payload    = resolvePayloadBytes(profile, subsession, config);
+    const uint64_t allocation = resolveAllocationBytes(profile, subsession, config);
+    if(payload == 0 || allocation == 0)
         return 0;
     const uint64_t byBudget = config.perSinkMemoryBudgetBytes == 0 ? config.preferredBufferCount
                                                                     : config.perSinkMemoryBudgetBytes / allocation;
@@ -156,7 +166,8 @@ uint32_t resolveBufferCount(const std::shared_ptr<const StreamProfile> &profile,
 uint32_t resolveAllocationBytes(const std::shared_ptr<const StreamProfile> &profile, MediaSubsession &subsession,
                                 const RTPReceiveBufferConfig &config) {
     const uint64_t bytes = static_cast<uint64_t>(resolvePayloadBytes(profile, subsession, config))
-                         + (config.mode == RTPReceiveMode::ProfileDropOldest && hasCodecStaticHeader(subsession) ? kCodecStaticHeaderReserve : 0U);
+                         + (config.mode == RTPReceiveMode::ProfileDropOldest && hasCodecStaticHeader(subsession) ? kCodecStaticHeaderReserve : 0U)
+                         + (hasNetworkFrameHeader(subsession) ? kNetworkFrameHeaderReserve : 0U);
     return bytes > (std::numeric_limits<uint32_t>::max)() ? 0 : static_cast<uint32_t>(bytes);
 }
 }  // namespace
