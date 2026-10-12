@@ -1328,7 +1328,7 @@ Boolean RTSPClient::handleSETUPResponse(MediaSubsession &subsession, char const 
                 // So that we continue to receive & handle RTSP commands and responses from the server
                 subsession.rtpSource()->enableRTCPReports() = False;
                 // To avoid confusing the server (which won't start handling RTP/RTCP-over-TCP until "PLAY"), don't send RTCP "RR"s yet
-                increaseReceiveBufferTo(envir(), fInputSocketNum, 50 * 1024);
+                increaseReceiveBufferTo(envir(), fInputSocketNum, 3 * 1024 * 1024);
             }
             if(subsession.rtcpInstance() != NULL)
                 subsession.rtcpInstance()->setStreamSocket(fInputSocketNum, subsession.rtcpChannelId, &fTLS);
