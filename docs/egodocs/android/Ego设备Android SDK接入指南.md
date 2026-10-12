@@ -2713,9 +2713,9 @@ private void stopEgoAudio(Device device) {
 
 页面退出、设备断开或释放设备前应先调用 `stopAudioPlayback()`，再等待播放线程退出；`Device.close()` 也会尝试停止正在进行的音频播放，但显式停止有助于业务状态同步。
 
-## 14. 蓝牙配对与 Wi-Fi 配置清理
+## 14. 蓝牙配对与 Wi-Fi 配置
 
-本章说明读取和清除 Ego 设备保存的蓝牙配对记录。该能力独立于视频、音频流；应在已获取有效 `Device` 后，于设备工作线程串行调用。
+本章说明读取和清除 Ego 设备保存的蓝牙配对记录，以及配置、读取或清除设备保存的 Wi-Fi 凭据。该能力独立于视频、音频流；应在已获取有效 `Device` 后，于设备工作线程串行调用。
 
 ### 14.1 接口
 
@@ -2723,7 +2723,10 @@ private void stopEgoAudio(Device device) {
 |-----|------|
 | `Device.getBluetoothPairingInfo()` | 读取配对状态、配对时间和蓝牙名称列表。 |
 | `Device.clearBluetoothPairing()` | 清除设备保存的全部蓝牙配对记录。 |
+| `Device.setWifiConfig(String wifi, String password)` | 保存 Wi-Fi 网络名和密码；空密码表示开放网络。 |
+| `Device.getWifiConfig()` | 读取设备保存的 Wi-Fi 网络名和密码。 |
 | `Device.clearWifiConfig()` | 清除设备保存的 Wi-Fi 配置信息。 |
+| `WifiConfig.getWifi()` / `WifiConfig.getPassword()` | 获取读取到的网络名和密码。 |
 | `BluetoothPairingInfo.getPairingState()` | 返回配对状态：未配对（0）、有效（1）或无效（2）。 |
 | `BluetoothPairingInfo.getPairingTimeS()` | 返回设备报告的配对时间，单位秒。 |
 | `BluetoothPairingInfo.getPairedDeviceNames()` | 返回蓝牙名称列表，顺序与设备固件返回顺序一致。 |
@@ -2755,6 +2758,24 @@ BluetoothPairingInfo clearedInfo = device.getBluetoothPairingInfo();
 ```
 
 不支持该能力的设备或固件会抛出 `OBException`；应用应捕获异常并隐藏或禁用配对管理入口。
+
+### 14.4 配置和读取 Wi-Fi
+
+Wi-Fi 网络名和密码均按 UTF-8 编码，最多 63 **字节**（不是 63 个字符）；可使用中文及其他 Unicode 字符。网络名不能为空，密码可以为空（开放网络）。例如常见中文通常占 3 个 UTF-8 字节，因此网络名或密码中的中文字符数量会相应少于 63。设备会持久化该配置，实际连接状态请结合 `EgoStateFlag.WIFI_CONNECTED` 监听或查询。密码属于敏感信息，禁止写入日志或展示在非受保护界面。
+
+```java
+import com.orbbec.obsensor.Device;
+import com.orbbec.obsensor.types.WifiConfig;
+
+// 在用户确认后、设备工作线程中执行。网络名可使用中文或其他 Unicode 字符；空密码表示开放网络。
+device.setWifiConfig("办公室网络", "example-password");
+
+WifiConfig wifiConfig = device.getWifiConfig();
+String wifiName = wifiConfig.getWifi();
+// 不要记录或打印 wifiConfig.getPassword()。
+```
+
+修改网络凭据前应先获得用户确认；若需要取消自动重连并移除已保存凭据，调用 `device.clearWifiConfig()`。设备或固件不支持 Wi-Fi 配网、凭据格式不被设备接受、设备断开时会抛出 `OBException`，应用应捕获异常并提示用户重试或隐藏该入口。
 
 ## 15. SDK 错误码捕获与处理
 
