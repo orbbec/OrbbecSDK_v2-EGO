@@ -13,17 +13,23 @@
 
 #include <dbt.h>
 #include <mfapi.h>
+#include <SetupAPI.h>
 #include <ks.h>
+#include <initguid.h>
+#include <devpkey.h>
 #pragma comment(lib, "mf.lib")
 #pragma comment(lib, "mfreadwrite")
 #pragma comment(lib, "mfplat.lib")
 #pragma comment(lib, "mfreadwrite.lib")
 #pragma comment(lib, "mfuuid.lib")
+#pragma comment(lib, "SetupAPI.lib")
 
 #include <cctype>  //Std::tolower
 #include <chrono>
+#include <iomanip>
 #include <memory>
 #include <sstream>
+#include <vector>
 
 #include "usb/uvc/WmfUvcDevicePort.hpp"
 #include "usb/hid/HidDevicePort.hpp"
@@ -37,6 +43,7 @@
 #include "utils/Utils.hpp"
 
 constexpr GUID     GUID_DEVINTERFACE_USB_DEVICE = { 0xA5DCBF10, 0x6530, 0x11D2, { 0x90, 0x1F, 0x00, 0xC0, 0x4F, 0xB9, 0x51, 0xED } };
+constexpr GUID     OB_GUID_DEVINTERFACE_HID     = { 0x4d1e55b2, 0xf16f, 0x11cf, { 0x88, 0xcb, 0x00, 0x11, 0x11, 0x00, 0x00, 0x30 } };
 constexpr uint16_t PID_BOOTLOADER_UVC           = 0x0501;
 constexpr uint16_t EGO_BOOT_DEVICE_VID           = 0x1B20;
 constexpr uint16_t PID_EGO_BOOT_ROM              = 0x0300;
@@ -45,6 +52,86 @@ constexpr uint16_t EGOPRO_RK_BOOT_DEVICE_VID     = 0x2207;
 constexpr uint16_t PID_EGOPRO_RK_BOOT_LOADER     = 0x350E;
 constexpr uint16_t PID_UMI_RK_BOOT_LOADER        = 0x110F;
 namespace libobsensor {
+
+namespace {
+
+const auto EGO_DEPTH_HID_INTERFACE_TTL = std::chrono::seconds(60);
+
+std::wstring utf8ToWide(const std::string &value) {
+    if(value.empty()) {
+        return {};
+    }
+    const auto size = MultiByteToWideChar(CP_UTF8, 0, value.c_str(), -1, nullptr, 0);
+    if(size <= 1) {
+        return {};
+    }
+    std::wstring result(static_cast<size_t>(size), L'\0');
+    if(MultiByteToWideChar(CP_UTF8, 0, value.c_str(), -1, &result[0], size) != size) {
+        return {};
+    }
+    result.resize(static_cast<size_t>(size - 1));
+    return result;
+}
+
+std::string guidToKey(const GUID &guid) {
+    std::ostringstream ss;
+    ss << std::hex << std::setfill('0') << std::setw(8) << guid.Data1 << '-' << std::setw(4) << guid.Data2 << '-' << std::setw(4) << guid.Data3 << '-'
+       << std::setw(2) << static_cast<uint32_t>(guid.Data4[0]) << std::setw(2) << static_cast<uint32_t>(guid.Data4[1]) << '-';
+    for(size_t i = 2; i < sizeof(guid.Data4); ++i) {
+        ss << std::setw(2) << static_cast<uint32_t>(guid.Data4[i]);
+    }
+    return utils::string::toUpper(ss.str());
+}
+
+bool getDeviceContainerKey(const std::string &interfacePath, std::string &containerKey) {
+    const auto widePath = utf8ToWide(interfacePath);
+    if(widePath.empty()) {
+        return false;
+    }
+
+    auto deviceInfoSet = SetupDiCreateDeviceInfoList(nullptr, nullptr);
+    if(deviceInfoSet == INVALID_HANDLE_VALUE) {
+        return false;
+    }
+
+    SP_DEVICE_INTERFACE_DATA interfaceData{};
+    interfaceData.cbSize = sizeof(interfaceData);
+    if(!SetupDiOpenDeviceInterfaceW(deviceInfoSet, widePath.c_str(), 0, &interfaceData)) {
+        SetupDiDestroyDeviceInfoList(deviceInfoSet);
+        return false;
+    }
+
+    DWORD requiredSize = 0;
+    SetupDiGetDeviceInterfaceDetailW(deviceInfoSet, &interfaceData, nullptr, 0, &requiredSize, nullptr);
+    if(requiredSize == 0 || GetLastError() != ERROR_INSUFFICIENT_BUFFER) {
+        SetupDiDestroyDeviceInfoList(deviceInfoSet);
+        return false;
+    }
+
+    std::vector<uint8_t> detailBuffer(requiredSize);
+    auto detailData    = reinterpret_cast<SP_DEVICE_INTERFACE_DETAIL_DATA_W *>(detailBuffer.data());
+    detailData->cbSize = sizeof(SP_DEVICE_INTERFACE_DETAIL_DATA_W);
+    SP_DEVINFO_DATA deviceData{};
+    deviceData.cbSize = sizeof(deviceData);
+    if(!SetupDiGetDeviceInterfaceDetailW(deviceInfoSet, &interfaceData, detailData, requiredSize, nullptr, &deviceData)) {
+        SetupDiDestroyDeviceInfoList(deviceInfoSet);
+        return false;
+    }
+
+    GUID        containerId{};
+    DEVPROPTYPE propertyType = 0;
+    DWORD       propertySize = sizeof(containerId);
+    const auto success = SetupDiGetDevicePropertyW(deviceInfoSet, &deviceData, &DEVPKEY_Device_ContainerId, &propertyType,
+                                                    reinterpret_cast<PBYTE>(&containerId), propertySize, &propertySize, 0);
+    SetupDiDestroyDeviceInfoList(deviceInfoSet);
+    if(!success || propertyType != DEVPROP_TYPE_GUID || propertySize != sizeof(containerId) || IsEqualGUID(containerId, GUID_NULL)) {
+        return false;
+    }
+    containerKey = guidToKey(containerId) + ":MI08";
+    return true;
+}
+
+}  // namespace
 
 class WinUsbDeviceWatcher : public IDeviceWatcher {
 public:
@@ -254,6 +341,66 @@ std::shared_ptr<IDeviceWatcher> WinUsbPal::createDeviceWatcher() const {
     return std::make_shared<WinUsbDeviceWatcher>(this);
 }
 
+void WinUsbPal::pruneExpiredEgoDepthHidInterfaces(std::chrono::steady_clock::time_point now) const {
+    for(auto it = egoDepthHidInterfaces_.begin(); it != egoDepthHidInterfaces_.end();) {
+        if(now - it->second.arrivalTime > EGO_DEPTH_HID_INTERFACE_TTL) {
+            it = egoDepthHidInterfaces_.erase(it);
+        }
+        else {
+            ++it;
+        }
+    }
+}
+
+void WinUsbPal::cacheEgoDepthHidInterface(const std::string &symbolicLink) const {
+    std::string containerKey;
+    if(!getDeviceContainerKey(symbolicLink, containerKey)) {
+        LOG_WARN("Failed to get Windows container id for EgoDepth HID MI_08 arrival");
+        return;
+    }
+
+    const auto now = std::chrono::steady_clock::now();
+    {
+        std::lock_guard<std::mutex> lock(egoDepthHidInterfaceMutex_);
+        pruneExpiredEgoDepthHidInterfaces(now);
+        egoDepthHidInterfaces_[containerKey] = EgoDepthHidInterfaceEntry{ utils::string::toUpper(symbolicLink), now };
+    }
+    LOG_DEBUG("Cached EgoDepth HID MI_08 interface by container id: {}", containerKey);
+}
+
+void WinUsbPal::removeEgoDepthHidInterface(const std::string &symbolicLink) const {
+    const auto normalizedSymbolicLink = utils::string::toUpper(symbolicLink);
+    std::lock_guard<std::mutex> lock(egoDepthHidInterfaceMutex_);
+    for(auto it = egoDepthHidInterfaces_.begin(); it != egoDepthHidInterfaces_.end();) {
+        if(utils::string::toUpper(it->second.symbolicLink) == normalizedSymbolicLink) {
+            it = egoDepthHidInterfaces_.erase(it);
+        }
+        else {
+            ++it;
+        }
+    }
+}
+
+bool WinUsbPal::findEgoDepthHidInterface(const std::string &usbDevicePath, std::string &symbolicLink) const {
+    std::string containerKey;
+    if(!getDeviceContainerKey(usbDevicePath, containerKey)) {
+        return false;
+    }
+
+    const auto now = std::chrono::steady_clock::now();
+    {
+        std::lock_guard<std::mutex> lock(egoDepthHidInterfaceMutex_);
+        pruneExpiredEgoDepthHidInterfaces(now);
+        const auto it = egoDepthHidInterfaces_.find(containerKey);
+        if(it == egoDepthHidInterfaces_.end()) {
+            return false;
+        }
+        symbolicLink = it->second.symbolicLink;
+    }
+    LOG_DEBUG("Matched EgoDepth HID MI_08 fallback by container id: {}", containerKey);
+    return true;
+}
+
 SourcePortInfoList WinUsbPal::querySourcePortInfos() {
     SourcePortInfoList portInfoList;
 
@@ -303,6 +450,14 @@ SourcePortInfoList WinUsbPal::querySourcePortInfos() {
             portInfo->infIndex = info.infIndex;
             portInfo->infName  = info.infName;
             portInfo->hubId    = info.hubId;
+
+            if(portInfo->infUrl.empty() && info.cls == OB_USB_CLASS_HID && info.infIndex == 8 && isEgoDepthDevice(info.vid, info.pid)) {
+                std::string hidSymbolicLink;
+                if(findEgoDepthHidInterface(info.url, hidSymbolicLink)) {
+                    portInfo->infUrl = hidSymbolicLink;
+                    LOG_INFO("Use Windows HID arrival path as EgoDepth MI_08 interface-url fallback. vid=0x{:04X}, pid=0x{:04X}", info.vid, info.pid);
+                }
+            }
 
             if(portInfo->infUrl.empty()) {
                 LOG_WARN("Found a usb port without interface url! drop it!(device url={} interface index={})", info.url,
@@ -415,8 +570,8 @@ LRESULT CALLBACK WinUsbDeviceWatcher::onWinEvent(HWND hWnd, UINT message, WPARAM
     case WM_DEVICECHANGE: {
         if(wParam == DBT_DEVICEARRIVAL || wParam == DBT_DEVICEREMOVECOMPLETE) {
             uint16_t    vid = 0;
-            uint16_t    pid;
-            uint16_t    mi;
+            uint16_t    pid = 0;
+            uint16_t    mi  = 0xFFFF;
             std::string uid;
             std::string device_guid;
             auto        devIntf      = reinterpret_cast<PDEV_BROADCAST_DEVICEINTERFACE>(lParam);
@@ -424,9 +579,16 @@ LRESULT CALLBACK WinUsbDeviceWatcher::onWinEvent(HWND hWnd, UINT message, WPARAM
             if(parseSymbolicLink(symbolicLink, vid, pid, mi, uid, device_guid)) {
                 if(isSupportedDevice(vid, pid)) {
                     auto watcherExtraData = reinterpret_cast<extra_data *>(GetWindowLongPtr(hWnd, GWLP_USERDATA));
-                    symbolicLink          = utils::string::toUpper(symbolicLink);
+                    const auto nativeSymbolicLink = symbolicLink;
+                    symbolicLink                 = utils::string::toUpper(symbolicLink);
                     if(wParam == DBT_DEVICEARRIVAL) {
                         LOG_DEBUG("Device arrival event occurred! symbolicLink={}", symbolicLink);
+                        if(IsEqualGUID(devIntf->dbcc_classguid, OB_GUID_DEVINTERFACE_HID) && mi == 8 && isEgoDepthDevice(vid, pid)) {
+                            auto winPal = dynamic_cast<const WinUsbPal *>(watcherExtraData->backend_);
+                            if(winPal != nullptr) {
+                                winPal->cacheEgoDepthHidInterface(nativeSymbolicLink);
+                            }
+                        }
                         const bool isUsbDeviceInterface  = (devIntf->dbcc_classguid == GUID_DEVINTERFACE_USB_DEVICE);
                         const bool isUvcBootloader       = (ORBBEC_DEVICE_VID == vid) && (PID_BOOTLOADER_UVC == pid);
                         const bool isEgoBootDevice       = (vid == EGO_BOOT_DEVICE_VID) && (pid == PID_EGO_BOOT_ROM || pid == PID_EGO_BOOT_UBOOT);
@@ -443,6 +605,12 @@ LRESULT CALLBACK WinUsbDeviceWatcher::onWinEvent(HWND hWnd, UINT message, WPARAM
                     }
                     else if(wParam == DBT_DEVICEREMOVECOMPLETE) {
                         LOG_DEBUG("Device removed event occurred! symbolicLink={}", symbolicLink);
+                        if(IsEqualGUID(devIntf->dbcc_classguid, OB_GUID_DEVINTERFACE_HID) && mi == 8 && isEgoDepthDevice(vid, pid)) {
+                            auto winPal = dynamic_cast<const WinUsbPal *>(watcherExtraData->backend_);
+                            if(winPal != nullptr) {
+                                winPal->removeEgoDepthHidInterface(nativeSymbolicLink);
+                            }
+                        }
                         if(devIntf->dbcc_classguid == GUID_DEVINTERFACE_USB_DEVICE) {
                             watcherExtraData->backend_->markUvcPortsDisconnected(vid, pid, uid, symbolicLink);
                             (void)watcherExtraData->callback_(OB_DEVICE_REMOVED, symbolicLink);
@@ -505,12 +673,10 @@ bool WinUsbDeviceWatcher::registerDeviceInterfaceToHwnd(HWND hWnd) {
     }
 
     //===========================register HID sensor camera events==============================
-    static constexpr GUID GUID_DEVINTERFACE_HID = { 0x4d1e55b2, 0xf16f, 0x11cf, { 0x88, 0xcb, 0x00, 0x11, 0x11, 0x00, 0x00, 0x30 } };
-
     DEV_BROADCAST_DEVICEINTERFACE hid_sensor = { 0 };
     hid_sensor.dbcc_size                     = sizeof(hid_sensor);
     hid_sensor.dbcc_devicetype               = DBT_DEVTYP_DEVICEINTERFACE;
-    hid_sensor.dbcc_classguid                = GUID_DEVINTERFACE_HID;
+    hid_sensor.dbcc_classguid                = OB_GUID_DEVINTERFACE_HID;
 
     data->hDevNotifyHID = RegisterDeviceNotification(hWnd, &hid_sensor, DEVICE_NOTIFY_WINDOW_HANDLE);
     if(data->hDevNotifyHID == nullptr) {
