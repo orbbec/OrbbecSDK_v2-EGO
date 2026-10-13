@@ -324,6 +324,15 @@ DataAcquisitionAlgParamManager::DataAcquisitionAlgParamManager(IDevice *owner) :
     registerBasicExtrinsics();
 }
 
+void DataAcquisitionAlgParamManager::bindExtrinsic(std::vector<std::shared_ptr<const StreamProfile>> streamProfileList) {
+    if(!convertConfig_) {
+        LOG_WARN("Skip extrinsic binding because conversion parameters are unavailable");
+        return;
+    }
+
+    AlgParamManagerBase::bindExtrinsic(streamProfileList);
+}
+
 std::string DataAcquisitionAlgParamManager::getCameraIdForStreamType(OBStreamType streamType) const {
     if(!convertConfig_) {
         return std::string();

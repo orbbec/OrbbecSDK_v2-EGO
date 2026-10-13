@@ -20,6 +20,7 @@ public:
     DataAcquisitionAlgParamManager(IDevice *owner);
     virtual ~DataAcquisitionAlgParamManager() noexcept override = default;
 
+    void bindExtrinsic(std::vector<std::shared_ptr<const StreamProfile>> streamProfileList) override;
     void bindIntrinsic(std::vector<std::shared_ptr<const StreamProfile>> streamProfileList) override;
 
 private:
