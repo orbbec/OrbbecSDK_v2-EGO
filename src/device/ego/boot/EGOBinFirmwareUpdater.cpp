@@ -3,7 +3,7 @@
 #include "EGOBinFirmwareUpdater.hpp"
 #include "EGOBinPackage.hpp"
 #include "EGOMd5.hpp"
-#include "DevicePids.hpp"
+#include "common/DevicePids.hpp"
 #include "Platform.hpp"
 #include "protocol/EGOScsiProtocol.hpp"
 #include "usb/scsi/ScsiDevicePort.hpp"

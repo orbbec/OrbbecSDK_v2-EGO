@@ -198,7 +198,15 @@ std::shared_ptr<Config> Pipeline::checkAndSetConfig(std::shared_ptr<const Config
         }
         else if(sensorType == OB_SENSOR_MAG) {
             auto profile            = sp->as<MagStreamProfile>();
-            auto matchedProfileList = matchMagStreamProfile(sensorSpList, profile->getSampleRate());
+            auto matchedProfileList = matchMagStreamProfile(sensorSpList, profile->getFullScaleRange(), profile->getSampleRate());
+            if(matchedProfileList.empty()) {
+                THROW_INVALID_PARAM_EXCEPTION(utils::string::to_string() << "No matched profile found for:" << sp);
+            }
+            config->enableStream(matchedProfileList.front());
+        }
+        else if(sensorType == OB_SENSOR_MAG_ENCODER) {
+            auto profile            = sp->as<MagEncoderStreamProfile>();
+            auto matchedProfileList = matchMagEncoderStreamProfile(sensorSpList, profile->getSampleRate());
             if(matchedProfileList.empty()) {
                 THROW_INVALID_PARAM_EXCEPTION(utils::string::to_string() << "No matched profile found for:" << sp);
             }

@@ -44,8 +44,8 @@ typedef enum {
     OB_PROP_MAG_SWITCH_BOOL      = 2041, /**< Magnetometer switch*/
     OB_PROP_MAG_ODR_INT          = 2042, /**< get/set current magnetometer sampling rate*/
     OB_PROP_MAG_FULL_SCALE_INT   = 2043, /**< get/set current magnetometer range*/
-    OB_STRUCT_GET_MAG_PRESETS_ODR_LIST         = 2044, /**< Get the list of sampling rates supported by the magnetometer*/
-    OB_STRUCT_GET_MAG_PRESETS_FULL_SCALE_LIST  = 2045, /**< Get the range list supported by the magnetometer*/
+    OB_PROP_MAG_ENCODER_ODR_INT  = 2044, /**< get/set current magnetometer encoder sampling rate*/
+
 
     OB_STRUCT_VERSION                           = 1000, /**< version information*/
     OB_STRUCT_INTERNAL_CAMERA_PARAM             = 1001, /**< Camera intrinsic and extrinsic parameters */
@@ -61,6 +61,10 @@ typedef enum {
     OB_STRUCT_IR_RIGHT_STREAM_PROFILE     = 1065, /**< set stream profile to right ir*/
     OB_STRUCT_SOFTWARE_SYNCED_TARGET_TIME = 1076, /**< Soft sync capture image*/
     OB_STRUCT_CURRENT_DEPTH_ALG_MODE_V2   = 1103, /**< The current camera depth mode with version */
+    OB_STRUCT_GET_MAG_PRESETS_ODR_LIST         = 1109, /**< Get the list of sampling rates supported by the magnetometer*/
+    OB_STRUCT_GET_MAG_PRESETS_FULL_SCALE_LIST  = 1120, /**< Get the range list supported by the magnetometer*/
+    OB_STRUCT_GET_MAG_ENCODER_PRESETS_ODR_LIST = 1121, /**< Get the list of sampling rates supported by the magnetometer encoder*/
+
     OB_RAW_DATA_DUAL_CAMERA_PARAMS_0      = 4045, /**< Obtain Mx6000 binocular Content0 parameters */
     OB_RAW_DATA_DUAL_CAMERA_PARAMS_1      = 4046, /**< Obtain Mx6000 binocular Content1 parameters */
     OB_RAW_DATA_DUAL_CAMERA_PARAMS_2      = 4047, /**< Obtain Mx6000 binocular Content2 parameters */
@@ -78,6 +82,7 @@ typedef enum {
     OB_RAW_DATA_DE_IR_RECTIFY_PARAMS                     = 4037, /**< DE-IR rectification parameters*/
     OB_RAW_DATA_DEVICE_UPGRADE                           = 4039, /**< Device firmware upgrade*/
     OB_RAW_DATA_DEVICE_EXTENSION_INFORMATION             = 4041, /**< Device extension information*/
+    OB_RAW_DATA_DEVICE_MAC                               = 4042, /**< Device MAC address, OBMacAddress */
     OB_RAW_DATA_D2C_ALIGN_COLOR_PRE_PROCESS_PROFILE_LIST = 4046, /**< D2C Alignment Resolution List*/
     OB_OPENNI_DEPTH_PROCESSOR_PARAM                      = 4049, /**< OpenNI device depth process params*/
     OB_RAW_DATA_DE_IR_TRANSFORM_PARAMS                   = 4059, /**< DE-IR transform parameters*/
@@ -112,7 +117,7 @@ typedef enum {
     // Current local-time offset from UTC, in minutes. value = local time - UTC time; UTC+8 is 480.
     // SDK internal write-only property.
     OB_PROP_LOCAL_UTC_OFFSET_MINUTES_INT  = 295,
-    OB_RAW_DATA_FW_RECORDING_PROFILE_LIST = 1096, /**< Current firmware recording profile list, OBInternalStreamProfile[] */
+    OB_RAW_DATA_FW_RECORDING_PROFILE_LIST = 1096,
     // Host UTC time, UTC offset and IANA time-zone information. Internal write-only structure property.
     OB_STRUCT_HOST_TIME_INFO              = 1105,
 } OBInternalPropertyID;

@@ -12,7 +12,7 @@
 #include "UMIFingerNetDevice.hpp"
 #include "EGODepthDevice.hpp"
 #include "EGODepthNetDevice.hpp"
-#include "DevicePids.hpp"
+#include "common/DevicePids.hpp"
 #include "common/DeviceSeriesInfo.hpp"
 #include "utils/Utils.hpp"
 #include "exception/ObException.hpp"

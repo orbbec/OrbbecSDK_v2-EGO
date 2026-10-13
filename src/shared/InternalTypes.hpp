@@ -251,6 +251,13 @@ typedef struct {
             uint16_t fullScaleRange;  // enum value of OBGyroFullScaleRange
             uint16_t sampleRate;      // enum value of OBGyroSampleRate
         } gyro;
+        struct Mag {                  // This structure is used for Magnetometer
+            uint16_t fullScaleRange;  // enum value of OBMagFullScaleRange
+            uint16_t sampleRate;      // enum value of OBMagSampleRate
+        } mag;
+        struct MagEncoder {       // This structure is used for magnetic angle encoder
+            uint16_t sampleRate;  // enum value of OBMagEncoderSampleRate
+        } magEncoder;
     } profile;
 } OBInternalStreamProfile;
 

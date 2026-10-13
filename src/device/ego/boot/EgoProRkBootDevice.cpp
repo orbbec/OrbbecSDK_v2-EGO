@@ -1,7 +1,7 @@
 // Copyright (c) Orbbec Inc. All Rights Reserved.
 // Licensed under the MIT License.
 #include "EgoProRkBootDevice.hpp"
-#include "DevicePids.hpp"
+#include "common/DevicePids.hpp"
 #include "exception/ObException.hpp"
 namespace libobsensor {
 EgoProRkBootDevice::EgoProRkBootDevice(const std::shared_ptr<const IDeviceEnumInfo> &info) : DeviceBase(info) {

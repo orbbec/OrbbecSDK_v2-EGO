@@ -393,7 +393,7 @@ void PropertyServer::setRawData(uint32_t propertyId, const std::vector<uint8_t> 
     utils::Timer timer;
     rawDataAccessor->setRawData(propId, data);
     for(auto &accessCallback: accessCallbacks) {
-        accessCallback(propertyId, data.data(), data.size(), PROP_OP_WRITE);
+        accessCallback.callback(propertyId, data.data(), data.size(), PROP_OP_WRITE);
     }
     auto delta = timer.touchUs();
     LOG_DEBUG("[delta: {}us] Property {} set raw data successfully, size {}", delta, propId, data.size());

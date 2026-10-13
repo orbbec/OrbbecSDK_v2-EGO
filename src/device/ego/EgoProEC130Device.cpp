@@ -7,7 +7,7 @@
 #include "DataAcquisitionAlgParamManager.hpp"
 #include "EGOVideoSensor.hpp"
 #include "EGOStreamStrategy.hpp"
-#include "DevicePids.hpp"
+#include "common/DevicePids.hpp"
 #include "environment/EnvConfig.hpp"
 #include "stream/StreamProfileFactory.hpp"
 #include "sensor/video/VideoSensor.hpp"

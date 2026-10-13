@@ -603,7 +603,7 @@ void EGODepthNetDevice::fixSensorList() {
 
     const auto &currentMode = depthWorkModeManager->getCurrentDepthWorkMode();
 
-    if(std::strcmp(currentMode.name, kEgoDepthFactoryCalibMode) == 0) {
+    if(std::strcmp(currentMode.mode.name, "Factory Calib") == 0) {
         // Factory Calib: no Depth stream.
         deregisterSensor(OB_SENSOR_DEPTH);
         deregisterComponent(OB_DEV_COMPONENT_DEPTH_FRAME_PROCESSOR);

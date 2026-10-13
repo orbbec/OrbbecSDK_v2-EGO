@@ -2,71 +2,326 @@
 // Licensed under the MIT License.
 
 #include "EGODepthPresetManager.hpp"
-#include "IDepthWorkModeManager.hpp"
+#include "property/InternalProperty.hpp"
+#include "InternalTypes.hpp"
 #include "exception/ObException.hpp"
+#include "utils/Utils.hpp"
+#include "utils/StringUtils.hpp"
+#include "IDepthWorkModeManager.hpp"
+#include "preset/PresetDefinitions.hpp"
+#include "logger/Logger.hpp"
+#include "utils/FlagGuard.hpp"
+#include "preset/ApplicationConfig.hpp"
+#include "preset/ApplicationConfigHandler.hpp"
 
-#include <algorithm>
+#include <fstream>
+#include <json/json.h>
 
 namespace libobsensor {
 
 EGODepthPresetManager::EGODepthPresetManager(IDevice *owner) : DeviceComponentBase(owner) {
     auto depthWorkModeManager = owner->getComponentT<IDepthWorkModeManager>(OB_DEV_COMPONENT_DEPTH_WORK_MODE_MANAGER);
-    for(auto &mode: depthWorkModeManager->getDepthWorkModeList()) {
-        availablePresets_.emplace_back(mode.name);
+    auto depthWorkModeList    = depthWorkModeManager->getDepthWorkModeList();
+
+    for(auto &item: depthWorkModeList) {
+        availablePresets_.push_back({ item.mode.name, item.version });
     }
-    currentPreset_ = depthWorkModeManager->getCurrentDepthWorkMode().name;
+
+    if(availablePresets_.size() > 0) {
+        currentPresetName_ = availablePresets_[0].name;
+        // switch to the exact first item, a name-only switch would select the latest version among same-name modes
+        depthWorkModeManager->switchDepthWorkMode(currentPresetName_, availablePresets_[0].version);
+    }
+
+    if(!owner->isPlaybackDevice()) {
+        auto                  propServer = owner->getPropertyServer();
+        std::vector<uint32_t> propertyIds{ OB_PROP_LASER_CONTROL_INT,
+                                           OB_PROP_LASER_POWER_LEVEL_CONTROL_INT,
+                                           OB_PROP_DEPTH_AUTO_EXPOSURE_BOOL,
+                                           OB_PROP_IR_AUTO_EXPOSURE_BOOL,
+                                           OB_PROP_DEPTH_EXPOSURE_INT,
+                                           OB_PROP_IR_EXPOSURE_INT,
+                                           OB_PROP_DEPTH_GAIN_INT,
+                                           OB_PROP_IR_GAIN_INT,
+                                           OB_PROP_IR_BRIGHTNESS_INT,
+                                           OB_PROP_COLOR_AUTO_EXPOSURE_BOOL,
+                                           OB_PROP_COLOR_EXPOSURE_INT,
+                                           OB_PROP_COLOR_AUTO_WHITE_BALANCE_BOOL,
+                                           OB_PROP_COLOR_WHITE_BALANCE_INT,
+                                           OB_PROP_COLOR_GAIN_INT,
+                                           OB_PROP_COLOR_CONTRAST_INT,
+                                           OB_PROP_COLOR_SATURATION_INT,
+                                           OB_PROP_COLOR_SHARPNESS_INT,
+                                           OB_PROP_COLOR_BRIGHTNESS_INT,
+                                           OB_PROP_COLOR_HUE_INT,
+                                           OB_PROP_COLOR_GAMMA_INT,
+                                           OB_PROP_COLOR_BACKLIGHT_COMPENSATION_INT,
+                                           OB_PROP_COLOR_POWER_LINE_FREQUENCY_INT,
+                                           OB_PROP_FRAME_INTERLEAVE_ENABLE_BOOL,
+                                           OB_PROP_FRAME_INTERLEAVE_CONFIG_INDEX_INT,
+                                           OB_PROP_IR_AE_MAX_EXPOSURE_INT,
+                                           OB_STRUCT_DEPTH_AE_ROI,
+                                           OB_STRUCT_COLOR_AE_ROI,
+                                           OB_PROP_DISPARITY_TO_DEPTH_BOOL,
+                                           OB_PROP_SDK_DISPARITY_TO_DEPTH_BOOL,
+                                           OB_PROP_DEPTH_NOISE_REMOVAL_FILTER_BOOL,
+                                           OB_PROP_DEPTH_NOISE_REMOVAL_FILTER_MAX_DIFF_INT,
+                                           OB_PROP_DEPTH_NOISE_REMOVAL_FILTER_MAX_SPECKLE_SIZE_INT,
+                                           OB_PROP_HW_NOISE_REMOVE_FILTER_ENABLE_BOOL,
+                                           OB_PROP_HW_NOISE_REMOVE_FILTER_THRESHOLD_FLOAT,
+                                           OB_PROP_DEPTH_AUTO_EXPOSURE_PRIORITY_INT,
+                                           OB_PROP_DEPTH_UNIT_FLEXIBLE_ADJUSTMENT_FLOAT,
+                                           OB_PROP_LDP_BOOL,
+                                           OB_PROP_DEPTH_FLIP_BOOL,
+                                           OB_PROP_DEPTH_MIRROR_BOOL,
+                                           OB_PROP_DEPTH_ROTATE_INT,
+                                           OB_PROP_COLOR_AUTO_EXPOSURE_PRIORITY_INT,
+                                           OB_PROP_COLOR_DENOISING_LEVEL_INT,
+                                           OB_PROP_COLOR_AE_MAX_EXPOSURE_INT,
+                                           OB_PROP_COLOR_FLIP_BOOL,
+                                           OB_PROP_COLOR_MIRROR_BOOL,
+                                           OB_PROP_COLOR_ROTATE_INT,
+                                           OB_PROP_IR_FLIP_BOOL,
+                                           OB_PROP_IR_MIRROR_BOOL,
+                                           OB_PROP_IR_ROTATE_INT,
+                                           OB_PROP_IR_RIGHT_FLIP_BOOL,
+                                           OB_PROP_IR_RIGHT_MIRROR_BOOL,
+                                           OB_PROP_IR_RIGHT_ROTATE_INT,
+                                           OB_PROP_MJPEG_QUALITY_INT };
+        propServer->registerAccessCallback(propertyIds, [&](uint32_t, const uint8_t *, size_t, PropertyOperationType operationType) {
+            if(isExternalDataLoading_) {
+                // Don't update preset name while imported data is applying properties.
+                return;
+            }
+            if(operationType == PROP_OP_WRITE) {
+                currentPresetName_ = kCustomPresetName;
+            }
+        });
+        TRY_EXECUTE({ storeCurrentParamsAsCustomPreset(kCustomPresetName); });
+    }
 }
 
-void EGODepthPresetManager::loadPreset(const std::string &presetName) {
-    if(std::find(availablePresets_.begin(), availablePresets_.end(), presetName) == availablePresets_.end()) {
+void EGODepthPresetManager::loadPreset(const std::string &presetName, const std::string &version) {
+    auto iter = std::find_if(availablePresets_.begin(), availablePresets_.end(), [&presetName](const PresetItem &item) { return item.name == presetName; });
+    if(iter == availablePresets_.end()) {
         THROW_INVALID_PARAM_EXCEPTION("Invalid preset name: " + presetName);
     }
 
-    auto depthWorkModeManager = getOwner()->getComponentT<IDepthWorkModeManager>(OB_DEV_COMPONENT_DEPTH_WORK_MODE_MANAGER);
-    depthWorkModeManager->switchDepthWorkMode(presetName.c_str());
-    currentPreset_ = presetName;
+    // custom preset's target version is defined by its content, reject mismatched version before applying
+    auto customIter = customPresets_.find(presetName);
+    if(customIter != customPresets_.end() && !version.empty() && version != iter->version) {
+        THROW_INVALID_PARAM_EXCEPTION("Invalid preset version: " + version + ", preset: " + presetName);
+    }
+
+    // store current parameters to kCustomPresetName
+    if(currentPresetName_ == kCustomPresetName) {
+        storeCurrentParamsAsCustomPreset(kCustomPresetName);
+    }
+
+    if(customIter != customPresets_.end()) {
+        // Load custom preset
+        loadCustomPreset(customIter->first, customIter->second);
+    }
+    else {
+        auto owner                = getOwner();
+        auto depthWorkModeManager = owner->getComponentT<IDepthWorkModeManager>(OB_DEV_COMPONENT_DEPTH_WORK_MODE_MANAGER);
+
+        depthWorkModeManager->switchDepthWorkMode(presetName, version);
+        currentPresetName_ = presetName;
+    }
 }
 
 const std::string &EGODepthPresetManager::getCurrentPresetName() const {
-    return currentPreset_;
+    return currentPresetName_;
 }
 
-const std::vector<std::string> &EGODepthPresetManager::getAvailablePresetList() const {
+const std::string &EGODepthPresetManager::getCurrentDepthWorkModeVersion() const {
+    auto depthWorkModeManager = getOwner()->getComponentT<IDepthWorkModeManager>(OB_DEV_COMPONENT_DEPTH_WORK_MODE_MANAGER);
+    return depthWorkModeManager->getCurrentDepthWorkMode().version;
+}
+
+const std::vector<PresetItem> &EGODepthPresetManager::getAvailablePresetList() const {
     return availablePresets_;
 }
 
 void EGODepthPresetManager::loadPresetFromJsonData(const std::string &presetName, const std::vector<uint8_t> &jsonData) {
-    (void)presetName;
-    (void)jsonData;
-    THROW_UNSUPPORTED_OPERATION_EXCEPTION("EGODepth preset does not support JSON import");
+    Json::Value  root;
+    Json::Reader reader;
+    if(!reader.parse(std::string((const char *)jsonData.data(), jsonData.size()), root)) {
+        THROW_INVALID_PARAM_EXCEPTION("Invalid JSON data");
+    }
+    // store current parameters to kCustomPresetName
+    if(currentPresetName_ == kCustomPresetName) {
+        storeCurrentParamsAsCustomPreset(kCustomPresetName);
+    }
+    FlagGuard guard(isExternalDataLoading_);
+    loadPresetFromJsonValue(presetName, root);
+    ApplicationConfigHandler::applyFromJsonRoot(*this, getOwner(), root);
+    storeImportedApplicationConfig(presetName, root);
 }
 
 void EGODepthPresetManager::loadPresetFromJsonFile(const std::string &filePath) {
-    (void)filePath;
-    THROW_UNSUPPORTED_OPERATION_EXCEPTION("EGODepth preset does not support JSON import");
+    Json::Value   root;
+    std::ifstream ifs(filePath);
+    ifs >> root;
+    // store current parameters to kCustomPresetName
+    if(currentPresetName_ == kCustomPresetName) {
+        storeCurrentParamsAsCustomPreset(kCustomPresetName);
+    }
+    FlagGuard guard(isExternalDataLoading_);
+    loadPresetFromJsonValue(filePath, root);
+    ApplicationConfigHandler::applyFromJsonRoot(*this, getOwner(), root);
+    storeImportedApplicationConfig(filePath, root);
+}
+
+std::shared_ptr<IPresetEngine> EGODepthPresetManager::getPresetEngine(const Json::Value &root) {
+    if(root.isObject() && root.isMember(kApiVersion)) {
+        auto presetVersion = root[kApiVersion]["preset"].asUInt();
+        if(presetVersion <= 2) {
+            // preset version 2 json: depth_preset is a legacy string leaf
+            if(presetEngineV2_ == nullptr) {
+                presetEngineV2_ = std::make_shared<EGODepthPresetEngine>(getOwner(), 2);
+                presetEngineV2_->init();
+            }
+            return presetEngineV2_;
+        }
+        return getCurrentPresetEngine();
+    }
+    if(presetEngineV1_ == nullptr) {
+        presetEngineV1_ = std::make_shared<EGODepthPresetEngineV1>(getOwner());
+        presetEngineV1_->init();
+    }
+    return presetEngineV1_;
+}
+
+std::shared_ptr<IPresetEngine> EGODepthPresetManager::getCurrentPresetEngine() {
+    if(presetEngine_ == nullptr) {
+        presetEngine_ = std::make_shared<EGODepthPresetEngine>(getOwner(), kG330PresetVersion);
+        presetEngine_->init();
+    }
+    return presetEngine_;
+}
+
+void EGODepthPresetManager::loadPresetFromJsonValue(const std::string &presetName, const Json::Value &root) {
+    loadCustomPreset(presetName, root);
+
+    if(!getOwner()->isPlaybackDevice()) {
+        if(std::find_if(availablePresets_.begin(), availablePresets_.end(), [&presetName](const PresetItem &item) { return item.name == presetName; })
+           == availablePresets_.end()) {
+            std::string        version;
+            const Json::Value &depthPreset = root["parameters"]["sensor_depth"]["depth_preset"];
+            if(depthPreset.isObject() && depthPreset.isMember("version")) {
+                version = depthPreset["version"].asString();
+            }
+            availablePresets_.push_back({ presetName, version });
+        }
+    }
+    customPresets_[presetName] = root;
+}
+
+Json::Value EGODepthPresetManager::exportSettingsAsPresetJsonValue(const std::string &presetName) {
+    storeCurrentParamsAsCustomPreset(presetName);
+    auto iter = customPresets_.find(presetName);
+    if(iter == customPresets_.end()) {
+        THROW_INVALID_PARAM_EXCEPTION("Invalid preset name: " + presetName);
+    }
+    return iter->second;
 }
 
 const std::vector<uint8_t> &EGODepthPresetManager::exportSettingsAsPresetJsonData(const std::string &presetName) {
-    (void)presetName;
-    THROW_UNSUPPORTED_OPERATION_EXCEPTION("EGODepth preset does not support JSON export");
+    storeCurrentParamsAsCustomPreset(presetName);
+    auto rootValue = getCurrentPresetEngine()->exportToValue();
+    ApplicationConfigHandler::appendToExportValue(rootValue, *this);
+    auto str = jsonmodel::serialize(rootValue);
+    tmpJsonData_.assign(str.begin(), str.end());
+    return tmpJsonData_;
 }
 
 void EGODepthPresetManager::exportSettingsAsPresetJsonFile(const std::string &filePath) {
-    (void)filePath;
-    THROW_UNSUPPORTED_OPERATION_EXCEPTION("EGODepth preset does not support JSON export");
+    storeCurrentParamsAsCustomPreset(filePath);
+    auto rootValue = getCurrentPresetEngine()->exportToValue();
+    ApplicationConfigHandler::appendToExportValue(rootValue, *this);
+    std::ofstream ofs(filePath);
+    ofs << jsonmodel::serialize(rootValue);
 }
 
 void EGODepthPresetManager::fetchPreset() {
-    auto depthWorkModeManager = getOwner()->getComponentT<IDepthWorkModeManager>(OB_DEV_COMPONENT_DEPTH_WORK_MODE_MANAGER);
+    auto owner                = getOwner();
+    auto depthWorkModeManager = owner->getComponentT<IDepthWorkModeManager>(OB_DEV_COMPONENT_DEPTH_WORK_MODE_MANAGER);
 
-    // refetch list from firmware
+    // refetch list
     depthWorkModeManager->fetchDepthWorkModeList();
 
+    // clear data
     availablePresets_.clear();
-    for(auto &mode: depthWorkModeManager->getDepthWorkModeList()) {
-        availablePresets_.emplace_back(mode.name);
+    currentPresetName_.clear();
+    tmpJsonData_.clear();
+    customPresets_.clear();
+    importedAppConfigs_.clear();
+
+    auto depthWorkModeList = depthWorkModeManager->getDepthWorkModeList();
+    for(auto &item: depthWorkModeList) {
+        availablePresets_.push_back({ item.mode.name, item.version });
     }
-    currentPreset_ = depthWorkModeManager->getCurrentDepthWorkMode().name;
+
+    if(availablePresets_.size() > 0) {
+        currentPresetName_ = availablePresets_[0].name;
+        // switch to the exact first item, a name-only switch would select the latest version among same-name modes
+        depthWorkModeManager->switchDepthWorkMode(currentPresetName_, availablePresets_[0].version);
+    }
+    TRY_EXECUTE({ storeCurrentParamsAsCustomPreset(kCustomPresetName); });
+}
+
+bool EGODepthPresetManager::isApplicationConfigSupported() const {
+    return true;
+}
+
+std::shared_ptr<ApplicationConfig> EGODepthPresetManager::getApplicationConfig() {
+    std::lock_guard<std::mutex> lock(applicationConfigMutex_);
+    if(!applicationConfig_) {
+        applicationConfig_ = std::make_shared<ApplicationConfig>(getOwner());
+    }
+    return applicationConfig_;
+}
+
+std::shared_ptr<ApplicationConfig> EGODepthPresetManager::getApplicationConfig(const std::string &presetName) {
+    auto iter = importedAppConfigs_.find(presetName);
+    if(iter == importedAppConfigs_.end()) {
+        return nullptr;
+    }
+    return iter->second;
+}
+
+void EGODepthPresetManager::storeImportedApplicationConfig(const std::string &presetName, const Json::Value &root) {
+    if(!isApplicationConfigSupported() || !root.isMember(ApplicationConfigHandler::rootKeyName())) {
+        return;
+    }
+    // Snapshot the just-applied global config into an independent object, so a later switch back to this
+    // preset can restore it even after the shared global has been overwritten by other presets.
+    importedAppConfigs_[presetName] = std::make_shared<ApplicationConfig>(*getApplicationConfig());
+}
+
+void EGODepthPresetManager::loadCustomPreset(const std::string &presetName, const Json::Value &preset) {
+    auto presetEngine = getPresetEngine(preset);
+    presetEngine->importJson(preset);
+    currentPresetName_ = presetName;
+}
+
+void EGODepthPresetManager::storeCurrentParamsAsCustomPreset(const std::string &presetName) {
+    auto presetEngine = getCurrentPresetEngine();
+    auto data         = presetEngine->exportJson();
+
+    if(!getOwner()->isPlaybackDevice()) {
+        auto iter = std::find_if(availablePresets_.begin(), availablePresets_.end(), [&presetName](const PresetItem &item) { return item.name == presetName; });
+        auto depthWorkModeManager = getOwner()->getComponentT<IDepthWorkModeManager>(OB_DEV_COMPONENT_DEPTH_WORK_MODE_MANAGER);
+        if(iter == availablePresets_.end()) {
+            availablePresets_.push_back({ presetName, depthWorkModeManager->getCurrentDepthWorkMode().version });
+        }
+        else {
+            iter->version = depthWorkModeManager->getCurrentDepthWorkMode().version;
+        }
+    }
+    customPresets_[presetName] = data;
 }
 
 }  // namespace libobsensor

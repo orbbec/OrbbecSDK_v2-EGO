@@ -4,7 +4,7 @@
 #include "WristDeviceInfo.hpp"
 #include "WristDevice.hpp"
 #include "WristNetDevice.hpp"
-#include "DevicePids.hpp"
+#include "common/DevicePids.hpp"
 #include "common/DeviceSeriesInfo.hpp"
 #include "utils/Utils.hpp"
 #include "exception/ObException.hpp"

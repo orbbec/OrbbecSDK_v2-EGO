@@ -2,7 +2,7 @@
 // Licensed under the MIT License.
 #include "EgoProBoadDeviceInfo.hpp"
 #include "EgoProRkBootDevice.hpp"
-#include "DevicePids.hpp"
+#include "common/DevicePids.hpp"
 #include "usb/UsbPortGroup.hpp"
 #include "utils/Utils.hpp"
 #include <algorithm>

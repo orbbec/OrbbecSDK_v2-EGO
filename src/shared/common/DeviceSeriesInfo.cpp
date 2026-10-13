@@ -5,7 +5,7 @@
 #include "DeviceInfoConfig.hpp"
 #include "logger/Logger.hpp"
 #include "exception/ObException.hpp"
-#include "DevicePids.hpp"
+#include "common/DevicePids.hpp"
 
 #include <iostream>
 #include <iomanip>

@@ -4,30 +4,67 @@
 #pragma once
 #include "IDevice.hpp"
 #include "IPresetManager.hpp"
+#include "InternalTypes.hpp"
 #include "DeviceComponentBase.hpp"
+#include "EGODepthPresetEngine.hpp"
 
+#include <map>
+#include <set>
 #include <string>
 #include <vector>
+#include <atomic>
+#include <mutex>
+
+namespace Json {
+class Value;  // forward declaration
+}  // namespace Json
 
 namespace libobsensor {
+class ApplicationConfig;
 
 class EGODepthPresetManager : public IPresetManager, public DeviceComponentBase {
 public:
     EGODepthPresetManager(IDevice *owner);
-    virtual ~EGODepthPresetManager() noexcept override = default;
+    ~EGODepthPresetManager() override = default;
 
-    void                            loadPreset(const std::string &presetName) override;
-    const std::string              &getCurrentPresetName() const override;
-    const std::vector<std::string> &getAvailablePresetList() const override;
-    void                            loadPresetFromJsonData(const std::string &presetName, const std::vector<uint8_t> &jsonData) override;
-    void                            loadPresetFromJsonFile(const std::string &filePath) override;
-    const std::vector<uint8_t>     &exportSettingsAsPresetJsonData(const std::string &presetName) override;
-    void                            exportSettingsAsPresetJsonFile(const std::string &filePath) override;
-    void                            fetchPreset() override;
+    void                               loadPreset(const std::string &presetName, const std::string &version = "") override;
+    const std::string                 &getCurrentPresetName() const override;
+    const std::string                 &getCurrentDepthWorkModeVersion() const override;
+    const std::vector<PresetItem>     &getAvailablePresetList() const override;
+    void                               loadPresetFromJsonData(const std::string &presetName, const std::vector<uint8_t> &jsonData) override;
+    void                               loadPresetFromJsonFile(const std::string &filePath) override;
+    const std::vector<uint8_t>        &exportSettingsAsPresetJsonData(const std::string &presetName) override;
+    void                               exportSettingsAsPresetJsonFile(const std::string &filePath) override;
+    void                               fetchPreset() override;
+    bool                               isApplicationConfigSupported() const override;
+    std::shared_ptr<ApplicationConfig> getApplicationConfig() override;
+    std::shared_ptr<ApplicationConfig> getApplicationConfig(const std::string &presetName) override;
 
 private:
-    std::vector<std::string> availablePresets_;
-    std::string              currentPreset_;
+    std::shared_ptr<IPresetEngine> getPresetEngine(const Json::Value &root);
+    std::shared_ptr<IPresetEngine> getCurrentPresetEngine();
+    void                           storeCurrentParamsAsCustomPreset(const std::string &presetName);
+    void                           loadCustomPreset(const std::string &presetName, const Json::Value &preset);
+    void                           loadPresetFromJsonValue(const std::string &presetName, const Json::Value &root);
+    Json::Value                    exportSettingsAsPresetJsonValue(const std::string &presetName);
+    void                           storeImportedApplicationConfig(const std::string &presetName, const Json::Value &root);
+
+private:
+    std::vector<PresetItem> availablePresets_;
+    std::string             currentPresetName_;
+    std::vector<uint8_t>    tmpJsonData_;
+    std::atomic<bool>       isExternalDataLoading_{ false };
+
+    std::map<std::string, Json::Value>  customPresets_;
+    std::shared_ptr<EGODepthPresetEngine>   presetEngine_;
+    std::shared_ptr<EGODepthPresetEngine>   presetEngineV2_;
+    std::shared_ptr<EGODepthPresetEngineV1> presetEngineV1_;
+    std::mutex                          applicationConfigMutex_;
+    std::shared_ptr<ApplicationConfig>  applicationConfig_;
+
+    // Application config carried by externally imported presets, keyed by preset name. Only populated on
+    // import (loadPresetFromJsonFile/Data); built-in presets and "Custom" are never stored here.
+    std::map<std::string, std::shared_ptr<ApplicationConfig>> importedAppConfigs_;
 };
 
 }  // namespace libobsensor

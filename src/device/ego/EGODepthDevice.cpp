@@ -7,7 +7,7 @@
 #include "EGODepthStreamProfileFilter.hpp"
 #include "EGOStreamDemuxer.hpp"
 #include "EGOVideoSensor.hpp"
-#include "DevicePids.hpp"
+#include "common/DevicePids.hpp"
 #include "environment/EnvConfig.hpp"
 #include "stream/StreamProfileFactory.hpp"
 #include "sensor/video/VideoSensor.hpp"
@@ -831,7 +831,7 @@ void EGODepthDevice::fixSensorList() {
     const auto &currentMode = depthWorkModeManager->getCurrentDepthWorkMode();
     auto        propServer  = getPropertyServer();
 
-    if(std::strcmp(currentMode.name, kEgoDepthFactoryCalibMode) == 0) {
+    if(std::strcmp(currentMode.mode.name, "Factory Calib") == 0) {
         deregisterSensor(OB_SENSOR_DEPTH);
         deregisterComponent(OB_DEV_COMPONENT_DEPTH_FRAME_PROCESSOR);
         propServer->unregisterProperty(OB_PROP_STOP_DEPTH_STREAM_BOOL);
