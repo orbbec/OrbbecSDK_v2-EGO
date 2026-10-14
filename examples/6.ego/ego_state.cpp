@@ -18,11 +18,13 @@ namespace {
 
 constexpr uint16_t kDefaultDevicePort = 8090;
 constexpr OBPropertyID kRecordingDirectoryPropertyId = OB_STRUCT_FW_RECORDING_DIRECTORY;
+constexpr OBPropertyID kRecordingFileNamePropertyId  = OB_STRUCT_FW_RECORDING_FILE_NAME;
 constexpr OBPropertyID kRecordingDestinationPropertyId = OB_PROP_RECORDING_DESTINATION_INT;
 constexpr OBPropertyID kRecordingActionPropertyId    = OB_PROP_RECORDING_ACTION_INT;
 // Temporary verification directory. Replace it with the recording task directory under test.
 constexpr const char kRecordingSessionTestDirectory[] = "recording/session_test";
 constexpr const char kNewRecordingSessionTestDirectory[] = "recording/new_session_test";
+constexpr const char kRecordingSessionTestFileName[] = "ego_state_recording_test";
 
 const char *egoWorkStateToString(OBEgoWorkState state) {
     switch(state) {
@@ -83,15 +85,51 @@ void printState(const char *source, const OBEgoStateReport &state, std::mutex &o
 
 void queryRecordingSessionResult(const std::shared_ptr<ob::DataAcquisitionDevice> &device, std::mutex &outputMutex) {
     try {
-        const auto result = device->getRecordingSessionResult(kRecordingSessionTestDirectory);
+        const auto directory = device->getFwRecordingDirectory();
+        const auto result = device->getRecordingSessionResult(directory);
         std::lock_guard<std::mutex> lock(outputMutex);
-        std::cout << "Recording session result: directory=" << kRecordingSessionTestDirectory << " fileExists=" << result.fileExists
+        std::cout << "Recording session result: directory=" << directory << " fileExists=" << result.fileExists
                   << " recordingDuration=" << result.recordingDuration << "s"
                   << " recordingStatus=" << recordingSessionStatusToString(result.recordingStatus) << std::endl;
     }
     catch(const ob::Error &error) {
         std::lock_guard<std::mutex> lock(outputMutex);
         std::cerr << "Recording session result query failed: " << error.what() << std::endl;
+    }
+}
+
+void setRecordingFileName(const std::shared_ptr<ob::DataAcquisitionDevice> &device, const char *fileName, std::mutex &outputMutex) {
+    if(!device->isPropertySupported(kRecordingFileNamePropertyId, OB_PERMISSION_WRITE)) {
+        std::lock_guard<std::mutex> lock(outputMutex);
+        std::cerr << "Firmware recording file name is not supported by this device or firmware." << std::endl;
+        return;
+    }
+
+    try {
+        device->setFwRecordingFileName(fileName);
+        {
+            std::lock_guard<std::mutex> lock(outputMutex);
+            std::cout << "Recording file name set to: " << fileName << std::endl;
+        }
+    }
+    catch(const ob::Error &error) {
+        std::lock_guard<std::mutex> lock(outputMutex);
+        std::cerr << "Failed to set recording file name: " << error.what() << std::endl;
+        return;
+    }
+
+    if(!device->isPropertySupported(kRecordingFileNamePropertyId, OB_PERMISSION_READ)) {
+        return;
+    }
+
+    try {
+        const auto readback = device->getFwRecordingFileName();
+        std::lock_guard<std::mutex> lock(outputMutex);
+        std::cout << "Recording file name readback: " << readback << std::endl;
+    }
+    catch(const ob::Error &error) {
+        std::lock_guard<std::mutex> lock(outputMutex);
+        std::cerr << "Recording file name was set, but readback failed: " << error.what() << std::endl;
     }
 }
 
@@ -151,6 +189,21 @@ std::string readInput(const char *prompt) {
     return input;
 }
 
+void printHotkeys() {
+    std::cout << R"(
+
+Hotkeys:
+  D  Set test recording directory
+  N  Set new recording directory
+  F  Set recording file name
+  S  Start SD-card recording
+  T  Stop recording
+  R  Query current directory recording duration and status
+  G  Get current Ego state
+  Q  Quit
+)" << std::endl;
+}
+
 }  // namespace
 
 int main() try {
@@ -193,9 +246,7 @@ int main() try {
         std::cerr << "Unable to register Ego state callback: " << error.what() << std::endl;
     }
 
-    std::cout << "Hotkeys: d = set test directory, n = set new directory, s = start recording, t = stop recording, "
-                 "r = query recording session result, g = get current state, q = quit."
-              << std::endl;
+    printHotkeys();
     while(true) {
         const auto key = ob_smpl::waitForKeyPressed();
         if(key == 'q' || key == 'Q') {
@@ -210,6 +261,10 @@ int main() try {
         case 'n':
         case 'N':
             setRecordingTaskDirectory(device, kNewRecordingSessionTestDirectory, *outputMutex);
+            break;
+        case 'f':
+        case 'F':
+            setRecordingFileName(device, kRecordingSessionTestFileName, *outputMutex);
             break;
         case 's':
         case 'S':
@@ -234,7 +289,8 @@ int main() try {
             queryRecordingSessionResult(device, *outputMutex);
             break;
         default:
-            std::cout << "Unknown hotkey. Use d, n, s, t, r, g, or q." << std::endl;
+            std::cout << "Unknown hotkey." << std::endl;
+            printHotkeys();
             break;
         }
     }
