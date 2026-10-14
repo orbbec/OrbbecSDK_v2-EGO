@@ -219,6 +219,13 @@
             <Name>EGO-D3B</Name>
             <Manufacturer>Orbbec</Manufacturer>
         </EGO-D3B>
+        <EGO-D3B-1205>
+            <!-- TN2610 EGOD3B: same capabilities as PID 0x1207; PID differs only. -->
+            <VID>0x2BC5</VID>
+            <PID>0x1205</PID>
+            <Name>EGO-D3B</Name>
+            <Manufacturer>Orbbec</Manufacturer>
+        </EGO-D3B-1205>
         <WristCam>
             <VID>0x2BC5</VID>
             <PID>0x1203</PID>
@@ -325,6 +332,7 @@
     <EGODepthDeviceList>
         <!-- EGODepth series devices (3-RGB + 2-IR shared endpoints, plus Depth and single Color) -->
         <Device>EGO-D3B</Device>
+        <Device>EGO-D3B-1205</Device>
         <!-- More devices can be added here -->
     </EGODepthDeviceList>
 
