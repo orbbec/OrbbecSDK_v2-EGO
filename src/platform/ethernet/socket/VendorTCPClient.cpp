@@ -20,6 +20,10 @@
 #include <vector>
 #include <climits>
 
+#if defined(__APPLE__)
+#include <TargetConditionals.h>
+#endif
+
 #ifndef SHUT_WR
 #ifdef _WIN32
 #define SHUT_WR SD_SEND
@@ -436,7 +440,7 @@ void VendorTCPClient::write(const uint8_t *data, const uint32_t dataLen, utils::
                 else if((rst == ENOTCONN || rst == ECONNRESET || rst == ETIMEDOUT
 #if defined(__ANDROID__)
                          || rst == ECONNABORTED || rst == EPIPE
-#elif defined(OS_IOS)
+#elif defined(__APPLE__) && TARGET_OS_IOS
                          || rst == EPIPE
 #endif
                          )
