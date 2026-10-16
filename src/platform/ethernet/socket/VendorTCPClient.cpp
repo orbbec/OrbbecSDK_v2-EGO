@@ -436,6 +436,8 @@ void VendorTCPClient::write(const uint8_t *data, const uint32_t dataLen, utils::
                 else if((rst == ENOTCONN || rst == ECONNRESET || rst == ETIMEDOUT
 #if defined(__ANDROID__)
                          || rst == ECONNABORTED || rst == EPIPE
+#elif defined(OS_IOS)
+                         || rst == EPIPE
 #endif
                          )
                         && retry >= 1) {
