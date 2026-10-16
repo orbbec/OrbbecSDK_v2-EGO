@@ -34,6 +34,7 @@
 #include "component/property/InternalProperty.hpp"
 #include "component/fwlog/FirmwareLogManager.hpp"
 #include "component/fwrecord/FwRecordProfileManager.hpp"
+#include "EGOStreamStrategy.hpp"
 #include "component/fwrecord/FwRecordingDirectoryManager.hpp"
 #include "component/custommetadata/CustomMetadataManager.hpp"
 #include "component/timezone/HostTimeInfoManager.hpp"
@@ -120,6 +121,7 @@ void EGODepthDevice::init() {
     auto deviceClockSynchronizer = std::make_shared<DeviceClockSynchronizer>(this, deviceTimeFreq_, deviceTimeFreq_);
     registerComponent(OB_DEV_COMPONENT_DEVICE_CLOCK_SYNCHRONIZER, deviceClockSynchronizer);
     registerComponent(OB_DEV_COMPONENT_FW_RECORD_PROFILE_MANAGER, [this]() { return std::make_shared<FwRecordProfileManager>(this); });
+    registerComponent(OB_DEV_COMPONENT_SENSOR_STREAM_STRATEGY, [this]() { return std::make_shared<EGOStreamStrategy>(this); });
 	
 	// Firmware updater: same component as the network variant, so the EgoDepth firmware image can be
     // written over the vendor command channel in normal (non-boot) mode as well. The private extension

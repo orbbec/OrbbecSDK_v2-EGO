@@ -28,6 +28,7 @@
 #include "property/FilterPropertyAccessors.hpp"
 #include "component/fwlog/FirmwareLogManager.hpp"
 #include "component/fwrecord/FwRecordProfileManager.hpp"
+#include "EGOStreamStrategy.hpp"
 #include "component/fwrecord/FwRecordingDirectoryManager.hpp"
 #include "component/custommetadata/CustomMetadataManager.hpp"
 #include "component/timezone/HostTimeInfoManager.hpp"
@@ -112,6 +113,7 @@ void EGODepthNetDevice::init() {
         auto deviceClockSynchronizer = std::make_shared<DeviceClockSynchronizer>(this, deviceTimeFreq_, deviceTimeFreq_);
         registerComponent(OB_DEV_COMPONENT_DEVICE_CLOCK_SYNCHRONIZER, deviceClockSynchronizer);
         registerComponent(OB_DEV_COMPONENT_FW_RECORD_PROFILE_MANAGER, [this]() { return std::make_shared<FwRecordProfileManager>(this); });
+        registerComponent(OB_DEV_COMPONENT_SENSOR_STREAM_STRATEGY, [this]() { return std::make_shared<EGOStreamStrategy>(this); });
     }
 
     // firmware updater
