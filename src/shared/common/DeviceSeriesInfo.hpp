@@ -31,11 +31,13 @@ extern std::vector<DeviceIdentifier> EGODevPids;
 extern std::vector<DeviceIdentifier> EGOProDevPids;
 extern std::vector<DeviceIdentifier> EGODepthDevPids;
 extern std::vector<DeviceIdentifier> WristDevPids;
+extern std::vector<DeviceIdentifier> UMIDevPids;
 
 extern std::vector<DeviceInfoEntry> G330DeviceInfoList;
 extern std::vector<DeviceInfoEntry> G435LeDeviceInfoList;
 extern std::vector<DeviceInfoEntry> EGODeviceInfoList;
 extern std::vector<DeviceInfoEntry> WristDeviceInfoList;
+extern std::vector<DeviceInfoEntry> UMIDeviceInfoList;
 
 // List of allowed vendor IDs
 extern std::unordered_set<uint16_t>              supportedUsbVids;

@@ -72,21 +72,30 @@ static const std::map<EGOUsbDeviceSeries, size_t> kRequiredUvcCountBySeries = {
     { EGOUsbDeviceSeries::UMIFinger, 3 },
 };
 
-// EGO, EGOPro and EGODepth are split into separate series lists (EGODevPids / EGOProDevPids / EGODepthDevPids)
-// so that device-class selection is driven by list membership instead of a hardcoded PID. Enumeration still
-// filters by the union of all lists.
+// EGO, EGOPro, EGODepth and UMI are split into separate series lists so that device-class selection is driven by
+// list membership instead of a hardcoded PID. Enumeration filters by the union of all lists.
 static std::vector<DeviceIdentifier> getEgoSeriesPids() {
     std::vector<DeviceIdentifier> pids = EGODevPids;
     pids.insert(pids.end(), EGOProDevPids.begin(), EGOProDevPids.end());
     pids.insert(pids.end(), EGODepthDevPids.begin(), EGODepthDevPids.end());
+    pids.insert(pids.end(), UMIDevPids.begin(), UMIDevPids.end());
     return pids;
 }
 
 void updateEgoDeviceName(uint32_t vid, uint32_t pid, std::string &name, std::string &fullName) {
-    auto iter = std::find_if(EGODeviceInfoList.begin(), EGODeviceInfoList.end(),
-                             [vid, pid](const DeviceInfoEntry &entry) { return entry.vid_ == vid && entry.pid_ == pid; });
-    if(iter != EGODeviceInfoList.end()) {
-        name     = iter->deviceName_;
+    const auto findDeviceInfo = [vid, pid](const std::vector<DeviceInfoEntry> &deviceInfoList) -> const DeviceInfoEntry * {
+        auto iter = std::find_if(deviceInfoList.begin(), deviceInfoList.end(),
+                                 [vid, pid](const DeviceInfoEntry &entry) { return entry.vid_ == vid && entry.pid_ == pid; });
+        return iter == deviceInfoList.end() ? nullptr : &*iter;
+    };
+
+    auto deviceInfo = findDeviceInfo(EGODeviceInfoList);
+    if(deviceInfo == nullptr) {
+        deviceInfo = findDeviceInfo(UMIDeviceInfoList);
+    }
+
+    if(deviceInfo != nullptr) {
+        name     = deviceInfo->deviceName_;
         fullName = name;
     }
     else {
