@@ -27,6 +27,7 @@ typedef enum {
     OB_PROP_DEPTH_LOAD_ENGINE_GROUP_PARAM_INT = 172, /**< Load depth engine group parameters*/
     OB_PROP_START_IR_RIGHT_STREAM_BOOL = 201,  /**< Start or stop right ir stream */
     OB_PROP_DEVICE_KEEP_ALIVE_INT             = 225, /**< OpenNI device heartbeat keep-alive command*/
+    OB_PROP_STOP_CONFIDENCE_STREAM_BOOL     = 228, /**<Disable the confidence stream*/
     OB_PROP_COMPAT_VERSION_INT             = 237, /**< Firmware compatibility version*/
     OB_PROP_STOP_COLOR_RIGHT_STREAM_BOOL   = 246, /**< Disable the right color stream*/
     OB_PROP_HOST_PLATFORM_INT              = 278, /**< Host platform information*/
