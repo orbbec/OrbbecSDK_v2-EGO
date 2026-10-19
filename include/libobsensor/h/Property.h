@@ -799,13 +799,11 @@ typedef enum {
     OB_PROP_FW_RECORDING_FILE_SPLIT_DURATION_MIN_INT = 283,
 
     /**
-     * @brief Wrist wear side reported by the device
-     * @param value OBWristWearSide
-     *        Ego devices report @ref OB_WRIST_WEAR_SIDE_EGO.
+     * @brief Device installation side.
      *
-     * @attention read only
+     * @attention Read only.
      */
-    OB_PROP_WRIST_WEAR_SIDE_INT = 285,
+    OB_PROP_DEVICE_INSTALLATION_SIDE_INT = 285,
 
     /**
      * @brief Recording destination
@@ -1482,6 +1480,7 @@ typedef enum {
     ob_property_id;
 
 // For backward compatibility
+#define OB_PROP_WRIST_WEAR_SIDE_INT OB_PROP_DEVICE_INSTALLATION_SIDE_INT
 #define OB_PROP_TIMER_RESET_TRIGGLE_OUT_ENABLE_BOOL OB_PROP_TIMER_RESET_TRIGGER_OUT_ENABLE_BOOL
 #define OB_PROP_LASER_ON_OFF_MODE_INT OB_PROP_LASER_ON_OFF_PATTERN_INT
 #define OB_PROP_LASER_ENERGY_LEVEL_INT OB_PROP_LASER_POWER_LEVEL_CONTROL_INT
