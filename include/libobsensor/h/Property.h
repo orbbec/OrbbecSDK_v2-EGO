@@ -720,13 +720,11 @@ typedef enum {
     OB_PROP_FW_RECORDING_FILE_SPLIT_DURATION_MIN_INT = 283,
 
     /**
-     * @brief Wrist wear side reported by the device
-     * @param value OBWristWearSide
-     *        Ego devices report @ref OB_WRIST_WEAR_SIDE_EGO.
+     * @brief Device installation side.
      *
-     * @attention read only
+     * @attention Read only.
      */
-    OB_PROP_WRIST_WEAR_SIDE_INT = 285,
+    OB_PROP_DEVICE_INSTALLATION_SIDE_INT = 285,
 
     /**
      * @brief Color AE/AWB status.
@@ -786,13 +784,6 @@ typedef enum {
      * @attention Read and write.
      */
     OB_PROP_VIDEO_GOP_INT = 294,
-
-    /**
-     * @brief Device installation side.
-     *
-     * @attention Read only.
-     */
-    OB_PROP_DEVICE_INSTALLATION_SIDE_INT = 285,
 
     /**
      * @brief Number of Action Signal blocks supported by the device
