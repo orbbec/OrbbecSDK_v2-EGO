@@ -562,6 +562,8 @@ void EgoProEC130NetDevice::initProperties() {
     propertyServer->registerProperty(OB_PROP_FW_RECORDING_FILE_SPLIT_DURATION_MIN_INT, "rw", "rw", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_PROP_RECORDING_DESTINATION_INT, "rw", "rw", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_PROP_FW_RECORDING_FORMAT_INT, "rw", "rw", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_PROP_SD_CARD_RECORDING_ENCRYPTION_ENABLE_BOOL, "rw", "rw", vendorPropertyAccessor);
+    propertyServer->registerProperty(OB_RAW_DATA_SD_CARD_RECORDING_ENCRYPTION_PUBLIC_KEY, "rw", "rw", vendorPropertyAccessor);
     propertyServer->registerProperty(OB_PROP_VIDEO_GOP_INT, "rw", "rw", vendorPropertyAccessor);
     auto recordingDirectoryAccessor = std::make_shared<FwRecordingDirectoryManager>(this, vendorPropertyAccessor);
     propertyServer->registerProperty(OB_STRUCT_FW_RECORDING_DIRECTORY, "rw", "rw", recordingDirectoryAccessor);
