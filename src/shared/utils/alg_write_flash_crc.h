@@ -1,11 +1,6 @@
 #pragma once
 #include <cstdint>
 
-/**
- * 鏂囦欢鏉ユ簮锛氫竵婊★紝2022骞?鏈?鏃? * 鍘熷鏂囦欢鍛藉悕锛歝rc.h
- * 鏇存敼锛?. 澧炲姞C++鍛藉悕绌洪棿
- */
-
 namespace alg_write_flash {
 
 #define USE_CRC32_CHECK_FUN

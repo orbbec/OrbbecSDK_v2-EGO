@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.13)
 
 # ============================================================
-# ob_destructive_test — 危险操作测试 (手动触发, 独立二进制)
+# ob_destructive_test
 # OB_HW_DESTRUCTIVE_TEST_FILTER is defined by the parent CMakeLists.txt
 # (tests/hardware) and is visible here without redefinition.
 

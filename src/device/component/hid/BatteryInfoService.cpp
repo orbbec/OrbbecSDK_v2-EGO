@@ -24,9 +24,9 @@ struct BatteryInfoRaw {
     uint32_t magicCode;
     uint32_t capacity;
     uint32_t voltage;
-    uint8_t  chargingState;  // 充电状态：0 未充电，1 充电中
+    uint8_t  chargingState;
     int8_t   temperature;
-    int8_t   hasBattery;  // 是否有电池：0 无电池，1 有电池
+    int8_t   hasBattery;
     int8_t   reserved;
     uint32_t crc32;
 };

@@ -1,6 +1,9 @@
 # Open Source Orbbec SDK
 
 > [!IMPORTANT]
+> This repository is evolved from [OrbbecSDK_v2](https://github.com/orbbec/OrbbecSDK_v2) and extends it with support for data acquisition products.
+
+> [!IMPORTANT]
 > Welcome to Orbbec's latest open-source Orbbec SDK! Before you begin using this version of the SDK, it's crucial to check the [device support list](#14-supported-devices) to verify that your device is supported to ensure compatibility.
 
 -  **LiDAR** devices are supported in **OrbbecSDK v2.6.2 and later** , For detailed instructions on using the LiDAR, please refer to the [LiDAR_README.md](LiDAR_README.md).
@@ -202,6 +205,15 @@ In particular, note that the Astra Mini Pro and Astra Mini S Pro use different c
 This is the open-source library of Orbbec SDK v2.x.
 The Orbbec SDK is a cross-platform library for interfacing with Orbbec RGB-D cameras, providing C/C++ APIs as well as [wrappers](wrappers/README.md) for various other languages and frameworks.
 
+The currently supported data acquisition products are derived from the device configuration in `src/shared/environment/DeviceInfoConfig.xml` and include:
+
+- EGO
+- EGOPro
+- EC130
+- UMI
+- EGO-D3B
+- WristCam
+
 <div align=center>
 <img src="docs/resource/Overview.jpg" width="400" align="center" />
 </div>
@@ -292,6 +304,12 @@ After upgrading to the UVC protocol, these devices will have a firmware major ve
 | Astra mini S Pro        | 2.0.03                        |        2.0.03                        |
 | Pulsar SL450      | 2.2.4.5                      | 2.2.4.5                          |
 | Pulsar ME450      | 1.0.0.6                      | 1.0.0.6                          |
+| EGO               |                              |                                   |
+| EGOPro            |                              |                                   |
+| EC130             |                              |                                   |
+| UMI               |                              |                                   |
+| EGO-D3B           |                              |                                   |
+| WristCam          |                              |                                   |
 
 
 For optimal performance, we strongly recommend updating to the latest firmware version. This ensures that you benefit from the most recent enhancements and bug fixes.
