@@ -51,6 +51,8 @@ constexpr const char *CATEGORY_EGO_DEVICE      = "EGODeviceList";
 constexpr const char *CATEGORY_EGOPRO_DEVICE   = "EGOProDeviceList";
 constexpr const char *CATEGORY_EGODEPTH_DEVICE = "EGODepthDeviceList";
 constexpr const char *CATEGORY_WRIST_DEVICE    = "WristDeviceList";
+constexpr const char *CATEGORY_UMI_DEVICE      = "UMIDeviceList";
+
 
 // GVCP config
 constexpr const char *FIELD_MANUFACTURER_NAME = "name";

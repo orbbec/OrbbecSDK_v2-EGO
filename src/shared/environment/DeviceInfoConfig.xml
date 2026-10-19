@@ -318,7 +318,6 @@
     <EGODeviceList>
         <!-- EGO series devices (dual-RGB, per-interface UVC endpoints) -->
         <Device>EGO</Device>
-        <Device>UMI</Device>
         <!-- More devices can be added here -->
     </EGODeviceList>
 
@@ -341,6 +340,12 @@
         <Device>WristCam</Device>
         <!-- More devices can be added here -->
     </WristDeviceList>
+
+    <UMIDeviceList>
+        <!-- UMI series devices -->
+        <Device>UMI</Device>
+        <!-- More devices can be added here -->
+    </UMIDeviceList>
 
     <!--
         GVCPConfig: Mapping of manufacturer names to Vendor ID (VID)

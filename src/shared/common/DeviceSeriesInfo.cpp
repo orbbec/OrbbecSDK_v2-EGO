@@ -44,12 +44,14 @@ std::vector<DeviceIdentifier> EGODevPids;       // EGO
 std::vector<DeviceIdentifier> EGOProDevPids;    // EGOPro
 std::vector<DeviceIdentifier> EGODepthDevPids;  // EGODepth
 std::vector<DeviceIdentifier> WristDevPids;     // Wrist
+std::vector<DeviceIdentifier> UMIDevPids;       // Umi
 
 // DeviceInfo lists by series
 std::vector<DeviceInfoEntry> G330DeviceInfoList;    // G330
 std::vector<DeviceInfoEntry> G435LeDeviceInfoList;  // G435Le
 std::vector<DeviceInfoEntry> EGODeviceInfoList;     // EGO
 std::vector<DeviceInfoEntry> WristDeviceInfoList;   // Wrist
+std::vector<DeviceInfoEntry> UMIDeviceInfoList;     // Umi
 
 std::weak_ptr<DeviceSeriesInfoManager>   DeviceSeriesInfoManager::instanceWeakPtr_;
 std::mutex                               DeviceSeriesInfoManager::instanceMutex_;
@@ -165,12 +167,14 @@ void DeviceSeriesInfoManager::loadXmlConfig(const std::string &configFileName, b
     std::vector<DeviceIdentifier> egoProVidpidList;
     std::vector<DeviceIdentifier> egoDepthVidpidList;
     std::vector<DeviceIdentifier> wristVidpidList;
+    std::vector<DeviceIdentifier> umiVidpidList;
     std::vector<DeviceInfoEntry>  g330DevInfoList;
     std::vector<DeviceInfoEntry>  g435LeDevInfoList;
     std::vector<DeviceInfoEntry>  egoDevInfoList;
     std::vector<DeviceInfoEntry>  egoProDevInfoList;
     std::vector<DeviceInfoEntry>  egoDepthDevInfoList;
     std::vector<DeviceInfoEntry>  wristDevInfoList;
+    std::vector<DeviceInfoEntry>  umiDevInfoList;
     std::vector<DeviceInfoEntry>  tmpDevInfoList;
 
     // Get device information for all categories
@@ -213,6 +217,10 @@ void DeviceSeriesInfoManager::loadXmlConfig(const std::string &configFileName, b
         errHandle(config);
         return;
     }
+    if(!config.readDeviceList(CATEGORY_UMI_DEVICE, umiVidpidList, umiDevInfoList)) {
+        errHandle(config);
+        return;
+    }
     // Read GVCP config
     std::unordered_map<std::string, uint16_t> gvcpConfigList;
     if(!config.readGVCPConfig(gvcpConfigList)) {
@@ -232,6 +240,7 @@ void DeviceSeriesInfoManager::loadXmlConfig(const std::string &configFileName, b
     merge_unique_into(EGOProDevPids, egoProVidpidList, compareDevId);
     merge_unique_into(EGODepthDevPids, egoDepthVidpidList, compareDevId);
     merge_unique_into(WristDevPids, wristVidpidList, compareDevId);
+    merge_unique_into(UMIDevPids, umiVidpidList, compareDevId);
     // DeviceInfoEntry
     auto compareDevInfo = [](const DeviceInfoEntry &a, const DeviceInfoEntry &b) { return a.vid_ == b.vid_ && a.pid_ == b.pid_; };
     merge_unique_into(G330DeviceInfoList, g330DevInfoList, compareDevInfo);
@@ -243,6 +252,7 @@ void DeviceSeriesInfoManager::loadXmlConfig(const std::string &configFileName, b
     // EGODepth names likewise share the EGO series info list; only EGODepthDevPids drives class selection.
     merge_unique_into(EGODeviceInfoList, egoDepthDevInfoList, compareDevInfo);
     merge_unique_into(WristDeviceInfoList, wristDevInfoList, compareDevInfo);
+    merge_unique_into(UMIDeviceInfoList, umiDevInfoList, compareDevInfo);
     // vid list
     for(auto vid: vidList) {
         // If the value already exists, insertion is ignored
@@ -266,6 +276,11 @@ void DeviceSeriesInfoManager::loadXmlConfig(const std::string &configFileName, b
     collectVidPid(daBaiAVidpidList);
     collectVidPid(g335LeVidpidList);
     collectVidPid(g435LeVidpidList);
+    collectVidPid(egoVidpidList);
+    collectVidPid(egoProVidpidList);
+    collectVidPid(egoDepthVidpidList);
+    collectVidPid(wristVidpidList);
+    collectVidPid(umiVidpidList);
 }
 
 bool isDeviceInContainer(const std::vector<DeviceIdentifier> &deviceContainer, const uint32_t &vid, const uint32_t &pid) {
