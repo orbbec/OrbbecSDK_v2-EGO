@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 #include "libobsensor/h/Device.h"
+#include "libobsensor/h/DataAcquisitionDevice.h"
 
 #include "ImplTypes.hpp"
 #include "exception/ObException.hpp"
@@ -966,6 +967,121 @@ void ob_device_get_wifi_config(ob_device *device, ob_wifi_config *config, ob_err
     *config             = propertyServer->getStructureDataT<ob_wifi_config>(OB_STRUCT_WIFI_CONFIG, libobsensor::PROP_ACCESS_USER);
 }
 HANDLE_EXCEPTIONS_NO_RETURN(device, config)
+
+void ob_device_set_sd_card_recording_encryption_enabled(ob_device *device, bool enabled, ob_error **error) BEGIN_API_CALL {
+    VALIDATE_NOT_NULL(device);
+    auto propertyServer = device->device->getPropertyServer();
+    if(!propertyServer->isPropertySupported(OB_PROP_SD_CARD_RECORDING_ENCRYPTION_ENABLE_BOOL, libobsensor::PROP_OP_WRITE,
+                                            libobsensor::PROP_ACCESS_USER)) {
+        THROW_UNSUPPORTED_OPERATION_EXCEPTION("SD-card recording encryption is not supported");
+    }
+    propertyServer->setPropertyValueT<bool>(OB_PROP_SD_CARD_RECORDING_ENCRYPTION_ENABLE_BOOL, enabled, libobsensor::PROP_ACCESS_USER);
+}
+HANDLE_EXCEPTIONS_NO_RETURN(device, enabled)
+
+bool ob_device_get_sd_card_recording_encryption_enabled(ob_device *device, ob_error **error) BEGIN_API_CALL {
+    VALIDATE_NOT_NULL(device);
+    auto propertyServer = device->device->getPropertyServer();
+    if(!propertyServer->isPropertySupported(OB_PROP_SD_CARD_RECORDING_ENCRYPTION_ENABLE_BOOL, libobsensor::PROP_OP_READ,
+                                            libobsensor::PROP_ACCESS_USER)) {
+        THROW_UNSUPPORTED_OPERATION_EXCEPTION("SD-card recording encryption is not supported");
+    }
+    return propertyServer->getPropertyValueT<bool>(OB_PROP_SD_CARD_RECORDING_ENCRYPTION_ENABLE_BOOL, libobsensor::PROP_ACCESS_USER);
+}
+HANDLE_EXCEPTIONS_AND_RETURN(false, device)
+
+void ob_device_set_sd_card_recording_encryption_public_key(ob_device *device, const char *public_key_pem,
+                                                            uint32_t public_key_pem_size, ob_error **error) BEGIN_API_CALL {
+    VALIDATE_NOT_NULL(device);
+    VALIDATE_NOT_NULL(public_key_pem);
+    if(public_key_pem_size == 0 || public_key_pem_size > (std::numeric_limits<uint16_t>::max)()) {
+        THROW_INVALID_PARAM_EXCEPTION("Invalid SD-card recording encryption public key size");
+    }
+
+    auto propertyServer = device->device->getPropertyServer();
+    if(!propertyServer->isPropertySupported(OB_RAW_DATA_SD_CARD_RECORDING_ENCRYPTION_PUBLIC_KEY, libobsensor::PROP_OP_WRITE,
+                                            libobsensor::PROP_ACCESS_USER)) {
+        THROW_UNSUPPORTED_OPERATION_EXCEPTION("SD-card recording encryption public key is not supported");
+    }
+
+    std::vector<uint8_t> payload(2 + public_key_pem_size);
+    payload[0] = static_cast<uint8_t>(public_key_pem_size >> 8);
+    payload[1] = static_cast<uint8_t>(public_key_pem_size & 0xFF);
+    std::memcpy(payload.data() + 2, public_key_pem, public_key_pem_size);
+    if(payload.size() % 2 != 0) {
+        payload.push_back(0);
+    }
+
+    propertyServer->setRawData(OB_RAW_DATA_SD_CARD_RECORDING_ENCRYPTION_PUBLIC_KEY, payload, libobsensor::PROP_ACCESS_USER);
+}
+HANDLE_EXCEPTIONS_NO_RETURN(device, public_key_pem, public_key_pem_size)
+
+void ob_device_get_sd_card_recording_encryption_public_key(ob_device *device, char *public_key_pem,
+                                                            uint32_t *public_key_pem_size, ob_error **error) BEGIN_API_CALL {
+    VALIDATE_NOT_NULL(device);
+    VALIDATE_NOT_NULL(public_key_pem_size);
+
+    auto propertyServer = device->device->getPropertyServer();
+    if(!propertyServer->isPropertySupported(OB_RAW_DATA_SD_CARD_RECORDING_ENCRYPTION_PUBLIC_KEY, libobsensor::PROP_OP_READ,
+                                            libobsensor::PROP_ACCESS_USER)) {
+        THROW_UNSUPPORTED_OPERATION_EXCEPTION("SD-card recording encryption public key is not supported");
+    }
+
+    std::vector<uint8_t> payload;
+    uint32_t             expectedOffset = 0;
+    bool                 completed      = false;
+    propertyServer->getRawData(OB_RAW_DATA_SD_CARD_RECORDING_ENCRYPTION_PUBLIC_KEY,
+                               [&](OBDataTranState state, OBDataChunk *chunk) {
+                                   if(state == DATA_TRAN_STAT_TRANSFERRING) {
+                                       if(chunk == nullptr || chunk->data == nullptr || chunk->offset != expectedOffset
+                                          || chunk->offset > chunk->fullDataSize || chunk->size > chunk->fullDataSize - chunk->offset) {
+                                           THROW_INVALID_DATA_EXCEPTION("Invalid SD-card recording encryption public key payload");
+                                       }
+                                       if(payload.empty()) {
+                                           payload.resize(chunk->fullDataSize);
+                                       }
+                                       else if(payload.size() != chunk->fullDataSize) {
+                                           THROW_INVALID_DATA_EXCEPTION("Inconsistent SD-card recording encryption public key payload size");
+                                       }
+                                       std::memcpy(payload.data() + chunk->offset, chunk->data, chunk->size);
+                                       expectedOffset += chunk->size;
+                                   }
+                                   else if(state == DATA_TRAN_STAT_DONE) {
+                                       completed = true;
+                                   }
+                                   else {
+                                       THROW_INVALID_DATA_EXCEPTION("Failed to read SD-card recording encryption public key");
+                                   }
+                               },
+                               libobsensor::PROP_ACCESS_USER);
+
+    if(!completed || expectedOffset != payload.size() || payload.size() < 2) {
+        THROW_INVALID_DATA_EXCEPTION("Invalid SD-card recording encryption public key payload");
+    }
+
+    const auto pemSize = static_cast<uint32_t>((static_cast<uint16_t>(payload[0]) << 8) | payload[1]);
+    const auto payloadSizeWithoutPadding = static_cast<uint32_t>(2 + pemSize);
+    if(pemSize == 0 || (payload.size() != payloadSizeWithoutPadding && payload.size() != payloadSizeWithoutPadding + 1)) {
+        THROW_INVALID_DATA_EXCEPTION("Invalid SD-card recording encryption public key length");
+    }
+    if(payload.size() == payloadSizeWithoutPadding + 1 && payload.back() != 0) {
+        THROW_INVALID_DATA_EXCEPTION("Invalid SD-card recording encryption public key padding");
+    }
+
+    const auto requiredSize = pemSize;
+    if(public_key_pem == nullptr) {
+        *public_key_pem_size = requiredSize;
+        return;
+    }
+    if(*public_key_pem_size < requiredSize) {
+        *public_key_pem_size = requiredSize;
+        THROW_INVALID_PARAM_EXCEPTION("SD-card recording encryption public key buffer is too small");
+    }
+
+    std::memcpy(public_key_pem, payload.data() + 2, requiredSize);
+    *public_key_pem_size = requiredSize;
+}
+HANDLE_EXCEPTIONS_NO_RETURN(device, public_key_pem, public_key_pem_size)
 
 void ob_device_get_raw_data(ob_device *device, ob_property_id property_id, ob_get_data_callback cb, void *user_data, ob_error **error) BEGIN_API_CALL {
     VALIDATE_NOT_NULL(device);

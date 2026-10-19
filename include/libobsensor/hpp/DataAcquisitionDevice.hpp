@@ -275,6 +275,38 @@ public:
         return std::string(reinterpret_cast<const char *>(buffer.data()), dataSize);
     }
 
+    void setSDCardRecordingEncryptionEnabled(bool enabled) const {
+        ob_error *error = nullptr;
+        ob_device_set_sd_card_recording_encryption_enabled(impl_, enabled, &error);
+        Error::handle(&error);
+    }
+
+    bool isSDCardRecordingEncryptionEnabled() const {
+        ob_error *error = nullptr;
+        const auto enabled = ob_device_get_sd_card_recording_encryption_enabled(impl_, &error);
+        Error::handle(&error);
+        return enabled;
+    }
+
+    void setSDCardRecordingEncryptionPublicKey(const std::string &publicKeyPem) const {
+        ob_error *error = nullptr;
+        ob_device_set_sd_card_recording_encryption_public_key(impl_, publicKeyPem.data(), static_cast<uint32_t>(publicKeyPem.size()), &error);
+        Error::handle(&error);
+    }
+
+    std::string getSDCardRecordingEncryptionPublicKey() const {
+        ob_error *error = nullptr;
+        uint32_t  size  = 0;
+        ob_device_get_sd_card_recording_encryption_public_key(impl_, nullptr, &size, &error);
+        Error::handle(&error);
+
+        std::string publicKeyPem(size, '\0');
+        ob_device_get_sd_card_recording_encryption_public_key(impl_, &publicKeyPem[0], &size, &error);
+        Error::handle(&error);
+        publicKeyPem.resize(size);
+        return publicKeyPem;
+    }
+
     /**
      * @brief Query the device-side result for a recording session.
      *

@@ -100,6 +100,28 @@ OB_EXPORT void ob_device_set_wifi_config(ob_device *device, const ob_wifi_config
  */
 OB_EXPORT void ob_device_get_wifi_config(ob_device *device, ob_wifi_config *config, ob_error **error);
 
+OB_EXPORT void ob_device_set_sd_card_recording_encryption_enabled(ob_device *device, bool enabled, ob_error **error);
+
+OB_EXPORT bool ob_device_get_sd_card_recording_encryption_enabled(ob_device *device, ob_error **error);
+
+/**
+ * @brief Set the public key for SD-card recording encryption.
+ *
+ * @param[in] public_key_pem PEM-encoded RSA public key (2048 or 4096 bits).
+ * @param[in] public_key_pem_size PEM data size, excluding trailing '\0'.
+ */
+OB_EXPORT void ob_device_set_sd_card_recording_encryption_public_key(ob_device *device, const char *public_key_pem,
+                                                                      uint32_t public_key_pem_size, ob_error **error);
+
+/**
+ * @brief Get the public key for SD-card recording encryption.
+ *
+ * @param[out] public_key_pem Output PEM buffer. Set to NULL to query the required size.
+ * @param[in,out] public_key_pem_size Buffer capacity on input and PEM size on output.
+ */
+OB_EXPORT void ob_device_get_sd_card_recording_encryption_public_key(ob_device *device, char *public_key_pem,
+                                                                      uint32_t *public_key_pem_size, ob_error **error);
+
 /**
  * @brief Start exporting firmware log files.
  *

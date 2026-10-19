@@ -878,6 +878,16 @@ typedef enum {
      * @attention Read and write.
      */
     OB_PROP_DEVICE_AUDIO_OUTPUT_VOLUME_INT = 305,
+
+    /**
+     * @brief Enable encryption for SD-card recordings.
+     */
+    OB_PROP_SD_CARD_RECORDING_ENCRYPTION_ENABLE_BOOL = 306,
+
+    /**
+     * @brief PEM public key used for SD-card recording encryption.
+     */
+    OB_RAW_DATA_SD_CARD_RECORDING_ENCRYPTION_PUBLIC_KEY = 4068,
     /**
      * @brief Baseline calibration parameters
      */
