@@ -866,11 +866,10 @@ typedef enum {
     OB_PROP_DEVICE_AUDIO_OUTPUT_VOLUME_INT = 305,
 
     /**
-    /**
      * @brief Enable encryption for SD-card recordings.
      */
     OB_PROP_SD_CARD_RECORDING_ENCRYPTION_ENABLE_BOOL = 306,
-    
+
     /**
      * @brief IR camera H.264/H.265 dynamic bitrate enable switch
      */
