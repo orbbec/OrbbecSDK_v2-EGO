@@ -304,12 +304,12 @@ After upgrading to the UVC protocol, these devices will have a firmware major ve
 | Astra mini S Pro        | 2.0.03                        |        2.0.03                        |
 | Pulsar SL450      | 2.2.4.5                      | 2.2.4.5                          |
 | Pulsar ME450      | 1.0.0.6                      | 1.0.0.6                          |
-| EGO               |                              |                                   |
-| EGOPro            |                              |                                   |
-| EC130             |                              |                                   |
-| UMI               |                              |                                   |
-| EGO-D3B           |                              |                                   |
-| WristCam          |                              |                                   |
+| EGO               | TBD                          | TBD                               |
+| EGOPro            | TBD                          | TBD                               |
+| EC130             | TBD                          | TBD                               |
+| UMI               | TBD                          | TBD                               |
+| EGO-D3B           | TBD                          | TBD                               |
+| WristCam          | TBD                          | TBD                               |
 
 
 For optimal performance, we strongly recommend updating to the latest firmware version. This ensures that you benefit from the most recent enhancements and bug fixes.

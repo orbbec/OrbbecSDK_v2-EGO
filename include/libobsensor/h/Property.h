@@ -696,22 +696,6 @@ typedef enum {
      */
     OB_PROP_COLOR_DYNAMIC_BITRATE_ENABLE_BOOL = 280,
 
-
-    /**
-     * @brief IR camera H.264/H.265 dynamic bitrate enable switch
-     */
-    OB_PROP_IR_DYNAMIC_BITRATE_ENABLE_BOOL = 308,
-
-    /**
-     * @brief Maximum IR bitrate when dynamic bitrate is enabled
-     */
-    OB_PROP_IR_DYNAMIC_BITRATE_MAX_INT = 309,
-
-    /**
-     * @brief IR bitrate when static bitrate is enabled
-     */
-    OB_PROP_IR_BITRATE_INT = 310,
-
     /**
      * @brief Execute an action for the selected recording destination
      * @param value OBRecordingAction
@@ -729,9 +713,20 @@ typedef enum {
     OB_PROP_RECORDING_ACTION_INT = 281,
 
     /**
-     * @brief Audio (microphone) automatic gain control switch (true: enabled)
+     * @brief Firmware-side recording file split duration, unit: minute
+     *
+     * @attention read and write
      */
-    OB_PROP_AUDIO_AGC_BOOL = 282,//TODO
+    OB_PROP_FW_RECORDING_FILE_SPLIT_DURATION_MIN_INT = 283,
+
+    /**
+     * @brief Wrist wear side reported by the device
+     * @param value OBWristWearSide
+     *        Ego devices report @ref OB_WRIST_WEAR_SIDE_EGO.
+     *
+     * @attention read only
+     */
+    OB_PROP_WRIST_WEAR_SIDE_INT = 285,
 
     /**
      * @brief Color AE/AWB status.
@@ -747,11 +742,57 @@ typedef enum {
     OB_PROP_COLOR_AE_AWB_STATUS_INT = 287,
 
     /**
+     * @brief Recording destination
+     * @param value OBRecordingDestination
+     *   - 0: Record to the device SD card
+     *   - 1: Record to the host computer
+     *
+     * @attention read and write
+     */
+    OB_PROP_RECORDING_DESTINATION_INT = 288,
+
+    /**
+     * @brief Language used by device voice prompts
+     * @param value OBDeviceVoicePromptLanguage
+     *   - 0: Chinese
+     *   - 1: English
+     *
+     * @attention read and write
+     */
+    OB_PROP_DEVICE_VOICE_PROMPT_LANGUAGE_INT = 289,
+
+    /**
      * @brief Maximum color-stream bitrate allowed when dynamic bitrate is enabled
      *
      * @attention Read and write. Unit: Mbps (M). Valid range is defined by firmware.
      */
     OB_PROP_COLOR_DYNAMIC_BITRATE_MAX_INT = 292,
+
+    /**
+     * @brief Firmware SD-card recording container format.
+     * @param value OBFwRecordingFormat
+     *
+     * @attention Read and write. Configure before starting firmware recording.
+     */
+    OB_PROP_FW_RECORDING_FORMAT_INT = 293,
+
+    /**
+     * @brief GOP size for H.264/H.265 video encoding.
+     *
+     * This setting affects both streamed video output and firmware SD-card
+     * recording. Read the property range before setting a value; the value
+     * must satisfy the firmware-provided minimum, maximum and step.
+     *
+     * @attention Read and write.
+     */
+    OB_PROP_VIDEO_GOP_INT = 294,
+
+    /**
+     * @brief Device installation side.
+     *
+     * @attention Read only.
+     */
+    OB_PROP_DEVICE_INSTALLATION_SIDE_INT = 285,
 
     /**
      * @brief Number of Action Signal blocks supported by the device
@@ -792,59 +833,6 @@ typedef enum {
     OB_PROP_ACTION_GROUP_MASK_INT = 301,
 
     /**
-     * @brief Firmware-side recording file split duration, unit: minute
-     *
-     * @attention read and write
-     */
-    OB_PROP_FW_RECORDING_FILE_SPLIT_DURATION_MIN_INT = 283,
-
-    /**
-     * @brief Device installation side.
-     *
-     * @attention Read only.
-     */
-    OB_PROP_DEVICE_INSTALLATION_SIDE_INT = 285,
-
-    /**
-     * @brief Recording destination
-     * @param value OBRecordingDestination
-     *   - 0: Record to the device SD card
-     *   - 1: Record to the host computer
-     *
-     * @attention read and write
-     */
-    OB_PROP_RECORDING_DESTINATION_INT = 288,
-
-    /**
-     * @brief Language used by device voice prompts
-     * @param value OBDeviceVoicePromptLanguage
-     *   - 0: Chinese
-     *   - 1: English
-     *
-     * @attention read and write
-     */
-    OB_PROP_DEVICE_VOICE_PROMPT_LANGUAGE_INT = 289,
-
-    /**
-     * @brief Firmware SD-card recording container format.
-     * @param value OBFwRecordingFormat
-     *
-     * @attention Read and write. Configure before starting firmware recording.
-     */
-    OB_PROP_FW_RECORDING_FORMAT_INT = 293,
-
-    /**
-     * @brief GOP size for H.264/H.265 video encoding.
-     *
-     * This setting affects both streamed video output and firmware SD-card
-     * recording. Read the property range before setting a value; the value
-     * must satisfy the firmware-provided minimum, maximum and step.
-     *
-     * @attention Read and write.
-     */
-    OB_PROP_VIDEO_GOP_INT = 294,
-
-    /**
      * @brief Clear Bluetooth pairing records stored by the device.
      *
      * Set the value to 1 to clear the pairing relationship.
@@ -878,14 +866,26 @@ typedef enum {
     OB_PROP_DEVICE_AUDIO_OUTPUT_VOLUME_INT = 305,
 
     /**
+    /**
      * @brief Enable encryption for SD-card recordings.
      */
     OB_PROP_SD_CARD_RECORDING_ENCRYPTION_ENABLE_BOOL = 306,
+    
+    /**
+     * @brief IR camera H.264/H.265 dynamic bitrate enable switch
+     */
+    OB_PROP_IR_DYNAMIC_BITRATE_ENABLE_BOOL = 308,
 
     /**
-     * @brief PEM public key used for SD-card recording encryption.
+     * @brief Maximum IR bitrate when dynamic bitrate is enabled
      */
-    OB_RAW_DATA_SD_CARD_RECORDING_ENCRYPTION_PUBLIC_KEY = 4068,
+    OB_PROP_IR_DYNAMIC_BITRATE_MAX_INT = 309,
+
+    /**
+     * @brief IR bitrate when static bitrate is enabled
+     */
+    OB_PROP_IR_BITRATE_INT = 310,
+
     /**
      * @brief Baseline calibration parameters
      */
@@ -1001,7 +1001,13 @@ typedef enum {
      */
     OB_STRUCT_GET_TF_CARD_CAPACITY = 1095,
 
-        /**
+    /**
+     * @brief Color AWB gain parameters
+     * @see OBAwbGainParams
+     */
+    OB_STRUCT_COLOR_AWB_GAIN = 1097,
+
+    /**
      * @brief Directory used for firmware SD-card recordings
      *
      * @details The SDK-facing payload is a UTF-8 Linux-style directory path without a trailing '\0'.
@@ -1011,12 +1017,6 @@ typedef enum {
      * @attention The directory can only be changed when firmware recording is stopped.
      */
     OB_STRUCT_FW_RECORDING_DIRECTORY = 1098,
-
-    /**
-     * @brief Color AWB gain parameters
-     * @see OBAwbGainParams
-     */
-    OB_STRUCT_COLOR_AWB_GAIN = 1097,
     
     /**
      * @brief Custom MCAP topics for firmware SD-card recording.
@@ -1086,6 +1086,15 @@ typedef enum {
     OB_STRUCT_RECORDING_SESSION_RESULT = 1107,
 
     /**
+     * @brief Device model type for EgoPro and EgoProNet devices.
+     *
+     * Payload is a null-terminated 32-byte character buffer.
+     *
+     * @attention Read only.
+     */
+    OB_STRUCT_DEVICE_MODEL_TYPE = 1108,
+
+    /**
      * @brief File name used for firmware SD-card recordings.
      *
      * @details The SDK-facing payload is a UTF-8 file name without a trailing '\0'.
@@ -1104,15 +1113,6 @@ typedef enum {
      * @attention Read and write.
      */
     OB_STRUCT_WIFI_CONFIG = 1124,
-
-    /**
-     * @brief Device model type for EgoPro and EgoProNet devices.
-     *
-     * Payload is a null-terminated 32-byte character buffer.
-     *
-     * @attention Read only.
-     */
-    OB_STRUCT_DEVICE_MODEL_TYPE = 1108,
 
     /**
      * @brief Color camera auto exposure
@@ -1279,11 +1279,6 @@ typedef enum {
     OB_PROP_IR_RECTIFY_BOOL = 2040,
 
     /**
-     * @brief magnetic encoder stream switch.
-     */
-    OB_PROP_MAG_ENCODER_SWITCH_BOOL = 2055,
-
-    /**
      * @brief Depth camera priority
      *
      */
@@ -1293,6 +1288,11 @@ typedef enum {
      * @brief Color camera WB control
      */
     OB_PROP_COLOR_WB_CTRL_INT = 2053,
+
+    /**
+     * @brief magnetic encoder stream switch.
+     */
+    OB_PROP_MAG_ENCODER_SWITCH_BOOL = 2055,
 
     /**
      * @brief Software disparity to depth
@@ -1368,6 +1368,11 @@ typedef enum {
      * The returned bytes follow the firmware log export package format.
      */
     OB_RAW_DATA_EXPORT_LOG = 4066,
+
+    /**
+     * @brief PEM public key used for SD-card recording encryption.
+     */
+    OB_RAW_DATA_SD_CARD_RECORDING_ENCRYPTION_PUBLIC_KEY = 4068,
 
     /**
      * @brief Confidence degree
