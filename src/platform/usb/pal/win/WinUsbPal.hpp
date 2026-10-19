@@ -39,8 +39,8 @@ private:
     std::shared_ptr<IUsbEnumerator> usbEnumerator_;
 
 private:
-    std::mutex                                                                  sourcePortMapMutex_;
-    std::map<std::shared_ptr<const SourcePortInfo>, std::weak_ptr<ISourcePort>> sourcePortMap_;
+    mutable std::mutex                                                          sourcePortMapMutex_;
+    mutable std::map<std::shared_ptr<const SourcePortInfo>, std::weak_ptr<ISourcePort>> sourcePortMap_;
     mutable std::mutex                                                           egoDepthHidInterfaceMutex_;
     mutable std::unordered_map<std::string, EgoDepthHidInterfaceEntry>          egoDepthHidInterfaces_;
 };
